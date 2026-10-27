@@ -205,6 +205,21 @@ body {
   gap: 14px;
 }
 
+.brand-logo-img {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.brand-logo-img:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 16px var(--blue-glow);
+}
+
 .logo-icon {
   font-size: 28px;
   background: var(--bg-card);
