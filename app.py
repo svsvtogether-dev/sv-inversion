@@ -6,6 +6,16 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import gradio as gr
 
+# Hugging Face ZeroGPU keepalive
+try:
+    import spaces
+    @spaces.GPU
+    def gpu_ready():
+        return True
+    gpu_ready()
+except Exception:
+    pass
+
 # Garantizar compatibilidad con UTF-8
 if sys.platform == "win32":
     try:
