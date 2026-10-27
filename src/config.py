@@ -7,7 +7,7 @@ DATA_DIR.mkdir(exist_ok=True)
 PORTFOLIO_FILE = DATA_DIR / "portfolio.json"
 
 # Configuración del Paper Trading
-INITIAL_CAPITAL_EUR = 30.00   # Saldo inicial virtual: 30 €
+INITIAL_CAPITAL_EUR = 250.00  # Saldo inicial virtual: 250 €
 TRADING_FEE_RATE = 0.001      # Comisión estándar estimada (0.1%)
 
 # Catálogo Universal de Mercados (Cripto, Índices, Acciones, Materias Primas y Forex)
@@ -43,7 +43,7 @@ CONFIG = {
     "symbol": DEFAULT_SYMBOL,
     "initial_capital": INITIAL_CAPITAL_EUR,
     "fee_rate": TRADING_FEE_RATE,
-    "order_amount_eur": 10.00,      # Tamaño por compra DCA (€10 permite 3 tramos con €30)
+    "order_amount_eur": 25.00,      # Tamaño por compra DCA (€25 permite 10 tramos con €250)
     "min_order_eur": 5.00,          # Mínimo para poder ejecutar una orden
     "take_profit_pct": 2.5,         # Objetivo de beneficio neto (+2.5%)
     "stop_loss_pct": -5.0,          # Límite de pérdida por protección (-5.0%)

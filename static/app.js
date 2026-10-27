@@ -121,7 +121,7 @@ function renderState(data) {
 
   // Sincronizar casillas de configuración si no se están editando activamente
   if (data.config && !configInitialized) {
-    cfgOrderAmount.value = data.config.order_amount_eur ?? 10.0;
+    cfgOrderAmount.value = data.config.order_amount_eur ?? 25.0;
     cfgTakeProfit.value = data.config.take_profit_pct ?? 2.5;
     cfgStopLoss.value = data.config.stop_loss_pct ?? -5.0;
     cfgRsiBuy.value = data.config.rsi_buy_threshold ?? 40;
@@ -296,11 +296,11 @@ emergencyBtn.addEventListener("click", async () => {
 });
 
 resetBtn.addEventListener("click", async () => {
-  if (confirm("¿Deseas reiniciar la cartera virtual a los 30 € iniciales?")) {
+  if (confirm("¿Deseas reiniciar la cartera virtual a los 250 € iniciales?")) {
     await fetch("/api/reset", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ capital: 30.0 })
+      body: JSON.stringify({ capital: 250.0 })
     });
     fetchState();
   }

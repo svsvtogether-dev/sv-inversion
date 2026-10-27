@@ -1,73 +1,11 @@
 {
-  "initial_capital": 30.0,
+  "initial_capital": 250.0,
   "fee_rate": 0.001,
-  "cash": 0.0,
-  "positions": {
-    "BTCEUR": {
-      "amount": 0.00013880129864662482,
-      "avg_entry_price": 71973.39,
-      "total_cost_eur": 10.0,
-      "dca_count": 1,
-      "first_buy_time": "2026-10-27 16:14:13",
-      "last_buy_price": 71973.39
-    },
-    "CL=F": {
-      "amount": 0.11145001037522619,
-      "avg_entry_price": 89.6366,
-      "total_cost_eur": 10.0,
-      "dca_count": 1,
-      "first_buy_time": "2026-10-27 16:23:19",
-      "last_buy_price": 89.6366
-    },
-    "GBPUSD=X": {
-      "amount": 8.363331938049393,
-      "avg_entry_price": 1.1945,
-      "total_cost_eur": 10.0,
-      "dca_count": 1,
-      "first_buy_time": "2026-10-27 16:38:30",
-      "last_buy_price": 1.1945
-    }
-  },
-  "trades": [
-    {
-      "id": 3,
-      "timestamp": "2026-10-27 16:38:30",
-      "symbol": "GBPUSD=X",
-      "side": "BUY",
-      "price": 1.1945,
-      "quantity": 8.363331938049393,
-      "amount_eur": 10.0,
-      "fee_eur": 0.01,
-      "realized_pnl_eur": 0.0,
-      "reason": "\ud83d\udfe2 Se\u00f1al de compra: Precio en soporte de Banda Bollinger Inferior (\u20ac1.19)"
-    },
-    {
-      "id": 2,
-      "timestamp": "2026-10-27 16:23:19",
-      "symbol": "CL=F",
-      "side": "BUY",
-      "price": 89.6366,
-      "quantity": 0.11145001037522619,
-      "amount_eur": 10.0,
-      "fee_eur": 0.01,
-      "realized_pnl_eur": 0.0,
-      "reason": "\ud83d\udfe2 Se\u00f1al de compra: RSI en sobreventa (32.8 <= 40.0)"
-    },
-    {
-      "id": 1,
-      "timestamp": "2026-10-27 16:14:13",
-      "symbol": "BTCEUR",
-      "side": "BUY",
-      "price": 71973.39,
-      "quantity": 0.00013880129864662482,
-      "amount_eur": 10.0,
-      "fee_eur": 0.01,
-      "realized_pnl_eur": 0.0,
-      "reason": "\ud83d\udfe2 Se\u00f1al de compra: Precio en soporte de Banda Bollinger Inferior (\u20ac71910.17)"
-    }
-  ],
-  "total_fees_paid": 0.03,
+  "cash": 250.0,
+  "positions": {},
+  "trades": [],
+  "total_fees_paid": 0.0,
   "realized_pnl": 0.0,
   "msci_vault_eur": 0.0,
-  "last_updated": "2026-10-27T16:38:30.052991"
+  "last_updated": "2026-10-27T20:58:20"
 }

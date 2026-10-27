@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from src.bot import TradingBot
 from src.config import CONFIG
 
-app = FastAPI(title="SV Inversión AI - Bot de Trading (30 €)")
+app = FastAPI(title="SV Inversión AI - Bot de Trading (250 €)")
 
 # Instancia global del bot
 bot = TradingBot()
@@ -55,7 +55,7 @@ def change_category(req: CategoryRequest):
     return {"category": bot.active_category, "symbol": bot.current_symbol}
 
 class ResetRequest(BaseModel):
-    capital: float = 30.0
+    capital: float = 250.0
 
 @app.post("/api/reset")
 def reset_portfolio(req: ResetRequest):

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SV Inversión - Paper Trading (30 €)</title>
+  <title>SV Inversión - Paper Trading (250 €)</title>
   <link rel="icon" type="image/png" href="/static/favicon.png">
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +20,7 @@
       <div class="brand">
         <img src="/static/logo-thumb.png" alt="SV Inversión" class="brand-logo-img">
         <div>
-          <h1>SV Inversión AI <span class="badge paper">SIMULACIÓN 30 €</span></h1>
+          <h1>SV Inversión AI <span class="badge paper">SIMULACIÓN 250 €</span></h1>
           <p class="subtitle">Motor Universal: Criptomonedas, Índices, Acciones, Oro y Forex</p>
         </div>
       </div>
@@ -42,8 +42,8 @@
                 data-tooltip="Vende INMEDIATAMENTE todas tus posiciones abiertas al precio actual de mercado y convierte todo de vuelta a Euros en efectivo.">🚨 Venta Emergencia</button>
         
         <button id="resetBtn" class="btn btn-outline has-help"
-                data-tooltip-title="🔄 Reiniciar Cartera a 30 €"
-                data-tooltip="Borra el historial de operaciones y restaura tu saldo virtual exactamente a 30,00 € si quieres empezar un nuevo experimento desde cero.">🔄 Reset 30€</button>
+                data-tooltip-title="🔄 Reiniciar Cartera a 250 €"
+                data-tooltip="Borra el historial de operaciones y restaura tu saldo virtual exactamente a 250,00 € si quieres empezar un nuevo experimento desde cero.">🔄 Reset 250€</button>
       </div>
     </header>
 
@@ -81,9 +81,9 @@
       <section class="kpi-row">
         <div class="card kpi-card has-help"
              data-tooltip-title="Valor Total de tu Cartera"
-             data-tooltip="La suma de TODO tu patrimonio: el dinero en efectivo que te queda libre más el valor actual en euros de lo que tienes invertido. Si este número sube por encima de 30 €, estás en ganancias.">
+             data-tooltip="La suma de TODO tu patrimonio: el dinero en efectivo que te queda libre más el valor actual en euros de lo que tienes invertido y tu bóveda MSCI World. Si este número sube por encima de 250 €, estás en ganancias.">
           <div class="kpi-title">VALOR TOTAL CARTERA <span class="help-icon">?</span></div>
-          <div class="kpi-value" id="kpiTotalValue">€30.00</div>
+          <div class="kpi-value" id="kpiTotalValue">€250.00</div>
           <div class="kpi-sub" id="kpiNetProfit">P&L: <span class="neutral">€0.00 (0.00%)</span></div>
         </div>
 
@@ -91,7 +91,7 @@
              data-tooltip-title="Efectivo Disponible (Liquidez)"
              data-tooltip="El dinero en Euros que NO está invertido en ningún activo en este instante. El bot lo guarda estratégicamente para poder comprar cuando el mercado caiga y ofrezca descuentos.">
           <div class="kpi-title">EFECTIVO DISPONIBLE <span class="help-icon">?</span></div>
-          <div class="kpi-value text-accent" id="kpiCash">€30.00</div>
+          <div class="kpi-value text-accent" id="kpiCash">€250.00</div>
           <div class="kpi-sub" id="kpiInPosition">En posiciones: €0.00</div>
         </div>
 
@@ -241,10 +241,10 @@
         <div class="config-grid">
           <div class="config-field has-help"
                data-tooltip-title="Tamaño por Compra (€)"
-               data-tooltip="Cuánto dinero gasta el bot en cada compra. Con 30 € de capital, poner 10 € te permite tener hasta 3 compras escalonadas para no gastar todo el dinero de golpe.">
+               data-tooltip="Cuánto dinero gasta el bot en cada compra. Con 250 € de capital, poner 25 € te permite tener hasta 10 compras escalonadas para diversificar y promediar a la baja sin quedarte sin liquidez.">
             <label>Tamaño por Compra (€): <span class="help-icon">?</span></label>
-            <input type="number" id="cfgOrderAmount" step="1.0" min="2" max="30" value="10.0">
-            <small class="hint">Con 30 €, €10.0 permite 3 compras escalonadas sin ahogar el capital.</small>
+            <input type="number" id="cfgOrderAmount" step="5.0" min="5" max="250" value="25.0">
+            <small class="hint">Con 250 €, €25.0 permite 10 compras escalonadas sin ahogar el capital.</small>
           </div>
           <div class="config-field has-help"
                data-tooltip-title="Take-Profit Objetivo (%)"
@@ -330,7 +330,7 @@
     </main>
 
     <footer class="footer">
-      <p>💡 <strong>Guía Interactiva:</strong> Mantén el ratón quieto durante <strong>2 segundos</strong> sobre cualquier casilla o indicador para ver la explicación sin molestias al mover el puntero. | <strong>Simulación con 30 €</strong></p>
+      <p>💡 <strong>Guía Interactiva:</strong> Mantén el ratón quieto durante <strong>2 segundos</strong> sobre cualquier casilla o indicador para ver la explicación sin molestias al mover el puntero. | <strong>Simulación con 250 €</strong></p>
     </footer>
   </div>
 
