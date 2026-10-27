@@ -1,3 +1,14 @@
+---
+title: SV Inversion
+emoji: 🤖
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 4.44.0
+app_file: app.py
+pinned: false
+---
+
 # 🤖 SV Inversión - Bot de Inversión Automatizado (Simulación 30 €)
 
 Bot de inversión algorítmica diseñado para operar en modo **Paper Trading** con un capital virtual inicial de **30,00 €** utilizando datos de mercado en tiempo real (Binance Spot) sin requerir claves API ni arriesgar fondos reales.
