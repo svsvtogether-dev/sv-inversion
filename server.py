@@ -5,8 +5,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from src.bot import TradingBot
+from src.config import CONFIG
 
-app = FastAPI(title="SV Inversión - Bot de Trading 10€")
+app = FastAPI(title="SV Inversión AI - Bot de Trading (30 €)")
 
 # Instancia global del bot
 bot = TradingBot()
@@ -51,10 +52,10 @@ class CategoryRequest(BaseModel):
 @app.post("/api/category")
 def change_category(req: CategoryRequest):
     bot.set_category(req.category)
-    return {"category": bot.active_category}
+    return {"category": bot.active_category, "symbol": bot.current_symbol}
 
 class ResetRequest(BaseModel):
-    capital: float = 10.0
+    capital: float = 30.0
 
 @app.post("/api/reset")
 def reset_portfolio(req: ResetRequest):
@@ -77,12 +78,10 @@ class ConfigUpdateRequest(BaseModel):
 
 @app.post("/api/config")
 def update_config(req: ConfigUpdateRequest):
-    bot.config["order_amount_eur"] = req.order_amount_eur
-    bot.config["take_profit_pct"] = req.take_profit_pct
-    bot.config["stop_loss_pct"] = req.stop_loss_pct
-    bot.config["rsi_buy_threshold"] = req.rsi_buy_threshold
-    bot.config["rsi_sell_threshold"] = req.rsi_sell_threshold
-    bot.config["msci_sweep_pct"] = req.msci_sweep_pct
+    for key in ["order_amount_eur", "take_profit_pct", "stop_loss_pct", "rsi_buy_threshold", "rsi_sell_threshold", "msci_sweep_pct"]:
+        val = getattr(req, key)
+        bot.config[key] = val
+        CONFIG[key] = val
     bot.strategy.config = bot.config
-    bot.log(f"⚙️ Parámetros actualizados (Desvío MSCI World: {req.msci_sweep_pct}%).")
+    bot.log(f"⚙️ Parámetros actualizados (Orden: €{req.order_amount_eur:.1f} | TP: +{req.take_profit_pct}% | Desvío MSCI World: {req.msci_sweep_pct}%).")
     return {"message": "Configuración actualizada con éxito"}

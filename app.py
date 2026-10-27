@@ -21,6 +21,7 @@ except Exception:
     pass
 
 from server import bot, STATIC_DIR
+from src.config import CONFIG
 
 if Server is not None:
     app = Server()
@@ -38,6 +39,8 @@ if Server is not None:
     @app.post("/api/toggle")
     def toggle_bot():
         bot.is_running = not bot.is_running
+        state_str = "activo" if bot.is_running else "en pausa"
+        bot.log(f"Bot marcado como {state_str} por el usuario.")
         return {"is_running": bot.is_running}
 
     class SymbolRequest(BaseModel):
@@ -54,7 +57,7 @@ if Server is not None:
     @app.post("/api/category")
     def change_category(req: CategoryRequest):
         bot.set_category(req.category)
-        return {"category": bot.active_category}
+        return {"category": bot.active_category, "symbol": bot.current_symbol}
 
     class ResetRequest(BaseModel):
         capital: float = 30.0
@@ -62,6 +65,7 @@ if Server is not None:
     @app.post("/api/reset")
     def reset_portfolio(req: ResetRequest):
         bot.portfolio.reset(req.capital)
+        bot.log(f"🔄 Cartera virtual reiniciada con €{req.capital:.2f}")
         return {"message": "Cartera reiniciada", "capital": req.capital}
 
     @app.post("/api/emergency_sell")
@@ -79,21 +83,19 @@ if Server is not None:
 
     @app.post("/api/config")
     def update_config(req: ConfigUpdateRequest):
-        bot.config["order_amount_eur"] = req.order_amount_eur
-        bot.config["take_profit_pct"] = req.take_profit_pct
-        bot.config["stop_loss_pct"] = req.stop_loss_pct
-        bot.config["rsi_buy_threshold"] = req.rsi_buy_threshold
-        bot.config["rsi_sell_threshold"] = req.rsi_sell_threshold
-        bot.config["msci_sweep_pct"] = req.msci_sweep_pct
+        for key in ["order_amount_eur", "take_profit_pct", "stop_loss_pct", "rsi_buy_threshold", "rsi_sell_threshold", "msci_sweep_pct"]:
+            val = getattr(req, key)
+            bot.config[key] = val
+            CONFIG[key] = val
         bot.strategy.config = bot.config
+        bot.log(f"⚙️ Parámetros actualizados (Orden: €{req.order_amount_eur:.1f} | TP: +{req.take_profit_pct}% | Desvío MSCI World: {req.msci_sweep_pct}%).")
         return {"message": "Configuración actualizada con éxito"}
 
     if __name__ == "__main__":
         app.launch()
 else:
-    # Fallback si Server no existe en la version
     with gr.Blocks(title="SV Inversión AI") as demo:
-        gr.HTML(f"<script>window.location.href='/dashboard';</script>")
+        gr.HTML("<script>window.location.href='/dashboard';</script>")
     demo.app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     @demo.app.get("/dashboard")
     def get_dashboard_html():

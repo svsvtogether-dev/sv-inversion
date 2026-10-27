@@ -122,7 +122,7 @@ class Portfolio:
         self.save()
         return trade
 
-    def sell(self, symbol: str, current_price: float, reason: str = "", sell_pct: float = 1.0) -> Optional[Dict]:
+    def sell(self, symbol: str, current_price: float, reason: str = "", sell_pct: float = 1.0, sweep_pct: Optional[float] = None) -> Optional[Dict]:
         """Ejecuta una venta virtual de la posición abierta."""
         pos = self.positions.get(symbol)
         if not pos or pos["amount"] <= 0:
@@ -139,8 +139,9 @@ class Portfolio:
 
         # Si hay ganancia, desviar el % configurado (ej: 50%) a la Bóveda de Ahorro MSCI World
         swept_to_msci = 0.0
-        from .config import CONFIG
-        sweep_pct = CONFIG.get("msci_sweep_pct", 50.0)
+        if sweep_pct is None:
+            from .config import CONFIG
+            sweep_pct = CONFIG.get("msci_sweep_pct", 50.0)
 
         if trade_pnl > 0 and sweep_pct > 0:
             swept_to_msci = round(trade_pnl * (sweep_pct / 100.0), 4)
@@ -185,7 +186,9 @@ class Portfolio:
         positions_detail = []
 
         for sym, pos in self.positions.items():
-            curr_p = current_prices.get(sym, pos.get("avg_entry_price", 0.0))
+            curr_p = current_prices.get(sym, 0.0)
+            if not curr_p or curr_p <= 0:
+                curr_p = pos.get("avg_entry_price", 0.0)
             val = pos["amount"] * curr_p
             positions_value += val
             cost = pos["total_cost_eur"]

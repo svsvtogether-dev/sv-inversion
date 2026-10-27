@@ -3,8 +3,17 @@ import requests
 from typing import Dict, List, Optional, Tuple
 from .config import MARKETS_CATALOG
 
-BINANCE_API_BASE = "https://api.binance.com/api/v3"
+BINANCE_ENDPOINTS = [
+    "https://data-api.binance.vision/api/v3",
+    "https://api.binance.com/api/v3",
+]
 YAHOO_CHART_BASE = "https://query1.finance.yahoo.com/v8/finance/chart"
+
+YAHOO_CRYPTO_MAP = {
+    "BTCEUR": "BTC-EUR",
+    "ETHEUR": "ETH-EUR",
+    "SOLEUR": "SOL-EUR",
+}
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
@@ -14,10 +23,17 @@ class MarketDataFeed:
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": USER_AGENT})
         self.last_known_prices: Dict[str, float] = {}
+        self.last_known_prices_eur: Dict[str, float] = {}
+        self.last_analysis_cache: Dict[str, Dict] = {}
         self.eur_usd_rate = 1.08  # Tasa base por defecto
+        self.last_rate_update = 0.0
 
     def update_eur_usd_rate(self) -> float:
-        """Obtiene la tasa de cambio en vivo EUR/USD para convertir cotizaciones de Wall Street a Euros."""
+        """Obtiene la tasa de cambio en vivo EUR/USD (con caché de 60s) para convertir cotizaciones USD a Euros."""
+        now = time.time()
+        if now - self.last_rate_update < 60.0 and self.eur_usd_rate > 0.5:
+            return self.eur_usd_rate
+
         try:
             url = f"{YAHOO_CHART_BASE}/EURUSD=X?interval=1d&range=1d"
             resp = self.session.get(url, timeout=self.timeout)
@@ -27,51 +43,65 @@ class MarketDataFeed:
                 rate = float(meta.get("regularMarketPrice", 1.08))
                 if rate > 0.5:
                     self.eur_usd_rate = rate
+                    self.last_rate_update = now
                     return rate
-        except Exception as e:
+        except Exception:
             pass
         return self.eur_usd_rate
 
     # ----------------------------------------------------
-    # FEEDS DE BINANCE (Criptomonedas 24/7)
+    # FEEDS DE BINANCE (Criptomonedas 24/7 con Fallback Global)
     # ----------------------------------------------------
     def _get_binance_data(self, symbol: str) -> Tuple[Optional[float], Dict, List[Dict]]:
         price = None
         stats = {}
         candles = []
 
-        try:
-            # 1. Precio actual
-            p_resp = self.session.get(f"{BINANCE_API_BASE}/ticker/price", params={"symbol": symbol}, timeout=self.timeout)
-            if p_resp.status_code == 200:
-                price = float(p_resp.json()["price"])
+        for base_url in BINANCE_ENDPOINTS:
+            try:
+                # 1. Estadísticas 24h y precio actual
+                s_resp = self.session.get(
+                    f"{base_url}/ticker/24hr",
+                    params={"symbol": symbol},
+                    timeout=self.timeout
+                )
+                if s_resp.status_code == 200:
+                    d = s_resp.json()
+                    price = float(d.get("lastPrice", 0))
+                    stats = {
+                        "price": price,
+                        "priceChangePercent": float(d.get("priceChangePercent", 0)),
+                        "highPrice": float(d.get("highPrice", 0)),
+                        "lowPrice": float(d.get("lowPrice", 0)),
+                        "volume": float(d.get("volume", 0)),
+                    }
 
-            # 2. Estadísticas 24h
-            s_resp = self.session.get(f"{BINANCE_API_BASE}/ticker/24hr", params={"symbol": symbol}, timeout=self.timeout)
-            if s_resp.status_code == 200:
-                d = s_resp.json()
-                stats = {
-                    "price": float(d.get("lastPrice", price or 0)),
-                    "priceChangePercent": float(d.get("priceChangePercent", 0)),
-                    "highPrice": float(d.get("highPrice", 0)),
-                    "lowPrice": float(d.get("lowPrice", 0)),
-                    "volume": float(d.get("volume", 0)),
-                }
+                # 2. Velas
+                k_resp = self.session.get(
+                    f"{base_url}/klines",
+                    params={"symbol": symbol, "interval": "1m", "limit": 50},
+                    timeout=self.timeout
+                )
+                if k_resp.status_code == 200:
+                    for k in k_resp.json():
+                        candles.append({
+                            "time": int(k[0]),
+                            "open": float(k[1]),
+                            "high": float(k[2]),
+                            "low": float(k[3]),
+                            "close": float(k[4]),
+                            "volume": float(k[5]),
+                        })
 
-            # 3. Velas
-            k_resp = self.session.get(f"{BINANCE_API_BASE}/klines", params={"symbol": symbol, "interval": "1m", "limit": 50}, timeout=self.timeout)
-            if k_resp.status_code == 200:
-                for k in k_resp.json():
-                    candles.append({
-                        "time": int(k[0]),
-                        "open": float(k[1]),
-                        "high": float(k[2]),
-                        "low": float(k[3]),
-                        "close": float(k[4]),
-                        "volume": float(k[5]),
-                    })
-        except Exception as e:
-            print(f"[Error Binance {symbol}]: {e}")
+                if price and price > 0 and candles:
+                    return price, stats, candles
+            except Exception as e:
+                print(f"[Aviso Binance {base_url} {symbol}]: {e}")
+
+        # Fallback automático a Yahoo Finance si Binance está restringido en la región del servidor cloud
+        yahoo_sym = YAHOO_CRYPTO_MAP.get(symbol)
+        if yahoo_sym:
+            return self._get_yahoo_data(yahoo_sym)
 
         return price, stats, candles
 
@@ -90,15 +120,15 @@ class MarketDataFeed:
                 res = resp.json()["chart"]["result"][0]
                 meta = res["meta"]
                 price_native = float(meta.get("regularMarketPrice", 0.0))
-                prev_close = float(meta.get("previousClose", price_native or 1.0))
+                prev_close = float(meta.get("previousClose") or meta.get("chartPreviousClose") or price_native or 1.0)
 
                 chg_pct = ((price_native - prev_close) / prev_close) * 100 if prev_close > 0 else 0.0
                 stats = {
                     "price": price_native,
                     "priceChangePercent": chg_pct,
-                    "highPrice": float(meta.get("regularMarketDayHigh", price_native)),
-                    "lowPrice": float(meta.get("regularMarketDayLow", price_native)),
-                    "volume": float(meta.get("regularMarketVolume", 0)),
+                    "highPrice": float(meta.get("regularMarketDayHigh") or price_native),
+                    "lowPrice": float(meta.get("regularMarketDayLow") or price_native),
+                    "volume": float(meta.get("regularMarketVolume") or 0),
                 }
 
                 # Velas
@@ -110,13 +140,13 @@ class MarketDataFeed:
                 lows = quotes.get("low", [])
 
                 for i in range(len(timestamps)):
-                    c = closes[i]
+                    c = closes[i] if i < len(closes) else None
                     if c is not None:
                         candles.append({
                             "time": timestamps[i] * 1000,
-                            "open": float(opens[i] if opens[i] is not None else c),
-                            "high": float(highs[i] if highs[i] is not None else c),
-                            "low": float(lows[i] if lows[i] is not None else c),
+                            "open": float(opens[i] if (i < len(opens) and opens[i] is not None) else c),
+                            "high": float(highs[i] if (i < len(highs) and highs[i] is not None) else c),
+                            "low": float(lows[i] if (i < len(lows) and lows[i] is not None) else c),
                             "close": float(c),
                             "volume": 0
                         })
@@ -154,7 +184,7 @@ class MarketDataFeed:
         if not closes:
             return 0.0
         if len(closes) < period:
-            return sum(closes) / len(closes)
+            return round(sum(closes) / len(closes), 4)
 
         multiplier = 2.0 / (period + 1)
         ema = sum(closes[:period]) / period
@@ -165,7 +195,7 @@ class MarketDataFeed:
     @staticmethod
     def calculate_bollinger_bands(closes: List[float], period: int = 20, num_std: float = 2.0) -> Tuple[float, float, float]:
         if len(closes) < period:
-            avg = sum(closes) / len(closes) if closes else 0.0
+            avg = round(sum(closes) / len(closes), 4) if closes else 0.0
             return avg, avg, avg
 
         slice_closes = closes[-period:]
@@ -181,10 +211,11 @@ class MarketDataFeed:
         meta = MARKETS_CATALOG.get(symbol, {"name": symbol, "source": "binance", "currency": "EUR", "category": "crypto"})
         source = meta.get("source", "binance")
         currency = meta.get("currency", "EUR")
+        category = meta.get("category", "crypto")
 
-        # Actualizar tipo de cambio EUR/USD periódicamente
+        # Actualizar tipo de cambio EUR/USD periódicamente (con caché)
         rate = self.eur_usd_rate
-        if currency == "USD":
+        if currency == "USD" and category != "forex":
             rate = self.update_eur_usd_rate()
 
         if source == "binance":
@@ -192,20 +223,26 @@ class MarketDataFeed:
         else:
             raw_price, stats_24h, candles = self._get_yahoo_data(symbol)
 
-        if raw_price is not None:
+        if raw_price is not None and raw_price > 0:
             self.last_known_prices[symbol] = raw_price
         else:
             raw_price = self.last_known_prices.get(symbol, 0.0)
 
-        # Si cotiza en USD, convertir a EUR para la contabilidad unificada
-        conversion_factor = (1.0 / rate) if (currency == "USD" and rate > 0) else 1.0
+        # Si cotiza en USD (y no es un par Forex directo), convertir a EUR para contabilidad unificada
+        conversion_factor = (1.0 / rate) if (currency == "USD" and category != "forex" and rate > 0) else 1.0
         price_eur = raw_price * conversion_factor
 
+        if price_eur > 0:
+            self.last_known_prices_eur[symbol] = round(price_eur, 4)
+
         if not candles:
+            cached = self.last_analysis_cache.get(symbol)
+            if cached and cached.get("price", 0) > 0:
+                return cached
             return {
                 "symbol": symbol,
                 "name": meta.get("name", symbol),
-                "category": meta.get("category", "crypto"),
+                "category": category,
                 "clean_symbol": meta.get("symbol_clean", symbol),
                 "currency": currency,
                 "native_price": round(raw_price, 4),
@@ -225,10 +262,10 @@ class MarketDataFeed:
         ema_slow = self.calculate_ema(closes_eur, period=21)
         bb_upper, bb_mid, bb_lower = self.calculate_bollinger_bands(closes_eur, period=20, num_std=2.0)
 
-        return {
+        result = {
             "symbol": symbol,
             "name": meta.get("name", symbol),
-            "category": meta.get("category", "crypto"),
+            "category": category,
             "clean_symbol": meta.get("symbol_clean", symbol),
             "currency": currency,
             "native_price": round(raw_price, 4),
@@ -242,3 +279,5 @@ class MarketDataFeed:
             "stats_24h": stats_24h,
             "candles": candles[-20:]
         }
+        self.last_analysis_cache[symbol] = result
+        return result

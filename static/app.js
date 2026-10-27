@@ -2,6 +2,7 @@ let currentSymbol = "BTCEUR";
 let currentCategory = "all";
 let isRunning = true;
 let marketsCatalog = {};
+let configInitialized = false;
 
 // DOM Elements
 const kpiTotalValue = document.getElementById("kpiTotalValue");
@@ -111,11 +112,22 @@ function renderState(data) {
   if (isRunning) {
     dot.className = "dot live";
     toggleBotBtn.textContent = "⏸️ Pausar";
-    toggleBotBtn.className = "btn btn-secondary";
+    toggleBotBtn.className = "btn btn-secondary has-help";
   } else {
     dot.className = "dot paused";
     toggleBotBtn.textContent = "▶️ Reanudar";
-    toggleBotBtn.className = "btn btn-primary";
+    toggleBotBtn.className = "btn btn-primary has-help";
+  }
+
+  // Sincronizar casillas de configuración si no se están editando activamente
+  if (data.config && !configInitialized) {
+    cfgOrderAmount.value = data.config.order_amount_eur ?? 10.0;
+    cfgTakeProfit.value = data.config.take_profit_pct ?? 2.5;
+    cfgStopLoss.value = data.config.stop_loss_pct ?? -5.0;
+    cfgRsiBuy.value = data.config.rsi_buy_threshold ?? 40;
+    cfgRsiSell.value = data.config.rsi_sell_threshold ?? 65;
+    cfgMsciSweep.value = data.config.msci_sweep_pct ?? 50;
+    configInitialized = true;
   }
 
   // Category buttons
