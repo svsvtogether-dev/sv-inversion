@@ -121,14 +121,13 @@ function renderState(data) {
   }
 
   // Sincronizar casillas de configuración si no se están editando activamente
-  if (data.config && !configInitialized) {
-    cfgOrderAmount.value = data.config.order_amount_eur ?? 25.0;
-    cfgTakeProfit.value = data.config.take_profit_pct ?? 2.5;
-    cfgStopLoss.value = data.config.stop_loss_pct ?? -5.0;
-    cfgRsiBuy.value = data.config.rsi_buy_threshold ?? 40;
-    cfgRsiSell.value = data.config.rsi_sell_threshold ?? 65;
-    cfgMsciSweep.value = data.config.msci_sweep_pct ?? 0;
-    configInitialized = true;
+  if (data.config) {
+    if (document.activeElement !== cfgOrderAmount) cfgOrderAmount.value = data.config.order_amount_eur ?? 25.0;
+    if (document.activeElement !== cfgTakeProfit) cfgTakeProfit.value = data.config.take_profit_pct ?? 2.5;
+    if (document.activeElement !== cfgStopLoss) cfgStopLoss.value = data.config.stop_loss_pct ?? -5.0;
+    if (document.activeElement !== cfgRsiBuy) cfgRsiBuy.value = data.config.rsi_buy_threshold ?? 40;
+    if (document.activeElement !== cfgRsiSell) cfgRsiSell.value = data.config.rsi_sell_threshold ?? 65;
+    if (document.activeElement !== cfgMsciSweep) cfgMsciSweep.value = data.config.msci_sweep_pct ?? 0;
   }
 
   // Category buttons
