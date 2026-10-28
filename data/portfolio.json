@@ -1,7 +1,7 @@
 {
   "initial_capital": 250.0,
   "fee_rate": 0.001,
-  "cash": 51.2932,
+  "cash": 1.2932,
   "positions": {
     "MSFT": {
       "amount": 0.05238491364826787,
@@ -44,20 +44,20 @@
       "last_buy_price": 91.2008
     },
     "SOLEUR": {
-      "amount": 0.2707317073170732,
-      "avg_entry_price": 92.25,
-      "total_cost_eur": 25.0,
-      "dca_count": 1,
+      "amount": 0.5437720484125144,
+      "avg_entry_price": 91.8583442194644,
+      "total_cost_eur": 50.0,
+      "dca_count": 2,
       "first_buy_time": "2026-10-28 12:39:52",
-      "last_buy_price": 92.25
+      "last_buy_price": 91.47
     },
     "ETHEUR": {
-      "amount": 0.01174354633939907,
-      "avg_entry_price": 2126.7,
-      "total_cost_eur": 25.0,
-      "dca_count": 1,
+      "amount": 0.02360606931635799,
+      "avg_entry_price": 2115.98124747464,
+      "total_cost_eur": 50.0,
+      "dca_count": 2,
       "first_buy_time": "2026-10-28 12:39:52",
-      "last_buy_price": 2126.7
+      "last_buy_price": 2105.37
     },
     "BTCEUR": {
       "amount": 0.00034174610296553516,
@@ -69,6 +69,30 @@
     }
   },
   "trades": [
+    {
+      "id": 17,
+      "timestamp": "2026-10-28 13:14:31",
+      "symbol": "SOLEUR",
+      "side": "BUY",
+      "price": 91.47,
+      "quantity": 0.2730403410954412,
+      "amount_eur": 25.0,
+      "fee_eur": 0.025,
+      "realized_pnl_eur": 0.0,
+      "reason": "\ud83d\udcc9 DCA #2: Compra en retroceso (-0.85%) con RSI 14.2"
+    },
+    {
+      "id": 16,
+      "timestamp": "2026-10-28 13:13:44",
+      "symbol": "ETHEUR",
+      "side": "BUY",
+      "price": 2105.37,
+      "quantity": 0.01186252297695892,
+      "amount_eur": 25.0,
+      "fee_eur": 0.025,
+      "realized_pnl_eur": 0.0,
+      "reason": "\ud83d\udcc9 DCA #2: Compra en retroceso (-1.00%) con RSI 16.7"
+    },
     {
       "id": 24,
       "timestamp": "2026-10-28 10:21:37",
@@ -262,8 +286,8 @@
       "reason": "\ud83d\udfe2 Se\u00f1al de compra: Precio en soporte de Banda Bollinger Inferior (\u20ac2105.98)"
     }
   ],
-  "total_fees_paid": 0.6016,
+  "total_fees_paid": 0.6516,
   "realized_pnl": 1.2932,
   "msci_vault_eur": 0.0,
-  "last_updated": "2026-10-28T12:39:52.998396"
+  "last_updated": "2026-10-28T13:14:31.273692"
 }

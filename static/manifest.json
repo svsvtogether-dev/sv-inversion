@@ -1,0 +1,24 @@
+{
+  "name": "SV Inversión AI",
+  "short_name": "SV Inversión",
+  "description": "Bot de Inversión y Trading Algorítmico 24/7",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0d14",
+  "theme_color": "#0a0d14",
+  "icons": [
+    {
+      "src": "/static/favicon.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/logo-thumb.png",
+      "sizes": "160x160 192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

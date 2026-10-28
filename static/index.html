@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SV Inversión - Paper Trading (250 €)</title>
   <link rel="icon" type="image/png" href="/static/favicon.png">
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#0a0d14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SV Inversión">
+  <link rel="apple-touch-icon" href="/static/logo-thumb.png">
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,6 +33,9 @@
       </div>
 
       <div class="header-controls">
+        <button id="pwaInstallBtn" class="btn btn-primary has-help" style="display: none; background: #2563eb;"
+                data-tooltip-title="📲 Instalar en tu Móvil"
+                data-tooltip="Instala la aplicación SV Inversión directamente en tu teléfono móvil con su icono oficial.">📲 Instalar App</button>
         <div class="status-indicator has-help" id="statusIndicator"
              data-tooltip-title="Estado del Algoritmo"
              data-tooltip="Muestra si el bot está activamente analizando el mercado y listo para operar, o si lo has puesto en pausa.">
@@ -339,5 +349,37 @@
   </div>
 
   <script src="/static/app.js?v=2"></script>
+  <!-- Service Worker PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js').catch(err => console.log('SW error:', err));
+      });
+    }
+
+    let deferredPrompt = null;
+    const pwaInstallBtn = document.getElementById('pwaInstallBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (pwaInstallBtn) {
+        pwaInstallBtn.style.display = 'inline-flex';
+      }
+    });
+
+    if (pwaInstallBtn) {
+      pwaInstallBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+            pwaInstallBtn.style.display = 'none';
+          }
+          deferredPrompt = null;
+        }
+      });
+    }
+  </script>
 </body>
 </html>
