@@ -3,6 +3,7 @@ let currentCategory = "all";
 let isRunning = true;
 let marketsCatalog = {};
 let configInitialized = false;
+let tradesFilter = "ALL"; // "ALL" | "SELL"
 
 // DOM Elements
 const kpiTotalValue = document.getElementById("kpiTotalValue");
@@ -232,21 +233,31 @@ function renderState(data) {
   }
 
   // Recent Trades Table
-  if (!p.recent_trades || p.recent_trades.length === 0) {
-    tradesTableBody.innerHTML = `<tr><td colspan="8" class="text-center empty-state">Aún no hay operaciones registradas.</td></tr>`;
+  const allTrades = p.recent_trades || [];
+  const filteredTrades = tradesFilter === "SELL" ? allTrades.filter(t => t.side === "SELL") : allTrades;
+
+  if (filteredTrades.length === 0) {
+    tradesTableBody.innerHTML = `<tr><td colspan="8" class="text-center empty-state">Aún no hay operaciones registradas en esta vista.</td></tr>`;
   } else {
-    tradesTableBody.innerHTML = p.recent_trades.map(t => {
+    tradesTableBody.innerHTML = filteredTrades.map(t => {
       const isBuy = t.side === "BUY";
-      const badgeStyle = isBuy ? "background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 6px; border-radius: 4px; font-weight: bold;" : "background: rgba(245,158,11,0.2); color: #f59e0b; padding: 2px 6px; border-radius: 4px; font-weight: bold;";
-      const pnlText = isBuy ? "-" : (t.realized_pnl_eur >= 0 ? `+${formatEur(t.realized_pnl_eur)}` : formatEur(t.realized_pnl_eur));
+      const sideLabel = isBuy ? "🟢 COMPRA" : "💰 VENTA";
+      const badgeStyle = isBuy
+        ? "background: rgba(59,130,246,0.18); color: #60a5fa; padding: 3px 7px; border-radius: 5px; font-weight: bold; font-size: 11px;"
+        : "background: rgba(16,185,129,0.22); color: #10b981; padding: 3px 7px; border-radius: 5px; font-weight: bold; font-size: 11px;";
+      const rowStyle = isBuy ? "" : "background: rgba(16, 185, 129, 0.05);";
+      const pctSuffix = t.pnl_pct !== undefined ? ` (${t.pnl_pct >= 0 ? "+" : ""}${t.pnl_pct}%)` : "";
+      const pnlText = isBuy
+        ? "En curso"
+        : (t.realized_pnl_eur >= 0 ? `✅ +${formatEur(t.realized_pnl_eur)}${pctSuffix}` : `🛑 ${formatEur(t.realized_pnl_eur)}${pctSuffix}`);
       const pnlClass = isBuy ? "text-muted" : (t.realized_pnl_eur >= 0 ? "text-green font-bold" : "text-red font-bold");
       const tMeta = marketsCatalog[t.symbol] || {};
       const tName = tMeta.name || t.symbol;
       return `
-        <tr>
+        <tr style="${rowStyle}">
           <td class="text-muted">${t.timestamp.split(" ")[1] || t.timestamp}</td>
-          <td><span style="${badgeStyle}">${t.side}</span></td>
-          <td>${tName}</td>
+          <td><span style="${badgeStyle}">${sideLabel}</span></td>
+          <td><strong>${tName}</strong></td>
           <td>${formatEur(t.price)}</td>
           <td>${formatEur(t.amount_eur)}</td>
           <td class="text-muted">${formatEur(t.fee_eur)}</td>
@@ -271,6 +282,24 @@ function renderState(data) {
 }
 
 // Category tabs click
+const filterAllTradesBtn = document.getElementById("filterAllTradesBtn");
+const filterSellTradesBtn = document.getElementById("filterSellTradesBtn");
+
+if (filterAllTradesBtn && filterSellTradesBtn) {
+  filterAllTradesBtn.addEventListener("click", () => {
+    tradesFilter = "ALL";
+    filterAllTradesBtn.className = "btn btn-primary btn-sm";
+    filterSellTradesBtn.className = "btn btn-secondary btn-sm";
+    fetchState();
+  });
+  filterSellTradesBtn.addEventListener("click", () => {
+    tradesFilter = "SELL";
+    filterSellTradesBtn.className = "btn btn-primary btn-sm";
+    filterAllTradesBtn.className = "btn btn-secondary btn-sm";
+    fetchState();
+  });
+}
+
 document.querySelectorAll(".cat-btn").forEach(btn => {
   btn.addEventListener("click", async () => {
     const category = btn.dataset.category;

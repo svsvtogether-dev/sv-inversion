@@ -291,6 +291,10 @@
             <h2 class="has-help"
                 data-tooltip-title="Historial de Órdenes"
                 data-tooltip="El libro contable transparente de cada compra y venta que el bot ha ejecutado, con fecha, hora, comisiones exactas y ganancia neta conseguida.">Historial de Órdenes Recientes <span class="help-icon">?</span></h2>
+            <div style="display: flex; gap: 6px;">
+              <button id="filterAllTradesBtn" class="btn btn-primary btn-sm" style="padding: 4px 10px; font-size: 12px;">📋 Todas</button>
+              <button id="filterSellTradesBtn" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 12px;">💰 Solo Ventas (Ganancias)</button>
+            </div>
           </div>
           <div class="table-container scrollable-table">
             <table class="data-table">

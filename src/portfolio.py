@@ -238,5 +238,5 @@ class Portfolio:
             "closed_trades_count": len(sells),
             "win_rate_pct": round(win_rate, 1),
             "positions": positions_detail,
-            "recent_trades": self.trades[:15]
+            "recent_trades": self.trades[:50]
         }
