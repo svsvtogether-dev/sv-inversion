@@ -114,7 +114,7 @@ class TradingBot:
                 now_str = datetime.now().strftime("%H:%M:%S")
 
                 if action == "SELL":
-                    sweep_pct = self.config.get("msci_sweep_pct", 50.0)
+                    sweep_pct = self.config.get("msci_sweep_pct", 0.0)
                     trade = self.portfolio.sell(sym, price, reason, sell_pct=1.0, sweep_pct=sweep_pct)
                     if trade:
                         pnl_sign = "+" if trade['realized_pnl_eur'] >= 0 else ""
@@ -220,7 +220,7 @@ class TradingBot:
                 if p <= 0:
                     p = pos.get("avg_entry_price", 0.0)
                 if p > 0:
-                    sweep_pct = self.config.get("msci_sweep_pct", 50.0)
+                    sweep_pct = self.config.get("msci_sweep_pct", 0.0)
                     trade = self.portfolio.sell(sym, p, "⚠️ Venta de Emergencia solicitada por el usuario", sell_pct=1.0, sweep_pct=sweep_pct)
                     if trade:
                         sold_count += 1

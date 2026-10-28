@@ -141,7 +141,7 @@ class Portfolio:
         swept_to_msci = 0.0
         if sweep_pct is None:
             from .config import CONFIG
-            sweep_pct = CONFIG.get("msci_sweep_pct", 50.0)
+            sweep_pct = CONFIG.get("msci_sweep_pct", 0.0)
 
         if trade_pnl > 0 and sweep_pct > 0:
             swept_to_msci = round(trade_pnl * (sweep_pct / 100.0), 4)

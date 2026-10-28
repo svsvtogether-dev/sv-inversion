@@ -1,11 +1,269 @@
 {
   "initial_capital": 250.0,
   "fee_rate": 0.001,
-  "cash": 250.0,
-  "positions": {},
-  "trades": [],
-  "total_fees_paid": 0.0,
-  "realized_pnl": 0.0,
+  "cash": 51.2932,
+  "positions": {
+    "MSFT": {
+      "amount": 0.05238491364826787,
+      "avg_entry_price": 476.7594,
+      "total_cost_eur": 25.0,
+      "dca_count": 1,
+      "first_buy_time": "2026-10-28 12:39:52",
+      "last_buy_price": 476.7594
+    },
+    "EURUSD=X": {
+      "amount": 22.42524916943522,
+      "avg_entry_price": 1.1137,
+      "total_cost_eur": 25.0,
+      "dca_count": 1,
+      "first_buy_time": "2026-10-28 12:39:52",
+      "last_buy_price": 1.1137
+    },
+    "GBPUSD=X": {
+      "amount": 18.771138669673057,
+      "avg_entry_price": 1.3305,
+      "total_cost_eur": 25.0,
+      "dca_count": 1,
+      "first_buy_time": "2026-10-28 12:39:52",
+      "last_buy_price": 1.3305
+    },
+    "GC=F": {
+      "amount": 0.006825968602894911,
+      "avg_entry_price": 3658.8214,
+      "total_cost_eur": 25.0,
+      "dca_count": 1,
+      "first_buy_time": "2026-10-28 12:39:52",
+      "last_buy_price": 3658.8214
+    },
+    "CL=F": {
+      "amount": 0.2738462820501575,
+      "avg_entry_price": 91.2008,
+      "total_cost_eur": 25.0,
+      "dca_count": 1,
+      "first_buy_time": "2026-10-28 12:39:52",
+      "last_buy_price": 91.2008
+    },
+    "SOLEUR": {
+      "amount": 0.2707317073170732,
+      "avg_entry_price": 92.25,
+      "total_cost_eur": 25.0,
+      "dca_count": 1,
+      "first_buy_time": "2026-10-28 12:39:52",
+      "last_buy_price": 92.25
+    },
+    "ETHEUR": {
+      "amount": 0.01174354633939907,
+      "avg_entry_price": 2126.7,
+      "total_cost_eur": 25.0,
+      "dca_count": 1,
+      "first_buy_time": "2026-10-28 12:39:52",
+      "last_buy_price": 2126.7
+    },
+    "BTCEUR": {
+      "amount": 0.00034174610296553516,
+      "avg_entry_price": 73080.57,
+      "total_cost_eur": 25.0,
+      "dca_count": 1,
+      "first_buy_time": "2026-10-28 12:39:52",
+      "last_buy_price": 73080.57
+    }
+  },
+  "trades": [
+    {
+      "id": 24,
+      "timestamp": "2026-10-28 10:21:37",
+      "symbol": "BTCEUR",
+      "side": "BUY",
+      "price": 73080.57,
+      "quantity": 0.00034174610296553516,
+      "amount_eur": 25.0,
+      "fee_eur": 0.025,
+      "realized_pnl_eur": 0.0,
+      "reason": "\ud83d\udfe2 Se\u00f1al de compra: Precio en soporte de Banda Bollinger Inferior (\u20ac73077.38)"
+    },
+    {
+      "id": 23,
+      "timestamp": "2026-10-28 10:02:15",
+      "symbol": "ETHEUR",
+      "side": "BUY",
+      "price": 2126.7,
+      "quantity": 0.01174354633939907,
+      "amount_eur": 25.0,
+      "fee_eur": 0.025,
+      "realized_pnl_eur": 0.0,
+      "reason": "\ud83d\udfe2 Se\u00f1al de compra: RSI en sobreventa (35.4 <= 40.0)"
+    },
+    {
+      "id": 22,
+      "timestamp": "2026-10-28 09:50:03",
+      "symbol": "SOLEUR",
+      "side": "BUY",
+      "price": 92.25,
+      "quantity": 0.2707317073170732,
+      "amount_eur": 25.0,
+      "fee_eur": 0.025,
+      "realized_pnl_eur": 0.0,
+      "reason": "\ud83d\udfe2 Se\u00f1al de compra: Precio en soporte de Banda Bollinger Inferior (\u20ac92.19)"
+    },
+    {
+      "id": 21,
+      "timestamp": "2026-10-28 09:26:54",
+      "symbol": "SOLEUR",
+      "side": "SELL",
+      "price": 92.38,
+      "quantity": 0.27280174767886406,
+      "amount_eur": 25.1762,
+      "fee_eur": 0.0252,
+      "realized_pnl_eur": 0.1762,
+      "swept_to_msci_eur": 0.0881,
+      "pnl_pct": 0.7,
+      "reason": "\ud83d\udcc8 Toma de ganancias por RSI elevado (87.1) y ganancia de +0.91%"
+    },
+    {
+      "id": 20,
+      "timestamp": "2026-10-28 09:26:40",
+      "symbol": "BTCEUR",
+      "side": "SELL",
+      "price": 73032.36,
+      "quantity": 0.0003448355848784315,
+      "amount_eur": 25.159,
+      "fee_eur": 0.0252,
+      "realized_pnl_eur": 0.159,
+      "swept_to_msci_eur": 0.0795,
+      "pnl_pct": 0.64,
+      "reason": "\ud83d\udcc8 Toma de ganancias por RSI elevado (85.8) y ganancia de +0.84%"
+    },
+    {
+      "id": 19,
+      "timestamp": "2026-10-28 09:10:00",
+      "symbol": "CL=F",
+      "side": "BUY",
+      "price": 91.2008,
+      "quantity": 0.2738462820501575,
+      "amount_eur": 25.0,
+      "fee_eur": 0.025,
+      "realized_pnl_eur": 0.0,
+      "reason": "\ud83d\udfe2 Se\u00f1al de compra: RSI en sobreventa (39.5 <= 40.0)"
+    },
+    {
+      "id": 18,
+      "timestamp": "2026-10-28 09:05:43",
+      "symbol": "ETHEUR",
+      "side": "SELL",
+      "price": 2124.73,
+      "quantity": 0.011848847139197267,
+      "amount_eur": 25.1504,
+      "fee_eur": 0.0252,
+      "realized_pnl_eur": 0.1504,
+      "swept_to_msci_eur": 0.0752,
+      "pnl_pct": 0.6,
+      "reason": "\ud83d\udcc8 Toma de ganancias por RSI elevado (77.1) y ganancia de +0.80%"
+    },
+    {
+      "id": 17,
+      "timestamp": "2026-10-28 04:56:06",
+      "symbol": "SOLEUR",
+      "side": "BUY",
+      "price": 91.55,
+      "quantity": 0.27280174767886406,
+      "amount_eur": 25.0,
+      "fee_eur": 0.025,
+      "realized_pnl_eur": 0.0,
+      "reason": "\ud83d\udfe2 Se\u00f1al de compra: RSI en sobreventa (38.9 <= 40.0)"
+    },
+    {
+      "id": 16,
+      "timestamp": "2026-10-28 04:32:49",
+      "symbol": "SOLEUR",
+      "side": "SELL",
+      "price": 91.91,
+      "quantity": 0.2740289664252798,
+      "amount_eur": 25.1608,
+      "fee_eur": 0.0252,
+      "realized_pnl_eur": 0.1608,
+      "swept_to_msci_eur": 0.0804,
+      "pnl_pct": 0.64,
+      "reason": "\ud83d\udcc8 Toma de ganancias por RSI elevado (90.7) y ganancia de +0.84%"
+    },
+    {
+      "id": 15,
+      "timestamp": "2026-10-28 04:00:55",
+      "symbol": "SOLEUR",
+      "side": "BUY",
+      "price": 91.14,
+      "quantity": 0.2740289664252798,
+      "amount_eur": 25.0,
+      "fee_eur": 0.025,
+      "realized_pnl_eur": 0.0,
+      "reason": "\ud83d\udfe2 Se\u00f1al de compra: RSI en sobreventa (37.1 <= 40.0)"
+    },
+    {
+      "id": 14,
+      "timestamp": "2026-10-28 03:18:26",
+      "symbol": "SOLEUR",
+      "side": "SELL",
+      "price": 91.55,
+      "quantity": 0.27499449460471265,
+      "amount_eur": 25.1505,
+      "fee_eur": 0.0252,
+      "realized_pnl_eur": 0.1505,
+      "swept_to_msci_eur": 0.0753,
+      "pnl_pct": 0.6,
+      "reason": "\ud83d\udcc8 Toma de ganancias por RSI elevado (75.5) y ganancia de +0.80%"
+    },
+    {
+      "id": 13,
+      "timestamp": "2026-10-28 01:36:38",
+      "symbol": "CL=F",
+      "side": "SELL",
+      "price": 90.424,
+      "quantity": 0.27840853986843733,
+      "amount_eur": 25.1496,
+      "fee_eur": 0.0252,
+      "realized_pnl_eur": 0.1496,
+      "swept_to_msci_eur": 0.0748,
+      "pnl_pct": 0.6,
+      "reason": "\ud83d\udcc8 Toma de ganancias por RSI elevado (72.7) y ganancia de +0.80%"
+    },
+    {
+      "id": 12,
+      "timestamp": "2026-10-28 00:34:43",
+      "symbol": "GC=F",
+      "side": "BUY",
+      "price": 3658.8214,
+      "quantity": 0.006825968602894911,
+      "amount_eur": 25.0,
+      "fee_eur": 0.025,
+      "realized_pnl_eur": 0.0,
+      "reason": "\ud83d\udfe2 Se\u00f1al de compra: Precio en soporte de Banda Bollinger Inferior (\u20ac3658.32)"
+    },
+    {
+      "id": 11,
+      "timestamp": "2026-10-27 23:33:05",
+      "symbol": "CL=F",
+      "side": "BUY",
+      "price": 89.7063,
+      "quantity": 0.27840853986843733,
+      "amount_eur": 25.0,
+      "fee_eur": 0.025,
+      "realized_pnl_eur": 0.0,
+      "reason": "\ud83d\udfe2 Se\u00f1al de compra: Precio en soporte de Banda Bollinger Inferior (\u20ac89.66)"
+    },
+    {
+      "id": 10,
+      "timestamp": "2026-10-27 23:08:07",
+      "symbol": "ETHEUR",
+      "side": "BUY",
+      "price": 2107.8,
+      "quantity": 0.011848847139197267,
+      "amount_eur": 25.0,
+      "fee_eur": 0.025,
+      "realized_pnl_eur": 0.0,
+      "reason": "\ud83d\udfe2 Se\u00f1al de compra: Precio en soporte de Banda Bollinger Inferior (\u20ac2105.98)"
+    }
+  ],
+  "total_fees_paid": 0.6016,
+  "realized_pnl": 1.2932,
   "msci_vault_eur": 0.0,
-  "last_updated": "2026-10-27T20:58:20"
+  "last_updated": "2026-10-28T12:39:52.998396"
 }

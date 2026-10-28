@@ -126,7 +126,7 @@ function renderState(data) {
     cfgStopLoss.value = data.config.stop_loss_pct ?? -5.0;
     cfgRsiBuy.value = data.config.rsi_buy_threshold ?? 40;
     cfgRsiSell.value = data.config.rsi_sell_threshold ?? 65;
-    cfgMsciSweep.value = data.config.msci_sweep_pct ?? 50;
+    cfgMsciSweep.value = data.config.msci_sweep_pct ?? 0;
     configInitialized = true;
   }
 

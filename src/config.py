@@ -54,5 +54,5 @@ CONFIG = {
     "candle_limit": 50,             # Número de velas históricas
     "check_interval_seconds": 6,    # Frecuencia de revisión del mercado
     "active_category": "all",       # "all", "crypto", "indices", "stocks", "commodities", "forex"
-    "msci_sweep_pct": 50.0          # % de las ganancias netas que se desvían a la Bóveda MSCI World (Ahorro a Largo Plazo)
+    "msci_sweep_pct": 0.0           # % de las ganancias netas que se desvían a la Bóveda MSCI World (0% = 100% reinversión en el bot)
 }

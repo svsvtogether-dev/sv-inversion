@@ -79,7 +79,7 @@ if Server is not None:
         stop_loss_pct: float
         rsi_buy_threshold: float
         rsi_sell_threshold: float
-        msci_sweep_pct: float = 50.0
+        msci_sweep_pct: float = 0.0
 
     @app.post("/api/config")
     def update_config(req: ConfigUpdateRequest):

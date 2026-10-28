@@ -276,10 +276,10 @@
           </div>
           <div class="config-field has-help"
                data-tooltip-title="% Ganancias a MSCI World (0 a 100%)"
-               data-tooltip="De cada venta en la que ganes dinero, este porcentaje se retirará automáticamente del trading y se invertirá en el Fondo Indexado MSCI World para tu jubilación o ahorro a largo plazo.">
+               data-tooltip="De cada venta en la que ganes dinero, este porcentaje se retirará automáticamente del trading y se invertirá en el Fondo Indexado MSCI World. Si está en 0%, el 100% del beneficio se reinvierte en el bot.">
             <label style="color: #fbbf24;">% Ganancias a MSCI World: <span class="help-icon">?</span></label>
-            <input type="number" id="cfgMsciSweep" step="5" min="0" max="100" value="50">
-            <small class="hint">50% para Ahorro Indexado y 50% para seguir operando.</small>
+            <input type="number" id="cfgMsciSweep" step="5" min="0" max="100" value="0">
+            <small class="hint">0% = Reinvertir el 100% de las ganancias directamente en el bot.</small>
           </div>
         </div>
       </section>
