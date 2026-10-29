@@ -78,18 +78,40 @@ function formatCrypto(val) {
 
 // Environment Management
 window.setEnvironment = async function(env) {
-  if (env === activeEnvironment) return;
   activeEnvironment = env;
+  // Feedback visual instantáneo (optimistic update)
+  if (tabSimBtn && tabLiveBtn) {
+    if (env === "live") {
+      tabLiveBtn.className = "env-tab-btn active live-active";
+      tabSimBtn.className = "env-tab-btn";
+      if (liveWarningBanner) liveWarningBanner.style.display = "flex";
+      if (headerEnvBadge) {
+        headerEnvBadge.textContent = "🔴 DINERO REAL (BINANCE)";
+        headerEnvBadge.className = "badge live";
+      }
+      if (resetBtn) resetBtn.style.display = "none";
+    } else {
+      tabSimBtn.className = "env-tab-btn active";
+      tabLiveBtn.className = "env-tab-btn";
+      if (liveWarningBanner) liveWarningBanner.style.display = "none";
+      if (headerEnvBadge) {
+        headerEnvBadge.textContent = "SIMULACIÓN 250 €";
+        headerEnvBadge.className = "badge paper";
+      }
+      if (resetBtn) resetBtn.style.display = "inline-flex";
+    }
+  }
+
   try {
     await fetch("/api/environment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ environment: env })
     });
-    fetchState();
   } catch (err) {
     console.error("Error cambiando entorno:", err);
   }
+  fetchState();
 };
 
 window.toggleLiveArmed = async function() {
@@ -539,6 +561,12 @@ function positionTooltip(e) {
 
 setupTooltips();
 
+
+if (tabSimBtn) tabSimBtn.addEventListener("click", () => window.setEnvironment("simulation"));
+if (tabLiveBtn) tabLiveBtn.addEventListener("click", () => window.setEnvironment("live"));
+if (liveArmToggleBtn) liveArmToggleBtn.addEventListener("click", () => window.toggleLiveArmed());
+
 // Loop
 fetchState();
+
 setInterval(fetchState, 3000);
