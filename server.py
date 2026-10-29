@@ -1,6 +1,7 @@
 import os
+from typing import Optional
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -27,11 +28,11 @@ def get_dashboard():
         return {"message": "El dashboard se está construyendo..."}
     return FileResponse(index_file)
 
-@app.get("/api/status")
+@app.api_route("/api/status", methods=["GET", "POST"])
 def get_status():
     return bot.get_state()
 
-@app.post("/api/toggle")
+@app.api_route("/api/toggle", methods=["GET", "POST"])
 def toggle_bot():
     bot.is_running = not bot.is_running
     state_str = "activo" if bot.is_running else "en pausa"
@@ -39,47 +40,90 @@ def toggle_bot():
     return {"is_running": bot.is_running}
 
 class EnvironmentRequest(BaseModel):
-    environment: str  # 'simulation' | 'live'
+    environment: Optional[str] = None
 
-@app.post("/api/environment")
-def change_environment(req: EnvironmentRequest):
-    bot.set_environment(req.environment)
+@app.api_route("/api/environment", methods=["GET", "POST"])
+async def change_environment(request: Request, env: Optional[str] = None):
+    chosen_env = env
+    if request.method == "POST":
+        try:
+            body = await request.json()
+            if body and "environment" in body:
+                chosen_env = body["environment"]
+        except Exception:
+            pass
+    if chosen_env in ["simulation", "live"]:
+        bot.set_environment(chosen_env)
     return {"active_environment": bot.active_environment}
 
 class LiveArmedRequest(BaseModel):
-    armed: bool
+    armed: Optional[bool] = None
 
-@app.post("/api/live_armed")
-def change_live_armed(req: LiveArmedRequest):
-    bot.set_live_armed(req.armed)
+@app.api_route("/api/live_armed", methods=["GET", "POST"])
+async def change_live_armed(request: Request, armed: Optional[bool] = None):
+    chosen_armed = armed
+    if request.method == "POST":
+        try:
+            body = await request.json()
+            if body and "armed" in body:
+                chosen_armed = bool(body["armed"])
+        except Exception:
+            pass
+    if chosen_armed is not None:
+        bot.set_live_armed(chosen_armed)
     return {"live_trading_armed": bot.live_trading_armed}
 
 class SymbolRequest(BaseModel):
-    symbol: str
+    symbol: Optional[str] = None
 
-@app.post("/api/symbol")
-def change_symbol(req: SymbolRequest):
-    bot.set_symbol(req.symbol)
+@app.api_route("/api/symbol", methods=["GET", "POST"])
+async def change_symbol(request: Request, symbol: Optional[str] = None):
+    chosen_symbol = symbol
+    if request.method == "POST":
+        try:
+            body = await request.json()
+            if body and "symbol" in body:
+                chosen_symbol = body["symbol"]
+        except Exception:
+            pass
+    if chosen_symbol:
+        bot.set_symbol(chosen_symbol)
     return {"symbol": bot.current_symbol}
 
 class CategoryRequest(BaseModel):
-    category: str
+    category: Optional[str] = None
 
-@app.post("/api/category")
-def change_category(req: CategoryRequest):
-    bot.set_category(req.category)
+@app.api_route("/api/category", methods=["GET", "POST"])
+async def change_category(request: Request, category: Optional[str] = None):
+    chosen_cat = category
+    if request.method == "POST":
+        try:
+            body = await request.json()
+            if body and "category" in body:
+                chosen_cat = body["category"]
+        except Exception:
+            pass
+    if chosen_cat:
+        bot.set_category(chosen_cat)
     return {"category": bot.active_category, "symbol": bot.current_symbol}
 
 class ResetRequest(BaseModel):
     capital: float = 250.0
 
-@app.post("/api/reset")
-def reset_portfolio(req: ResetRequest):
-    bot.portfolio.reset(req.capital)
-    bot.log(f"🔄 Cartera ({bot.active_environment.upper()}) reiniciada con €{req.capital:.2f}")
-    return {"message": "Cartera reiniciada", "capital": req.capital}
+@app.api_route("/api/reset", methods=["GET", "POST"])
+async def reset_portfolio(request: Request, capital: float = 250.0):
+    if request.method == "POST":
+        try:
+            body = await request.json()
+            if body and "capital" in body:
+                capital = float(body["capital"])
+        except Exception:
+            pass
+    bot.portfolio.reset(capital)
+    bot.log(f"🔄 Cartera ({bot.active_environment.upper()}) reiniciada con €{capital:.2f}")
+    return {"message": "Cartera reiniciada", "capital": capital}
 
-@app.post("/api/emergency_sell")
+@app.api_route("/api/emergency_sell", methods=["GET", "POST"])
 def emergency_sell():
     sold = bot.emergency_sell_all()
     return {"message": f"Se liquidaron {sold} posiciones"}
@@ -92,12 +136,18 @@ class ConfigUpdateRequest(BaseModel):
     rsi_sell_threshold: float
     msci_sweep_pct: float = 0.0
 
-@app.post("/api/config")
-def update_config(req: ConfigUpdateRequest):
-    for key in ["order_amount_eur", "take_profit_pct", "stop_loss_pct", "rsi_buy_threshold", "rsi_sell_threshold", "msci_sweep_pct"]:
-        val = getattr(req, key)
-        bot.config[key] = val
-        CONFIG[key] = val
-    bot.strategy.config = bot.config
-    bot.log(f"⚙️ Parámetros actualizados (Orden: €{req.order_amount_eur:.1f} | TP: +{req.take_profit_pct}% | Desvío MSCI World: {req.msci_sweep_pct}%).")
-    return {"message": "Configuración actualizada con éxito"}
+@app.api_route("/api/config", methods=["GET", "POST"])
+async def update_config(request: Request):
+    if request.method == "POST":
+        try:
+            body = await request.json()
+            for key in ["order_amount_eur", "take_profit_pct", "stop_loss_pct", "rsi_buy_threshold", "rsi_sell_threshold", "msci_sweep_pct"]:
+                if key in body:
+                    val = float(body[key])
+                    bot.config[key] = val
+                    CONFIG[key] = val
+            bot.strategy.config = bot.config
+            bot.log(f"⚙️ Parámetros actualizados.")
+        except Exception as e:
+            pass
+    return {"message": "Configuración actualizada con éxito", "config": bot.config}

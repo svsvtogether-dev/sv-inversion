@@ -77,39 +77,44 @@ function formatCrypto(val) {
 }
 
 // Environment Management
+function updateEnvironmentUI(env) {
+  if (!tabSimBtn || !tabLiveBtn) return;
+  if (env === "live") {
+    tabLiveBtn.className = "env-tab-btn active live-active";
+    tabSimBtn.className = "env-tab-btn";
+    if (liveWarningBanner) liveWarningBanner.style.display = "flex";
+    if (headerEnvBadge) {
+      headerEnvBadge.textContent = "🔴 DINERO REAL (BINANCE)";
+      headerEnvBadge.className = "badge live";
+    }
+    if (resetBtn) resetBtn.style.display = "none";
+  } else {
+    tabSimBtn.className = "env-tab-btn active";
+    tabLiveBtn.className = "env-tab-btn";
+    if (liveWarningBanner) liveWarningBanner.style.display = "none";
+    if (headerEnvBadge) {
+      headerEnvBadge.textContent = "SIMULACIÓN 250 €";
+      headerEnvBadge.className = "badge paper";
+    }
+    if (resetBtn) resetBtn.style.display = "inline-flex";
+  }
+}
+
 window.setEnvironment = async function(env) {
   activeEnvironment = env;
-  // Feedback visual instantáneo (optimistic update)
-  if (tabSimBtn && tabLiveBtn) {
-    if (env === "live") {
-      tabLiveBtn.className = "env-tab-btn active live-active";
-      tabSimBtn.className = "env-tab-btn";
-      if (liveWarningBanner) liveWarningBanner.style.display = "flex";
-      if (headerEnvBadge) {
-        headerEnvBadge.textContent = "🔴 DINERO REAL (BINANCE)";
-        headerEnvBadge.className = "badge live";
-      }
-      if (resetBtn) resetBtn.style.display = "none";
-    } else {
-      tabSimBtn.className = "env-tab-btn active";
-      tabLiveBtn.className = "env-tab-btn";
-      if (liveWarningBanner) liveWarningBanner.style.display = "none";
-      if (headerEnvBadge) {
-        headerEnvBadge.textContent = "SIMULACIÓN 250 €";
-        headerEnvBadge.className = "badge paper";
-      }
-      if (resetBtn) resetBtn.style.display = "inline-flex";
-    }
-  }
+  updateEnvironmentUI(env);
 
   try {
-    await fetch("/api/environment", {
+    const res = await fetch(`/api/environment?env=${env}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ environment: env })
     });
+    if (!res.ok) {
+      await fetch(`/api/environment?env=${env}`);
+    }
   } catch (err) {
-    console.error("Error cambiando entorno:", err);
+    try { await fetch(`/api/environment?env=${env}`); } catch(e) {}
   }
   fetchState();
 };
