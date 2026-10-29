@@ -3,30 +3,37 @@ import sys
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from starlette.routing import Route, Mount
 import gradio as gr
 
-from server import app as fastapi_app, bot, STATIC_DIR
-
-# ZeroGPU keepalive
+# ZeroGPU initialization
 try:
     import spaces
     @spaces.GPU
-    def gpu_ready():
+    def _zero_gpu_keepalive():
         return True
-    gpu_ready()
 except Exception:
     pass
 
-# Gradio container con iframe a pantalla completa
-with gr.Blocks(
-    title="SV Inversión AI",
-    css="footer {visibility: hidden !important;} .gradio-container {padding: 0 !important; margin: 0 !important; max-width: 100% !important; background: #0a0d14 !important;}"
-) as demo:
-    gr.HTML('<iframe src="/dashboard" style="position:fixed; top:0; left:0; width:100vw; height:100vh; border:none; z-index:9999; background:#0a0d14;" allow="clipboard-write"></iframe>')
+from server import app as fastapi_app, bot, STATIC_DIR
 
-# Insertar las rutas completas de FastAPI al INICIO para que tengan prioridad sobre el catch-all de Gradio
-for r in reversed(fastapi_app.routes):
-    demo.app.routes.insert(0, r)
+# Gradio Blocks base container for ZeroGPU hosting compatibility
+with gr.Blocks(title="SV Inversión AI") as demo:
+    pass
+
+# Direct overrides at the very top of router table so they take absolute priority over Gradio catch-alls:
+# 1. Mount static files directory at /static
+demo.app.router.routes.insert(0, Mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static_override"))
+
+# 2. Direct root / and /dashboard routes to serve index.html directly
+async def serve_index(request):
+    return FileResponse(STATIC_DIR / "index.html")
+
+demo.app.router.routes.insert(0, Route("/dashboard", serve_index, methods=["GET"]))
+demo.app.router.routes.insert(0, Route("/", serve_index, methods=["GET"]))
+
+# 3. Include all full FastAPI backend endpoints (/data_api/* and /api/*)
+demo.app.include_router(fastapi_app.router)
 
 if __name__ == "__main__":
     demo.launch()
