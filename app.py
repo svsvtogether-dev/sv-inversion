@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from starlette.routing import Route, Mount
 import gradio as gr
+from gradio.routes import App
 
 # ZeroGPU initialization
 try:
@@ -17,24 +18,32 @@ except Exception:
 
 from server import app as fastapi_app, bot, STATIC_DIR
 
-# Gradio Blocks base container for ZeroGPU hosting compatibility
+# Monkey-patch App.create_app so that WHENEVER Hugging Face or Gradio builds the ASGI App,
+# our static files, dashboard routes, and data_api routes are permanently placed at index 0
+_orig_create_app = App.create_app
+
+def _patched_create_app(*args, **kwargs):
+    app = _orig_create_app(*args, **kwargs)
+    
+    # 1. Mount static directory
+    app.router.routes.insert(0, Mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static_override"))
+    
+    # 2. Direct handlers for / and /dashboard
+    async def serve_index(request):
+        return FileResponse(STATIC_DIR / "index.html")
+        
+    app.router.routes.insert(0, Route("/dashboard", serve_index, methods=["GET"]))
+    app.router.routes.insert(0, Route("/", serve_index, methods=["GET"]))
+    
+    # 3. Include full FastAPI backend endpoints
+    app.include_router(fastapi_app.router)
+    return app
+
+App.create_app = _patched_create_app
+
+# Gradio container
 with gr.Blocks(title="SV Inversión AI") as demo:
     pass
 
-# Direct overrides at the very top of router table so they take absolute priority over Gradio catch-alls:
-# 1. Mount static files directory at /static
-demo.app.router.routes.insert(0, Mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static_override"))
-
-# 2. Direct root / and /dashboard routes to serve index.html directly
-async def serve_index(request):
-    return FileResponse(STATIC_DIR / "index.html")
-
-demo.app.router.routes.insert(0, Route("/dashboard", serve_index, methods=["GET"]))
-demo.app.router.routes.insert(0, Route("/", serve_index, methods=["GET"]))
-
-# 3. Include all full FastAPI backend endpoints (/data_api/* and /api/*)
-demo.app.include_router(fastapi_app.router)
-
 if __name__ == "__main__":
-    # Pass _app=demo.app so Gradio does not create a new App and overwrite custom priority routes
-    demo.launch(_app=demo.app)
+    demo.launch()
