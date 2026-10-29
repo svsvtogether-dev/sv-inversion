@@ -21,11 +21,8 @@ try:
 except Exception:
     pass
 
-with gr.Blocks(
-    title="SV Inversión AI",
-    css="footer {visibility: hidden !important;} .gradio-container {padding: 0 !important; margin: 0 !important; max-width: 100% !important; background: #0a0d14 !important;}"
-) as demo:
-    gr.HTML('<iframe src="/dashboard" style="width: 100%; height: 98vh; border: none; margin: 0; padding: 0; background: #0a0d14;" allow="clipboard-write"></iframe>')
+with gr.Blocks(title="SV Inversión AI") as demo:
+    gr.HTML('<iframe src="/dashboard" style="position:fixed; top:0; left:0; width:100%; height:100%; border:none; z-index:9999;" allow="clipboard-write"></iframe>')
 
 app = demo.app
 
@@ -39,7 +36,6 @@ def get_dashboard():
 def get_root():
     return FileResponse(STATIC_DIR / "index.html")
 
-# Rutas de datos prioritarias /data_api/
 @app.api_route("/data_api/status", methods=["GET", "POST"])
 @app.api_route("/api/status", methods=["GET", "POST"])
 def get_status():
