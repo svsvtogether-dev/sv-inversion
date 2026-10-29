@@ -9,12 +9,13 @@ from src.bot import TradingBot
 from src.config import CONFIG
 
 app = FastAPI(title="SV Inversión AI - Bot de Trading Universal")
+data_api_app = FastAPI(title="SV Inversión AI - Data API")
 
 # Instancia global del bot
 bot = TradingBot()
 bot.start()
 
-# Rutas estáticas
+# Directorio estático
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 STATIC_DIR.mkdir(exist_ok=True)
@@ -32,23 +33,20 @@ def get_dashboard():
 def get_dashboard_alias():
     return FileResponse(STATIC_DIR / "index.html")
 
-# Rutas de datos (compatibles tanto con /data_api/ como con /api/)
-@app.api_route("/data_api/status", methods=["GET", "POST"])
-@app.api_route("/api/status", methods=["GET", "POST"])
-def get_status():
+# Definición de endpoints en data_api_app (para paths relativos a /data_api)
+@data_api_app.api_route("/status", methods=["GET", "POST"])
+def data_status():
     return bot.get_state()
 
-@app.api_route("/data_api/toggle", methods=["GET", "POST"])
-@app.api_route("/api/toggle", methods=["GET", "POST"])
-def toggle_bot():
+@data_api_app.api_route("/toggle", methods=["GET", "POST"])
+def data_toggle():
     bot.is_running = not bot.is_running
     state_str = "activo" if bot.is_running else "en pausa"
     bot.log(f"Bot marcado como {state_str} por el usuario.")
     return {"is_running": bot.is_running}
 
-@app.api_route("/data_api/environment", methods=["GET", "POST"])
-@app.api_route("/api/environment", methods=["GET", "POST"])
-async def change_environment(request: Request, env: Optional[str] = None):
+@data_api_app.api_route("/environment", methods=["GET", "POST"])
+async def data_environment(request: Request, env: Optional[str] = None):
     chosen_env = env
     if request.method == "POST":
         try:
@@ -61,9 +59,8 @@ async def change_environment(request: Request, env: Optional[str] = None):
         bot.set_environment(chosen_env)
     return {"active_environment": bot.active_environment}
 
-@app.api_route("/data_api/live_armed", methods=["GET", "POST"])
-@app.api_route("/api/live_armed", methods=["GET", "POST"])
-async def change_live_armed(request: Request, armed: Optional[bool] = None):
+@data_api_app.api_route("/live_armed", methods=["GET", "POST"])
+async def data_live_armed(request: Request, armed: Optional[bool] = None):
     chosen_armed = armed
     if request.method == "POST":
         try:
@@ -76,9 +73,8 @@ async def change_live_armed(request: Request, armed: Optional[bool] = None):
         bot.set_live_armed(chosen_armed)
     return {"live_trading_armed": bot.live_trading_armed}
 
-@app.api_route("/data_api/symbol", methods=["GET", "POST"])
-@app.api_route("/api/symbol", methods=["GET", "POST"])
-async def change_symbol(request: Request, symbol: Optional[str] = None):
+@data_api_app.api_route("/symbol", methods=["GET", "POST"])
+async def data_symbol(request: Request, symbol: Optional[str] = None):
     chosen_symbol = symbol
     if request.method == "POST":
         try:
@@ -91,9 +87,8 @@ async def change_symbol(request: Request, symbol: Optional[str] = None):
         bot.set_symbol(chosen_symbol)
     return {"symbol": bot.current_symbol}
 
-@app.api_route("/data_api/category", methods=["GET", "POST"])
-@app.api_route("/api/category", methods=["GET", "POST"])
-async def change_category(request: Request, category: Optional[str] = None):
+@data_api_app.api_route("/category", methods=["GET", "POST"])
+async def data_category(request: Request, category: Optional[str] = None):
     chosen_cat = category
     if request.method == "POST":
         try:
@@ -106,9 +101,8 @@ async def change_category(request: Request, category: Optional[str] = None):
         bot.set_category(chosen_cat)
     return {"category": bot.active_category, "symbol": bot.current_symbol}
 
-@app.api_route("/data_api/reset", methods=["GET", "POST"])
-@app.api_route("/api/reset", methods=["GET", "POST"])
-async def reset_portfolio(request: Request, capital: float = 250.0):
+@data_api_app.api_route("/reset", methods=["GET", "POST"])
+async def data_reset(request: Request, capital: float = 250.0):
     if request.method == "POST":
         try:
             body = await request.json()
@@ -120,15 +114,13 @@ async def reset_portfolio(request: Request, capital: float = 250.0):
     bot.log(f"🔄 Cartera ({bot.active_environment.upper()}) reiniciada con €{capital:.2f}")
     return {"message": "Cartera reiniciada", "capital": capital}
 
-@app.api_route("/data_api/emergency_sell", methods=["GET", "POST"])
-@app.api_route("/api/emergency_sell", methods=["GET", "POST"])
-def emergency_sell():
+@data_api_app.api_route("/emergency_sell", methods=["GET", "POST"])
+def data_emergency_sell():
     sold = bot.emergency_sell_all()
     return {"message": f"Se liquidaron {sold} posiciones"}
 
-@app.api_route("/data_api/config", methods=["GET", "POST"])
-@app.api_route("/api/config", methods=["GET", "POST"])
-async def update_config(request: Request):
+@data_api_app.api_route("/config", methods=["GET", "POST"])
+async def data_config(request: Request):
     if request.method == "POST":
         try:
             body = await request.json()
@@ -138,7 +130,11 @@ async def update_config(request: Request):
                     bot.config[key] = val
                     CONFIG[key] = val
             bot.strategy.config = bot.config
-            bot.log(f"⚙️ Parámetros actualizados.")
+            bot.log("⚙️ Parámetros actualizados.")
         except Exception:
             pass
     return {"message": "Configuración actualizada con éxito", "config": bot.config}
+
+# Montar data_api_app en la app principal para soporte local completo de /data_api/ y /api/
+app.mount("/data_api", data_api_app)
+app.mount("/api", data_api_app)
