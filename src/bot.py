@@ -3,6 +3,7 @@ import time
 import threading
 from datetime import datetime
 from typing import Dict, Optional, List
+from pathlib import Path
 
 # Garantizar compatibilidad con caracteres UTF-8 en consolas de Windows
 if sys.platform == "win32":
@@ -12,16 +13,27 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from .config import CONFIG, SUPPORTED_SYMBOLS, MARKETS_CATALOG
+from .config import CONFIG, SUPPORTED_SYMBOLS, MARKETS_CATALOG, DATA_DIR
 from .market_data import MarketDataFeed
 from .portfolio import Portfolio
 from .strategy import SmartDCAStrategy
+from .binance_client import BinanceSpotClient
+from .binance_rules import BinanceRulesEngine
 
 class TradingBot:
     def __init__(self, config: Dict = None):
         self.config = config or CONFIG.copy()
         self.feed = MarketDataFeed()
-        self.portfolio = Portfolio()
+
+        # Portafolios 100% aislados por entorno
+        self.sim_portfolio = Portfolio(storage_path=DATA_DIR / "portfolio.json", environment="simulation")
+        self.live_portfolio = Portfolio(storage_path=DATA_DIR / "portfolio_live.json", environment="live", initial_capital=0.0)
+
+        # Entorno activo por defecto: Simulación
+        self.active_environment = "simulation"  # 'simulation' | 'live'
+        self.live_trading_armed = False          # Cerrojo de seguridad para dinero real
+        self.binance_client = BinanceSpotClient()
+
         self.strategy = SmartDCAStrategy(self.config)
 
         self.is_running = True
@@ -37,9 +49,30 @@ class TradingBot:
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
 
+    @property
+    def portfolio(self) -> Portfolio:
+        """Devuelve el portafolio correspondiente al entorno activo."""
+        return self.live_portfolio if self.active_environment == "live" else self.sim_portfolio
+
+    def set_environment(self, env: str):
+        """Cambia de entorno de forma no destructiva."""
+        if env in ["simulation", "live"]:
+            with self._lock:
+                self.active_environment = env
+                env_title = "DINERO REAL (Binance Spot)" if env == "live" else "SIMULACIÓN (Paper Trading)"
+                self.log(f"🔄 Entorno cambiado a: {env_title}")
+
+    def set_live_armed(self, armed: bool):
+        """Activa o desactiva el cerrojo de seguridad para órdenes reales en Binance."""
+        with self._lock:
+            self.live_trading_armed = bool(armed)
+            estado = "🔴 ARMADO (Órdenes Reales Permitidas)" if armed else "🟢 DESARMADO (Modo Seguro / Sólo Lectura)"
+            self.log(f"🛡️ Seguridad Binance: {estado}")
+
     def log(self, message: str):
         timestamp = datetime.now().strftime("%H:%M:%S")
-        entry = f"[{timestamp}] {message}"
+        tag = "[REAL]" if self.active_environment == "live" else "[SIM]"
+        entry = f"[{timestamp}] {tag} {message}"
         self.logs.insert(0, entry)
         if len(self.logs) > 60:
             self.logs.pop()
@@ -57,7 +90,6 @@ class TradingBot:
                 name = meta.get("name", symbol)
                 self.log(f"Activo seleccionado: {name} ({symbol})")
 
-            # Si no estaba en caché o para refrescar al instante sin bloquear el lock:
             analysis = self.feed.analyze_symbol(symbol)
             if analysis.get("price", 0) > 0:
                 with self._lock:
@@ -87,26 +119,40 @@ class TradingBot:
                         self.last_analysis = analysis
 
     def get_candidate_symbols(self) -> List[str]:
+        # En modo real con Binance, solo operamos pares de criptomonedas EUR
+        if self.active_environment == "live":
+            return [sym for sym, meta in MARKETS_CATALOG.items() if meta.get("category") == "crypto"]
+
         if self.active_category == "all":
             return SUPPORTED_SYMBOLS
         return [sym for sym, meta in MARKETS_CATALOG.items() if meta.get("category") == self.active_category]
 
     def step(self):
-        """Ejecuta una iteración completa del ciclo de trading multi-mercado."""
+        """Ejecuta una iteración completa del ciclo con aislamiento por entorno."""
         self.iteration_count += 1
-        if self.iteration_count % 20 == 0:
-            with self._lock:
-                open_cnt = len(self.portfolio.positions)
-                cash_val = self.portfolio.cash
-            self.log(f"💓 Heartbeat: Motor cuantitativo activo (Ciclo #{self.iteration_count}) | Saldo: €{cash_val:,.2f} | Posiciones: {open_cnt}")
-
         with self._lock:
             if not self.is_running:
                 self.status_message = "Bot en Pausa por el usuario"
                 return
 
-        # 1. Prioridad: Gestionar posiciones abiertas (Take-profit, Stop-loss, DCA)
-        open_symbols = list(self.portfolio.positions.keys())
+        # Sincronizar saldos reales de Binance si estamos en modo real
+        if self.active_environment == "live":
+            acc_info = self.binance_client.get_account_summary()
+            with self._lock:
+                self.live_portfolio.cash = acc_info.get("eur_cash", 0.0)
+
+        # Heartbeat regular
+        if self.iteration_count % 20 == 0:
+            with self._lock:
+                env_str = "REAL" if self.active_environment == "live" else "SIMULACIÓN"
+                open_cnt = len(self.portfolio.positions)
+                cash_val = self.portfolio.cash
+            self.log(f"💓 Heartbeat: Motor activo ({env_str} #{self.iteration_count}) | Saldo: €{cash_val:,.2f} | Posiciones: {open_cnt}")
+
+        active_port = self.portfolio
+
+        # 1. Prioridad: Gestionar posiciones abiertas del entorno activo (TP, SL, DCA)
+        open_symbols = list(active_port.positions.keys())
         for sym in open_symbols:
             analysis = self.feed.analyze_symbol(sym)
             price = analysis.get("price", 0.0)
@@ -116,37 +162,65 @@ class TradingBot:
             with self._lock:
                 if sym == self.current_symbol:
                     self.last_analysis = analysis
-                position = self.portfolio.positions.get(sym)
-                cash = self.portfolio.cash
+                position = active_port.positions.get(sym)
+                cash = active_port.cash
                 action, amount_eur, reason = self.strategy.evaluate(analysis, position, cash)
                 now_str = datetime.now().strftime("%H:%M:%S")
 
                 if action == "SELL":
-                    sweep_pct = self.config.get("msci_sweep_pct", 0.0)
-                    trade = self.portfolio.sell(sym, price, reason, sell_pct=1.0, sweep_pct=sweep_pct)
-                    if trade:
-                        pnl_sign = "+" if trade['realized_pnl_eur'] >= 0 else ""
-                        self.log(f"💰 VENTA EJECUTADA: €{trade['amount_eur']:.2f} {sym} a €{price:,.2f} | P&L: {pnl_sign}€{trade['realized_pnl_eur']:.4f} ({trade.get('pnl_pct', 0):+.2f}%) | {reason}")
-                        self.status_message = f"Venta de {sym} con beneficio {pnl_sign}€{trade['realized_pnl_eur']:.4f}"
-                        self.last_action = {"action": action, "reason": reason, "time": now_str}
-                        return
+                    if self.active_environment == "live" and self.live_trading_armed:
+                        # Venta real en Binance
+                        raw_qty = position.get("amount", 0.0)
+                        ok, adj_qty, msg = BinanceRulesEngine.adjust_quantity_for_sell(sym, raw_qty, price)
+                        if ok:
+                            placed, res, order_msg = self.binance_client.place_market_order(sym, "SELL", adj_qty)
+                            if placed:
+                                trade = active_port.sell(sym, price, f"[Binance Real] {reason}", sell_pct=1.0)
+                                self.log(f"🔴 VENTA REAL EN BINANCE: {adj_qty} {sym} a €{price:,.2f} | {reason}")
+                            else:
+                                self.log(f"⚠️ Error orden venta Binance: {order_msg}")
+                    else:
+                        sweep_pct = self.config.get("msci_sweep_pct", 0.0)
+                        trade = active_port.sell(sym, price, reason, sell_pct=1.0, sweep_pct=sweep_pct)
+                        if trade:
+                            pnl_sign = "+" if trade['realized_pnl_eur'] >= 0 else ""
+                            self.log(f"💰 VENTA ({trade['environment'].upper()}): €{trade['amount_eur']:.2f} {sym} a €{price:,.2f} | P&L: {pnl_sign}€{trade['realized_pnl_eur']:.4f} ({trade.get('pnl_pct', 0):+.2f}%) | {reason}")
+                            self.status_message = f"Venta de {sym} con beneficio {pnl_sign}€{trade['realized_pnl_eur']:.4f}"
+                            self.last_action = {"action": action, "reason": reason, "time": now_str}
+                            return
                 elif action == "BUY" and amount_eur > 0:
-                    trade = self.portfolio.buy(sym, amount_eur, price, reason)
-                    if trade:
-                        self.log(f"✅ DCA EJECUTADO: {trade['quantity']:.6f} {sym} a €{price:,.2f} (€{amount_eur:.2f} | {reason})")
-                        self.status_message = f"DCA en {sym}"
-                        self.last_action = {"action": action, "reason": reason, "time": now_str}
-                        return
+                    if self.active_environment == "live":
+                        if not self.live_trading_armed:
+                            self.status_message = "Modo Real: Señal de compra detectada pero trading real desarmado (Modo Seguro)"
+                            return
+                        if active_port.cash < amount_eur:
+                            self.status_message = f"Modo Real: Saldo en Binance (€{active_port.cash:.2f}) menor que orden (€{amount_eur:.2f})"
+                            return
+                        # Compra real en Binance
+                        ok, adj_qty, msg = BinanceRulesEngine.validate_buy_order(sym, amount_eur, price)
+                        if ok:
+                            placed, res, order_msg = self.binance_client.place_market_order(sym, "BUY", adj_qty)
+                            if placed:
+                                trade = active_port.buy(sym, amount_eur, price, f"[Binance Real] {reason}")
+                                self.log(f"🔴 COMPRA REAL EN BINANCE: {adj_qty} {sym} a €{price:,.2f} (€{amount_eur:.2f})")
+                            else:
+                                self.log(f"⚠️ Error orden compra Binance: {order_msg}")
+                    else:
+                        trade = active_port.buy(sym, amount_eur, price, reason)
+                        if trade:
+                            self.log(f"✅ DCA ({trade['environment'].upper()}): {trade['quantity']:.6f} {sym} a €{price:,.2f} (€{amount_eur:.2f} | {reason})")
+                            self.status_message = f"DCA en {sym}"
+                            self.last_action = {"action": action, "reason": reason, "time": now_str}
+                            return
 
-        # 2. Escanear la lista de candidatos según el filtro activo
+        # 2. Escanear candidatos según el entorno y filtro activo
         candidate_symbols = self.get_candidate_symbols()
         best_candidate = None
         best_analysis = None
         lowest_rsi = 999.0
 
-        # Asegurar que el símbolo activo en pantalla siempre se actualice
         symbols_to_scan = list(candidate_symbols)
-        if self.current_symbol not in symbols_to_scan:
+        if self.current_symbol not in symbols_to_scan and symbols_to_scan:
             symbols_to_scan.insert(0, self.current_symbol)
 
         for sym in symbols_to_scan:
@@ -168,8 +242,8 @@ class TradingBot:
         with self._lock:
             if not self.last_analysis and target_analysis:
                 self.last_analysis = target_analysis
-            position = self.portfolio.positions.get(target_symbol)
-            cash = self.portfolio.cash
+            position = active_port.positions.get(target_symbol)
+            cash = active_port.cash
             action, amount_eur, reason = self.strategy.evaluate(target_analysis, position, cash)
             now_str = datetime.now().strftime("%H:%M:%S")
 
@@ -177,24 +251,43 @@ class TradingBot:
 
             if action == "BUY" and amount_eur > 0:
                 price = target_analysis.get("price", 0.0)
-                trade = self.portfolio.buy(target_symbol, amount_eur, price, reason)
-                if trade:
-                    self.current_symbol = target_symbol
-                    self.last_analysis = target_analysis
-                    self.last_action = {"action": action, "reason": reason, "time": now_str}
-                    self.log(f"✅ COMPRA EJECUTADA ({target_name}): {trade['quantity']:.6f} a €{price:,.2f} (€{amount_eur:.2f} | {reason})")
-                    self.status_message = f"Compra ejecutada de {target_name}"
+                if self.active_environment == "live":
+                    if not self.live_trading_armed:
+                        self.status_message = f"Modo Real: Señal de compra en {target_name} (Trading Real Desarmado)"
+                    elif cash < amount_eur:
+                        self.status_message = f"Modo Real: Saldo insuficiente en Binance (€{cash:.2f} < €{amount_eur:.2f})"
+                    else:
+                        ok, adj_qty, msg = BinanceRulesEngine.validate_buy_order(target_symbol, amount_eur, price)
+                        if ok:
+                            placed, res, order_msg = self.binance_client.place_market_order(target_symbol, "BUY", adj_qty)
+                            if placed:
+                                trade = active_port.buy(target_symbol, amount_eur, price, f"[Binance Real] {reason}")
+                                self.current_symbol = target_symbol
+                                self.last_analysis = target_analysis
+                                self.last_action = {"action": action, "reason": reason, "time": now_str}
+                                self.log(f"🔴 COMPRA REAL EN BINANCE ({target_name}): {adj_qty} a €{price:,.2f}")
+                                self.status_message = f"Compra Real ejecutada en {target_name}"
+                            else:
+                                self.log(f"⚠️ Error orden Binance: {order_msg}")
+                else:
+                    trade = active_port.buy(target_symbol, amount_eur, price, reason)
+                    if trade:
+                        self.current_symbol = target_symbol
+                        self.last_analysis = target_analysis
+                        self.last_action = {"action": action, "reason": reason, "time": now_str}
+                        self.log(f"✅ COMPRA EJECUTADA ({target_name}): {trade['quantity']:.6f} a €{price:,.2f} (€{amount_eur:.2f} | {reason})")
+                        self.status_message = f"Compra ejecutada de {target_name}"
             else:
-                # Mostrar la evaluación del activo actualmente seleccionado en pantalla
                 curr_analysis = self.feed.last_analysis_cache.get(self.current_symbol) or self.last_analysis
-                curr_pos = self.portfolio.positions.get(self.current_symbol)
+                curr_pos = active_port.positions.get(self.current_symbol)
                 curr_act, _, curr_reason = self.strategy.evaluate(curr_analysis, curr_pos, cash)
                 self.last_action = {"action": curr_act, "reason": curr_reason, "time": now_str}
                 curr_name = MARKETS_CATALOG.get(self.current_symbol, {}).get("name", self.current_symbol)
-                self.status_message = f"Monitorizando {curr_name} ({self.current_symbol}): {curr_reason}"
+                env_prefix = "[REAL] " if self.active_environment == "live" else ""
+                self.status_message = f"{env_prefix}Monitorizando {curr_name} ({self.current_symbol}): {curr_reason}"
 
     def run_loop(self):
-        self.log(f"🚀 SV Inversión iniciado con capital disponible de €{self.portfolio.cash:.2f}")
+        self.log(f"🚀 SV Inversión iniciado | Entorno: {self.active_environment.upper()}")
         consecutive_errors = 0
         while not self._stop_event.is_set():
             try:
@@ -221,28 +314,27 @@ class TradingBot:
 
     def emergency_sell_all(self) -> int:
         sold_count = 0
-        open_syms = list(self.portfolio.positions.keys())
+        active_port = self.portfolio
+        open_syms = list(active_port.positions.keys())
         for sym in open_syms:
             p = self.feed.last_known_prices_eur.get(sym, 0.0)
             if p <= 0:
                 analysis = self.feed.analyze_symbol(sym)
                 p = analysis.get("price", 0.0)
             with self._lock:
-                pos = self.portfolio.positions.get(sym)
+                pos = active_port.positions.get(sym)
                 if not pos:
                     continue
                 if p <= 0:
                     p = pos.get("avg_entry_price", 0.0)
                 if p > 0:
-                    sweep_pct = self.config.get("msci_sweep_pct", 0.0)
-                    trade = self.portfolio.sell(sym, p, "⚠️ Venta de Emergencia solicitada por el usuario", sell_pct=1.0, sweep_pct=sweep_pct)
+                    trade = active_port.sell(sym, p, "⚠️ Venta de Emergencia solicitada", sell_pct=1.0)
                     if trade:
                         sold_count += 1
-                        self.log(f"🚨 Venta de emergencia completada para {sym} a €{p:,.2f}")
+                        self.log(f"🚨 Venta de emergencia ({trade['environment'].upper()}): {sym} a €{p:,.2f}")
         return sold_count
 
     def get_state(self) -> Dict:
-        # Si aún no hay análisis en caché para el símbolo actual, obtenerlo fuera del lock
         if self.current_symbol not in self.feed.last_analysis_cache:
             analysis = self.feed.analyze_symbol(self.current_symbol)
             if analysis.get("price", 0) > 0:
@@ -250,20 +342,27 @@ class TradingBot:
                     self.last_analysis = analysis
 
         with self._lock:
-            # Usar precios en caché EUR para respuesta instantánea sin bloquear
             prices = {}
-            for sym, pos in self.portfolio.positions.items():
-                cached_p = self.feed.last_known_prices_eur.get(sym, 0.0)
-                prices[sym] = cached_p if cached_p > 0 else pos.get("avg_entry_price", 0.0)
+            for port in [self.sim_portfolio, self.live_portfolio]:
+                for sym, pos in port.positions.items():
+                    cached_p = self.feed.last_known_prices_eur.get(sym, 0.0)
+                    prices[sym] = cached_p if cached_p > 0 else pos.get("avg_entry_price", 0.0)
 
             active_analysis = self.feed.last_analysis_cache.get(self.current_symbol) or self.last_analysis
             if self.current_symbol not in prices:
                 prices[self.current_symbol] = active_analysis.get("price", 0.0)
 
-            summary = self.portfolio.get_summary(prices)
+            sim_summary = self.sim_portfolio.get_summary(prices)
+            live_summary = self.live_portfolio.get_summary(prices)
+            active_summary = live_summary if self.active_environment == "live" else sim_summary
+            binance_info = self.binance_client.get_account_summary()
+
             return {
                 "bot_status": "ACTIVO" if self.is_running else "PAUSADO",
                 "is_running": self.is_running,
+                "active_environment": self.active_environment,
+                "live_trading_armed": self.live_trading_armed,
+                "binance_account": binance_info,
                 "current_symbol": self.current_symbol,
                 "active_category": self.active_category,
                 "supported_symbols": SUPPORTED_SYMBOLS,
@@ -271,7 +370,9 @@ class TradingBot:
                 "status_message": self.status_message,
                 "analysis": active_analysis,
                 "last_action": self.last_action,
-                "portfolio": summary,
+                "portfolio": active_summary,
+                "simulation": sim_summary,
+                "live": live_summary,
                 "config": self.config,
                 "logs": self.logs[:35]
             }

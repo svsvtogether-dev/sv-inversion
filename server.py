@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from src.bot import TradingBot
 from src.config import CONFIG
 
-app = FastAPI(title="SV Inversión AI - Bot de Trading (250 €)")
+app = FastAPI(title="SV Inversión AI - Bot de Trading Universal")
 
 # Instancia global del bot
 bot = TradingBot()
@@ -38,6 +38,22 @@ def toggle_bot():
     bot.log(f"Bot marcado como {state_str} por el usuario.")
     return {"is_running": bot.is_running}
 
+class EnvironmentRequest(BaseModel):
+    environment: str  # 'simulation' | 'live'
+
+@app.post("/api/environment")
+def change_environment(req: EnvironmentRequest):
+    bot.set_environment(req.environment)
+    return {"active_environment": bot.active_environment}
+
+class LiveArmedRequest(BaseModel):
+    armed: bool
+
+@app.post("/api/live_armed")
+def change_live_armed(req: LiveArmedRequest):
+    bot.set_live_armed(req.armed)
+    return {"live_trading_armed": bot.live_trading_armed}
+
 class SymbolRequest(BaseModel):
     symbol: str
 
@@ -60,7 +76,7 @@ class ResetRequest(BaseModel):
 @app.post("/api/reset")
 def reset_portfolio(req: ResetRequest):
     bot.portfolio.reset(req.capital)
-    bot.log(f"🔄 Cartera virtual reiniciada con €{req.capital:.2f}")
+    bot.log(f"🔄 Cartera ({bot.active_environment.upper()}) reiniciada con €{req.capital:.2f}")
     return {"message": "Cartera reiniciada", "capital": req.capital}
 
 @app.post("/api/emergency_sell")

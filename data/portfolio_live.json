@@ -1,0 +1,12 @@
+{
+  "environment": "live",
+  "initial_capital": 0.0,
+  "fee_rate": 0.001,
+  "cash": 0.0,
+  "positions": {},
+  "trades": [],
+  "total_fees_paid": 0.0,
+  "realized_pnl": 0.0,
+  "msci_vault_eur": 0.0,
+  "last_updated": "2026-10-29T19:35:27.311945"
+}

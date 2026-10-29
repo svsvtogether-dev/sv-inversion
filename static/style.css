@@ -748,3 +748,194 @@ h1 {
   color: var(--text-secondary);
   text-align: center;
 }
+
+/* ========================================================
+   DUAL ENVIRONMENT: SIMULATION VS REAL (BINANCE LIVE)
+   ======================================================== */
+.env-switcher-panel {
+  margin: 12px 0 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.env-tabs-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .env-tabs-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
+.env-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #131926;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 12px 18px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.env-tab-btn:hover {
+  background: #182236;
+  border-color: #334155;
+}
+
+.env-tab-btn.active {
+  background: #101c33;
+  border-color: #3b82f6;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+}
+
+.env-tab-btn.active.live-active {
+  background: #201116;
+  border-color: #ef4444;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
+}
+
+.env-tab-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.env-tab-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.env-tab-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.env-tab-btn.active.live-active .env-tab-title {
+  color: #fca5a5;
+}
+
+.env-tab-desc {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.env-tab-pill {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.pill-sim {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.pill-live {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+/* Live Warning & Latch Banner */
+.live-warning-banner {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 10px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.live-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.live-indicator-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+}
+
+.live-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff;
+  animation: livePulse 1.2s infinite ease-in-out;
+}
+
+@keyframes livePulse {
+  0% { transform: scale(0.85); opacity: 0.7; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0.7; }
+}
+
+.live-banner-details {
+  font-size: 12px;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.live-banner-details .sep {
+  color: #475569;
+}
+
+.live-banner-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.safety-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.safety-label {
+  font-size: 11px;
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.btn-armed {
+  background: #dc2626 !important;
+  color: white !important;
+  border-color: #ef4444 !important;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.4);
+}
+
+.badge.live {
+  background: #dc2626 !important;
+  color: white !important;
+}

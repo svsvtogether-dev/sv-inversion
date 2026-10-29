@@ -4,6 +4,8 @@ let isRunning = true;
 let marketsCatalog = {};
 let configInitialized = false;
 let tradesFilter = "ALL"; // "ALL" | "SELL"
+let activeEnvironment = "simulation"; // "simulation" | "live"
+let isLiveArmed = false;
 
 // DOM Elements
 const kpiTotalValue = document.getElementById("kpiTotalValue");
@@ -44,6 +46,15 @@ const emergencyBtn = document.getElementById("emergencyBtn");
 const resetBtn = document.getElementById("resetBtn");
 const saveConfigBtn = document.getElementById("saveConfigBtn");
 
+// Environment Switcher Elements
+const tabSimBtn = document.getElementById("tabSimBtn");
+const tabLiveBtn = document.getElementById("tabLiveBtn");
+const liveWarningBanner = document.getElementById("liveWarningBanner");
+const liveApiStatusText = document.getElementById("liveApiStatusText");
+const liveEurBalanceBadge = document.getElementById("liveEurBalanceBadge");
+const liveArmToggleBtn = document.getElementById("liveArmToggleBtn");
+const headerEnvBadge = document.getElementById("headerEnvBadge");
+
 // Form inputs
 const cfgOrderAmount = document.getElementById("cfgOrderAmount");
 const cfgTakeProfit = document.getElementById("cfgTakeProfit");
@@ -64,6 +75,50 @@ function formatCrypto(val) {
   if (val < 0.001) return val.toFixed(6);
   return val.toFixed(4);
 }
+
+// Environment Management
+window.setEnvironment = async function(env) {
+  if (env === activeEnvironment) return;
+  activeEnvironment = env;
+  try {
+    await fetch("/api/environment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ environment: env })
+    });
+    fetchState();
+  } catch (err) {
+    console.error("Error cambiando entorno:", err);
+  }
+};
+
+window.toggleLiveArmed = async function() {
+  if (!isLiveArmed) {
+    const ok = confirm("⚠️ ATENCIÓN: ¿Estás seguro de que deseas armar la operativa en DINERO REAL?\n\nAl activarlo, cualquier señal de compra o venta se ejecutará en tu cuenta real de Binance Spot con tus fondos reales.");
+    if (!ok) return;
+    try {
+      await fetch("/api/live_armed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ armed: true })
+      });
+      fetchState();
+    } catch (err) {
+      console.error("Error armando trading real:", err);
+    }
+  } else {
+    try {
+      await fetch("/api/live_armed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ armed: false })
+      });
+      fetchState();
+    } catch (err) {
+      console.error("Error desarmando trading real:", err);
+    }
+  }
+};
 
 // Fetch bot state
 async function fetchState() {
@@ -106,6 +161,49 @@ function renderState(data) {
   currentCategory = data.active_category || "all";
   isRunning = data.is_running;
   marketsCatalog = data.markets_catalog || {};
+  activeEnvironment = data.active_environment || "simulation";
+  isLiveArmed = Boolean(data.live_trading_armed);
+
+  // Environment Switcher UI state
+  if (tabSimBtn && tabLiveBtn) {
+    if (activeEnvironment === "live") {
+      tabLiveBtn.className = "env-tab-btn active live-active";
+      tabSimBtn.className = "env-tab-btn";
+      if (liveWarningBanner) liveWarningBanner.style.display = "flex";
+      if (headerEnvBadge) {
+        headerEnvBadge.textContent = "🔴 DINERO REAL (BINANCE)";
+        headerEnvBadge.className = "badge live";
+      }
+      if (resetBtn) resetBtn.style.display = "none";
+
+      const binance = data.binance_account || {};
+      if (liveApiStatusText) {
+        liveApiStatusText.textContent = binance.status || "Conectado";
+        liveApiStatusText.style.color = binance.connected ? "#4ade80" : "#f87171";
+      }
+      if (liveEurBalanceBadge) {
+        liveEurBalanceBadge.textContent = formatEur(binance.eur_cash || 0);
+      }
+      if (liveArmToggleBtn) {
+        if (isLiveArmed) {
+          liveArmToggleBtn.textContent = "🔴 OPERATIVA ARMADA (Trading Real Activo)";
+          liveArmToggleBtn.className = "btn btn-sm btn-armed";
+        } else {
+          liveArmToggleBtn.textContent = "🛡️ DESARMADO (Modo Seguro)";
+          liveArmToggleBtn.className = "btn btn-sm btn-outline-warning";
+        }
+      }
+    } else {
+      tabSimBtn.className = "env-tab-btn active";
+      tabLiveBtn.className = "env-tab-btn";
+      if (liveWarningBanner) liveWarningBanner.style.display = "none";
+      if (headerEnvBadge) {
+        headerEnvBadge.textContent = "SIMULACIÓN 250 €";
+        headerEnvBadge.className = "badge paper";
+      }
+      if (resetBtn) resetBtn.style.display = "inline-flex";
+    }
+  }
 
   // Header controls
   botStateLabel.textContent = isRunning ? "ACTIVO" : "PAUSADO";
@@ -138,8 +236,8 @@ function renderState(data) {
   // Render symbol pills
   renderPills(marketsCatalog, currentCategory, currentSymbol);
 
-  // KPIs
-  const p = data.portfolio;
+  // KPIs Aislados por Entorno
+  const p = (activeEnvironment === "live" && data.live) ? data.live : (data.simulation || data.portfolio);
   kpiTotalValue.textContent = formatEur(p.total_value_eur);
 
   const profitSign = p.net_profit_eur >= 0 ? "+" : "";
@@ -198,45 +296,51 @@ function renderState(data) {
   if (rsi <= 35) rsiValue.style.color = "var(--green)";
   else if (rsi >= 65) rsiValue.style.color = "var(--red)";
   else rsiValue.style.color = "var(--text-primary)";
-  rsiNeedle.style.left = `${Math.min(100, Math.max(0, rsi))}%`;
 
-  // Indicators
-  emaFast.textContent = a.ema_fast ? formatEur(a.ema_fast) : "€--";
-  emaSlow.textContent = a.ema_slow ? formatEur(a.ema_slow) : "€--";
-  bbUpper.textContent = a.bb_upper ? formatEur(a.bb_upper) : "€--";
-  bbLower.textContent = a.bb_lower ? formatEur(a.bb_lower) : "€--";
+  const clampedRsi = Math.max(0, Math.min(100, rsi));
+  rsiNeedle.style.left = `${clampedRsi}%`;
 
-  // Positions Table
-  positionsBadge.textContent = `${p.positions.length} abiertas`;
-  if (p.positions.length === 0) {
-    positionsTableBody.innerHTML = `<tr><td colspan="8" class="text-center empty-state">Sin posiciones abiertas. El bot comprará automáticamente cuando detecte una oportunidad de descuento o sobreventa.</td></tr>`;
+  // Moving Averages & Bollinger
+  emaFast.textContent = formatEur(a.ema_fast || 0);
+  emaSlow.textContent = formatEur(a.ema_slow || 0);
+  bbUpper.textContent = formatEur(a.bb_upper || 0);
+  bbLower.textContent = formatEur(a.bb_lower || 0);
+
+  // Positions Table (Aislada por Entorno)
+  const posCount = Object.keys(p.positions || {}).length;
+  positionsBadge.textContent = `${posCount} activa${posCount === 1 ? "" : "s"}`;
+
+  if (!p.positions || p.positions.length === 0) {
+    positionsTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No hay posiciones abiertas en este entorno</td></tr>`;
   } else {
     positionsTableBody.innerHTML = p.positions.map(pos => {
       const pnlSign = pos.unrealized_pnl_eur >= 0 ? "+" : "";
-      const pnlClass = pos.unrealized_pnl_eur >= 0 ? "text-green" : "text-red";
-      const pMeta = marketsCatalog[pos.symbol] || {};
-      const posName = pMeta.name || pos.symbol;
+      const pnlClass = pos.unrealized_pnl_eur > 0 ? "text-green" : (pos.unrealized_pnl_eur < 0 ? "text-red" : "");
+      const posMeta = marketsCatalog[pos.symbol] || {};
+      const posName = posMeta.name || pos.symbol;
       return `
         <tr>
-          <td><strong>${posName}</strong> <small class="text-muted">${pos.symbol}</small></td>
+          <td><strong>${posName}</strong></td>
           <td>${formatCrypto(pos.amount)}</td>
           <td>${formatEur(pos.avg_entry_price)}</td>
           <td>${formatEur(pos.current_price)}</td>
-          <td>${formatEur(pos.total_cost_eur)}</td>
           <td>${formatEur(pos.current_value_eur)}</td>
-          <td class="${pnlClass}"><strong>${pnlSign}${formatEur(pos.unrealized_pnl_eur)} (${pnlSign}${pos.unrealized_pnl_pct}%)</strong></td>
-          <td>${pos.dca_count} / 3</td>
+          <td class="${pnlClass}">${pnlSign}${formatEur(pos.unrealized_pnl_eur)} (${pnlSign}${pos.unrealized_pnl_pct}%)</td>
+          <td><span class="dca-badge">Nivel ${pos.dca_count}</span></td>
         </tr>
       `;
     }).join("");
   }
 
-  // Recent Trades Table
+  // Recent Trades Table (Filtradas Estrictamente por Entorno)
   const allTrades = p.recent_trades || [];
-  const filteredTrades = tradesFilter === "SELL" ? allTrades.filter(t => t.side === "SELL") : allTrades;
+  let filteredTrades = allTrades;
+  if (tradesFilter === "SELL") {
+    filteredTrades = allTrades.filter(t => t.side === "SELL");
+  }
 
   if (filteredTrades.length === 0) {
-    tradesTableBody.innerHTML = `<tr><td colspan="8" class="text-center empty-state">Aún no hay operaciones registradas en esta vista.</td></tr>`;
+    tradesTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No hay operaciones registradas en ${activeEnvironment === "live" ? "Dinero Real" : "Simulación"}</td></tr>`;
   } else {
     tradesTableBody.innerHTML = filteredTrades.map(t => {
       const isBuy = t.side === "BUY";
@@ -271,8 +375,8 @@ function renderState(data) {
   if (data.logs && data.logs.length > 0) {
     terminalLogs.innerHTML = data.logs.map(line => {
       let color = "#94a3b8";
-      if (line.includes("COMPRA EJECUTADA")) color = "#10b981";
-      if (line.includes("VENTA EJECUTADA")) color = "#f59e0b";
+      if (line.includes("COMPRA EJECUTADA") || line.includes("COMPRA REAL")) color = "#10b981";
+      if (line.includes("VENTA EJECUTADA") || line.includes("VENTA REAL")) color = "#f59e0b";
       if (line.includes("Error") || line.includes("🚨")) color = "#ef4444";
       return `<div class="log-line" style="color: ${color};">${line}</div>`;
     }).join("");
@@ -354,7 +458,7 @@ saveConfigBtn.addEventListener("click", async () => {
   }
 });
 
-// Interactive Educational Tooltip Engine con retraso intencional de 2 segundos
+// Interactive Educational Tooltip Engine con retraso de 2 segundos
 const globalTooltip = document.getElementById("globalTooltip");
 let tooltipTimer = null;
 let currentHoveredTarget = null;
@@ -372,7 +476,6 @@ function setupTooltips() {
 
     if (target === currentHoveredTarget) return;
 
-    // Cancelar cualquier temporizador previo
     clearTimeout(tooltipTimer);
     globalTooltip.classList.remove("visible");
     currentHoveredTarget = target;
@@ -382,7 +485,6 @@ function setupTooltips() {
     const text = target.getAttribute("data-tooltip") || "";
     if (!text) return;
 
-    // Solo mostrar si el usuario mantiene el puntero quieto durante 2 segundos (2000 ms)
     tooltipTimer = setTimeout(() => {
       if (currentHoveredTarget === target) {
         const titleHtml = title ? `<span class="tooltip-title">💡 ${title}</span>` : "";
@@ -406,7 +508,6 @@ function setupTooltips() {
     const target = e.target.closest("[data-tooltip]");
     if (!target) return;
 
-    // Comprobar si el cursor realmente salió del contenedor
     const related = e.relatedTarget;
     if (!target.contains(related)) {
       clearTimeout(tooltipTimer);
@@ -424,12 +525,10 @@ function positionTooltip(e) {
   let left = e.clientX + padding;
   let top = e.clientY + padding;
 
-  // Ajustar si se sale por la derecha
   if (left + tooltipWidth > window.innerWidth - 10) {
     left = e.clientX - tooltipWidth - padding;
   }
 
-  // Ajustar si se sale por abajo
   if (top + tooltipHeight > window.innerHeight - 10) {
     top = e.clientY - tooltipHeight - padding;
   }
