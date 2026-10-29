@@ -36,4 +36,5 @@ demo.app.router.routes.insert(0, Route("/", serve_index, methods=["GET"]))
 demo.app.include_router(fastapi_app.router)
 
 if __name__ == "__main__":
-    demo.launch()
+    # Pass _app=demo.app so Gradio does not create a new App and overwrite custom priority routes
+    demo.launch(_app=demo.app)
