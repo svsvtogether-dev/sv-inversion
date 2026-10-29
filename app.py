@@ -18,32 +18,27 @@ except Exception:
 
 from server import app as fastapi_app, bot, STATIC_DIR
 
-# Monkey-patch App.create_app so that WHENEVER Hugging Face or Gradio builds the ASGI App,
-# our static files, dashboard routes, and data_api routes are permanently placed at index 0
+# Monkey-patch App.create_app so that ALL FastAPI routes (static files, /dashboard, /data_api/*)
+# are inserted at index 0 of the router table before Gradio's catch-all router can intercept them
 _orig_create_app = App.create_app
 
 def _patched_create_app(*args, **kwargs):
     app = _orig_create_app(*args, **kwargs)
     
-    # 1. Mount static directory
-    app.router.routes.insert(0, Mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static_override"))
-    
-    # 2. Direct handlers for / and /dashboard
-    async def serve_index(request):
-        return FileResponse(STATIC_DIR / "index.html")
+    # Insert all routes from server.py at index 0 in reverse order so original order is preserved
+    for r in reversed(fastapi_app.router.routes):
+        app.router.routes.insert(0, r)
         
-    app.router.routes.insert(0, Route("/dashboard", serve_index, methods=["GET"]))
-    app.router.routes.insert(0, Route("/", serve_index, methods=["GET"]))
-    
-    # 3. Include full FastAPI backend endpoints
-    app.include_router(fastapi_app.router)
     return app
 
 App.create_app = _patched_create_app
 
-# Gradio container
-with gr.Blocks(title="SV Inversión AI") as demo:
-    pass
+# Gradio Blocks container with seamless iframe to /static/index.html as robust fallback
+with gr.Blocks(
+    title="SV Inversión AI",
+    css="footer {display: none !important;} .gradio-container {padding: 0 !important; margin: 0 !important; max-width: 100% !important; background: #0a0d14 !important;}"
+) as demo:
+    gr.HTML('<iframe src="/static/index.html" style="position:fixed; top:0; left:0; width:100vw; height:100vh; border:none; z-index:99999; background:#0a0d14;" allow="clipboard-write"></iframe>')
 
 if __name__ == "__main__":
     demo.launch()
