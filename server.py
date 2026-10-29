@@ -20,20 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 STATIC_DIR.mkdir(exist_ok=True)
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-@app.get("/")
-def get_dashboard():
-    index_file = STATIC_DIR / "index.html"
-    if not index_file.exists():
-        return {"message": "El dashboard se está construyendo..."}
-    return FileResponse(index_file)
-
-@app.get("/dashboard")
-def get_dashboard_alias():
-    return FileResponse(STATIC_DIR / "index.html")
-
-# Definición de endpoints en data_api_app (para paths relativos a /data_api)
+# Definición de endpoints en data_api_app (para paths relativos a /data_api o /static/api)
 @data_api_app.api_route("/status", methods=["GET", "POST"])
 def data_status():
     return bot.get_state()
@@ -135,6 +122,19 @@ async def data_config(request: Request):
             pass
     return {"message": "Configuración actualizada con éxito", "config": bot.config}
 
-# Montar data_api_app en la app principal para soporte local completo de /data_api/ y /api/
+# Montar data_api_app en subrutas universales (incluyendo /static/api para compatibilidad HF proxy)
+app.mount("/static/api", data_api_app)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.mount("/data_api", data_api_app)
 app.mount("/api", data_api_app)
+
+@app.get("/")
+def get_dashboard():
+    index_file = STATIC_DIR / "index.html"
+    if not index_file.exists():
+        return {"message": "El dashboard se está construyendo..."}
+    return FileResponse(index_file)
+
+@app.get("/dashboard")
+def get_dashboard_alias():
+    return FileResponse(STATIC_DIR / "index.html")

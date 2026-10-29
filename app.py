@@ -24,12 +24,15 @@ _orig_create_app = App.create_app
 def _patched_create_app(*args, **kwargs):
     app = _orig_create_app(*args, **kwargs)
     
-    # 1. Mount static directory con máxima prioridad en index 0
-    app.router.routes.insert(0, Mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static_override"))
+    # 1. Mount data_api sub-app under /static/api (máxima prioridad, atraviesa el reverse proxy de Hugging Face)
+    app.router.routes.insert(0, Mount("/static/api", data_api_app, name="static_api_override"))
     
-    # 2. Mount data_api sub-app para que todas las llamadas /data_api/* devuelvan JSON nativo
-    app.router.routes.insert(0, Mount("/data_api", data_api_app, name="data_api_override"))
-    app.router.routes.insert(0, Mount("/api", data_api_app, name="api_override"))
+    # 2. Mount static directory para /static/style.css, /static/app.js, /static/index.html
+    app.router.routes.insert(1, Mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static_override"))
+    
+    # 3. Mount data_api y api para compatibilidad
+    app.router.routes.insert(2, Mount("/data_api", data_api_app, name="data_api_override"))
+    app.router.routes.insert(3, Mount("/api", data_api_app, name="api_override"))
     
     return app
 

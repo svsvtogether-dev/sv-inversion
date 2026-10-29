@@ -105,16 +105,16 @@ window.setEnvironment = async function(env) {
   updateEnvironmentUI(env);
 
   try {
-    const res = await fetch(`/data_api/environment?env=${env}`, {
+    const res = await fetch(`/static/api/environment?env=${env}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ environment: env })
     });
     if (!res.ok) {
-      await fetch(`/data_api/environment?env=${env}`);
+      await fetch(`/static/api/environment?env=${env}`);
     }
   } catch (err) {
-    try { await fetch(`/data_api/environment?env=${env}`); } catch(e) {}
+    try { await fetch(`/static/api/environment?env=${env}`); } catch(e) {}
   }
   fetchState();
 };
@@ -124,7 +124,7 @@ window.toggleLiveArmed = async function() {
     const ok = confirm("⚠️ ATENCIÓN: ¿Estás seguro de que deseas armar la operativa en DINERO REAL?\n\nAl activarlo, cualquier señal de compra o venta se ejecutará en tu cuenta real de Binance Spot con tus fondos reales.");
     if (!ok) return;
     try {
-      await fetch("/data_api/live_armed", {
+      await fetch("/static/api/live_armed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ armed: true })
@@ -135,7 +135,7 @@ window.toggleLiveArmed = async function() {
     }
   } else {
     try {
-      await fetch("/data_api/live_armed", {
+      await fetch("/static/api/live_armed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ armed: false })
@@ -150,7 +150,7 @@ window.toggleLiveArmed = async function() {
 // Fetch bot state
 async function fetchState() {
   try {
-    const res = await fetch("/data_api/status");
+    const res = await fetch("/static/api/status");
     if (!res.ok) return;
     const data = await res.json();
     renderState(data);
@@ -172,7 +172,7 @@ function renderPills(catalog, activeCat, activeSym) {
       <span class="pill-tag">${meta.symbol_clean || sym}</span>
     `;
     btn.addEventListener("click", async () => {
-      await fetch("/data_api/symbol", {
+      await fetch("/static/api/symbol", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol: sym })
@@ -433,7 +433,7 @@ if (filterAllTradesBtn && filterSellTradesBtn) {
 document.querySelectorAll(".cat-btn").forEach(btn => {
   btn.addEventListener("click", async () => {
     const category = btn.dataset.category;
-    await fetch("/data_api/category", {
+    await fetch("/static/api/category", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ category })
@@ -443,20 +443,20 @@ document.querySelectorAll(".cat-btn").forEach(btn => {
 });
 
 toggleBotBtn.addEventListener("click", async () => {
-  await fetch("/data_api/toggle", { method: "POST" });
+  await fetch("/static/api/toggle", { method: "POST" });
   fetchState();
 });
 
 emergencyBtn.addEventListener("click", async () => {
   if (confirm("¿Estás seguro de que deseas vender inmediatamente todas las posiciones al precio actual de mercado?")) {
-    await fetch("/data_api/emergency_sell", { method: "POST" });
+    await fetch("/static/api/emergency_sell", { method: "POST" });
     fetchState();
   }
 });
 
 resetBtn.addEventListener("click", async () => {
   if (confirm("¿Deseas reiniciar la cartera virtual a los 250 € iniciales?")) {
-    await fetch("/data_api/reset", {
+    await fetch("/static/api/reset", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ capital: 250.0 })
@@ -474,7 +474,7 @@ saveConfigBtn.addEventListener("click", async () => {
     rsi_sell_threshold: parseFloat(cfgRsiSell.value),
     msci_sweep_pct: parseFloat(cfgMsciSweep.value)
   };
-  const res = await fetch("/data_api/config", {
+  const res = await fetch("/static/api/config", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
