@@ -38,18 +38,18 @@ MARKETS_CATALOG = {
 SUPPORTED_SYMBOLS = list(MARKETS_CATALOG.keys())
 DEFAULT_SYMBOL = "BTCEUR"
 
-# Parámetros de la Estrategia Smart DCA
+# Parámetros de la Estrategia Smart DCA Cuantitativa
 CONFIG = {
     "symbol": DEFAULT_SYMBOL,
     "initial_capital": INITIAL_CAPITAL_EUR,
     "fee_rate": TRADING_FEE_RATE,
     "order_amount_eur": 25.00,      # Tamaño por compra DCA (€25 permite 10 tramos con €250)
-    "min_order_eur": 5.00,          # Mínimo para poder ejecutar una orden
-    "take_profit_pct": 2.5,         # Objetivo de beneficio neto (+2.5%)
-    "stop_loss_pct": -5.0,          # Límite de pérdida por protección (-5.0%)
-    "rsi_buy_threshold": 40.0,      # Comprar cuando RSI está en sobreventa o retroceso (<= 40)
-    "rsi_sell_threshold": 65.0,     # Sugerir toma de beneficios si RSI > 65
-    "price_drop_trigger_pct": 0.8,  # Si el precio cae > 0.8% respecto a la última compra, promediar
+    "min_order_eur": 5.00,          # Mínimo para poder ejecutar una orden (cumple MIN_NOTIONAL de Binance)
+    "take_profit_pct": 4.5,         # Objetivo de beneficio neto (+4.5% - Asimetría matemática favorable)
+    "stop_loss_pct": -3.5,          # Límite de pérdida por protección estricta (-3.5%)
+    "rsi_buy_threshold": 35.0,      # Comprar cuando RSI está en sobreventa real (<= 35)
+    "rsi_sell_threshold": 65.0,     # Sugerir toma de beneficios si RSI >= 65 con ganancia positiva
+    "price_drop_trigger_pct": 1.5,  # Si el precio cae >= 1.5% respecto a la última compra, promediar
     "candle_interval": "1m",        # Intervalo de velas para análisis
     "candle_limit": 50,             # Número de velas históricas
     "check_interval_seconds": 6,    # Frecuencia de revisión del mercado

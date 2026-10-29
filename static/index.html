@@ -164,14 +164,14 @@
               <span id="rsiValue" class="mono font-bold">50.0</span>
             </div>
             <div class="meter-bar-container">
-              <div class="zone zone-oversold" title="Sobreventa (<40)"></div>
+              <div class="zone zone-oversold" title="Sobreventa (<=35)"></div>
               <div class="zone zone-neutral"></div>
               <div class="zone zone-overbought" title="Sobrecompra (>65)"></div>
               <div class="meter-needle" id="rsiNeedle" style="left: 50%;"></div>
             </div>
             <div class="meter-scale">
               <span>0 (Barato / Comprar)</span>
-              <span>40</span>
+              <span>35</span>
               <span>65</span>
               <span>100 (Caro / Vender)</span>
             </div>
@@ -260,21 +260,21 @@
                data-tooltip-title="Take-Profit Objetivo (%)"
                data-tooltip="Tu meta de beneficio automático. Cuando una inversión suba este porcentaje neto (ejemplo: +2.5%), el bot vende y guarda la ganancia en tu bolsillo sin dudar.">
             <label>Take-Profit Objetivo (%): <span class="help-icon">?</span></label>
-            <input type="number" id="cfgTakeProfit" step="0.1" min="0.5" max="20" value="2.5">
+            <input type="number" id="cfgTakeProfit" step="0.1" min="0.5" max="20" value="4.5">
             <small class="hint">Venta automática al ganar este porcentaje neto.</small>
           </div>
           <div class="config-field has-help"
                data-tooltip-title="Stop-Loss Límite (%)"
                data-tooltip="Tu cinturón de seguridad anti-quiebra. Si un activo cae inesperadamente por debajo de este límite (ejemplo: -5.0%), el bot vende por protección para que no pierdas más.">
             <label>Stop-Loss Límite (%): <span class="help-icon">?</span></label>
-            <input type="number" id="cfgStopLoss" step="0.5" max="-1" min="-25" value="-5.0">
+            <input type="number" id="cfgStopLoss" step="0.5" max="-1" min="-25" value="-3.5">
             <small class="hint">Protección máxima de capital en caso de caída extrema.</small>
           </div>
           <div class="config-field has-help"
                data-tooltip-title="Umbral RSI Compra (<=)"
                data-tooltip="El nivel de 'descuento' necesario para que el bot decida comprar. Cuanto más bajo sea el número (ej: 35 o 40), más barata tiene que estar la moneda para que el bot acepte comprar.">
             <label>Umbral RSI Compra (<=): <span class="help-icon">?</span></label>
-            <input type="number" id="cfgRsiBuy" step="1" min="15" max="50" value="40">
+            <input type="number" id="cfgRsiBuy" step="1" min="15" max="50" value="35">
             <small class="hint">Compra cuando el activo entra en sobreventa.</small>
           </div>
           <div class="config-field has-help"

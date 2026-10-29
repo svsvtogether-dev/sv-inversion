@@ -31,6 +31,7 @@ class TradingBot:
         self.last_analysis: Dict = {}
         self.last_action: Dict = {"action": "HOLD", "reason": "Iniciando", "time": ""}
         self.logs: List[str] = []
+        self.iteration_count = 0
 
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
@@ -92,6 +93,13 @@ class TradingBot:
 
     def step(self):
         """Ejecuta una iteración completa del ciclo de trading multi-mercado."""
+        self.iteration_count += 1
+        if self.iteration_count % 20 == 0:
+            with self._lock:
+                open_cnt = len(self.portfolio.positions)
+                cash_val = self.portfolio.cash
+            self.log(f"💓 Heartbeat: Motor cuantitativo activo (Ciclo #{self.iteration_count}) | Saldo: €{cash_val:,.2f} | Posiciones: {open_cnt}")
+
         with self._lock:
             if not self.is_running:
                 self.status_message = "Bot en Pausa por el usuario"
@@ -187,11 +195,17 @@ class TradingBot:
 
     def run_loop(self):
         self.log(f"🚀 SV Inversión iniciado con capital disponible de €{self.portfolio.cash:.2f}")
+        consecutive_errors = 0
         while not self._stop_event.is_set():
             try:
                 self.step()
+                consecutive_errors = 0
             except Exception as e:
-                self.log(f"⚠️ Error en ciclo del bot: {e}")
+                consecutive_errors += 1
+                backoff = min(60, 6 * (2 ** min(consecutive_errors - 1, 4)))
+                self.log(f"⚠️ Error en ciclo del bot: {e}. Reintentando en {backoff}s...")
+                time.sleep(backoff)
+                continue
             time.sleep(self.config.get("check_interval_seconds", 6))
 
     def start(self):

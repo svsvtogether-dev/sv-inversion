@@ -123,9 +123,9 @@ function renderState(data) {
   // Sincronizar casillas de configuración si no se están editando activamente
   if (data.config) {
     if (document.activeElement !== cfgOrderAmount) cfgOrderAmount.value = data.config.order_amount_eur ?? 25.0;
-    if (document.activeElement !== cfgTakeProfit) cfgTakeProfit.value = data.config.take_profit_pct ?? 2.5;
-    if (document.activeElement !== cfgStopLoss) cfgStopLoss.value = data.config.stop_loss_pct ?? -5.0;
-    if (document.activeElement !== cfgRsiBuy) cfgRsiBuy.value = data.config.rsi_buy_threshold ?? 40;
+    if (document.activeElement !== cfgTakeProfit) cfgTakeProfit.value = data.config.take_profit_pct ?? 4.5;
+    if (document.activeElement !== cfgStopLoss) cfgStopLoss.value = data.config.stop_loss_pct ?? -3.5;
+    if (document.activeElement !== cfgRsiBuy) cfgRsiBuy.value = data.config.rsi_buy_threshold ?? 35;
     if (document.activeElement !== cfgRsiSell) cfgRsiSell.value = data.config.rsi_sell_threshold ?? 65;
     if (document.activeElement !== cfgMsciSweep) cfgMsciSweep.value = data.config.msci_sweep_pct ?? 0;
   }
@@ -195,7 +195,7 @@ function renderState(data) {
   // RSI Gauge
   const rsi = a.rsi || 50;
   rsiValue.textContent = rsi.toFixed(1);
-  if (rsi <= 40) rsiValue.style.color = "var(--green)";
+  if (rsi <= 35) rsiValue.style.color = "var(--green)";
   else if (rsi >= 65) rsiValue.style.color = "var(--red)";
   else rsiValue.style.color = "var(--text-primary)";
   rsiNeedle.style.left = `${Math.min(100, Math.max(0, rsi))}%`;

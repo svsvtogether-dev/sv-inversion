@@ -1,9 +1,11 @@
+import os
 import json
 import time
 from datetime import datetime
 from typing import Dict, List, Optional
 from pathlib import Path
 from .config import INITIAL_CAPITAL_EUR, TRADING_FEE_RATE, PORTFOLIO_FILE
+from .binance_rules import BinanceRulesEngine
 
 class Portfolio:
     def __init__(self, storage_path: Path = PORTFOLIO_FILE):
@@ -16,30 +18,74 @@ class Portfolio:
         self.total_fees_paid = 0.0
         self.realized_pnl = 0.0
         self.msci_vault_eur = 0.0  # Bóveda de ahorro a largo plazo en Fondo Indexado MSCI World
+        self.db_url = os.getenv("DATABASE_URL")
         self.load()
 
+    def _load_from_db(self) -> Optional[Dict]:
+        """Intenta recuperar el estado persistente desde PostgreSQL (Supabase / Neon) si está configurado."""
+        if not self.db_url:
+            return None
+        try:
+            import psycopg2
+            with psycopg2.connect(self.db_url) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS bot_state (
+                            id VARCHAR(32) PRIMARY KEY,
+                            payload JSONB,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        );
+                    """)
+                    cur.execute("SELECT payload FROM bot_state WHERE id = 'sv_inversion';")
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        return row[0] if isinstance(row[0], dict) else json.loads(row[0])
+        except Exception as e:
+            print(f"[Aviso DB] No se pudo leer de base de datos externa: {e}")
+        return None
+
+    def _save_to_db(self, data: Dict):
+        """Sincroniza el estado en PostgreSQL (Supabase / Neon) para sobrevivir reinicios de Hugging Face."""
+        if not self.db_url:
+            return
+        try:
+            import psycopg2
+            with psycopg2.connect(self.db_url) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO bot_state (id, payload, updated_at)
+                        VALUES ('sv_inversion', %s, NOW())
+                        ON CONFLICT (id) DO UPDATE 
+                        SET payload = EXCLUDED.payload, updated_at = NOW();
+                    """, (json.dumps(data),))
+        except Exception as e:
+            print(f"[Aviso DB] Error al guardar en base de datos externa: {e}")
+
     def load(self):
-        """Carga el estado del portafolio desde el archivo JSON si existe."""
-        if self.storage_path.exists():
+        """Carga el estado del portafolio (primero DB externa, luego archivo local)."""
+        data = self._load_from_db()
+        if not data and self.storage_path.exists():
             try:
                 with open(self.storage_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    self.initial_capital = data.get("initial_capital", INITIAL_CAPITAL_EUR)
-                    self.fee_rate = data.get("fee_rate", TRADING_FEE_RATE)
-                    self.cash = float(data.get("cash", self.initial_capital))
-                    self.positions = data.get("positions", {})
-                    self.trades = data.get("trades", [])
-                    self.total_fees_paid = float(data.get("total_fees_paid", 0.0))
-                    self.realized_pnl = float(data.get("realized_pnl", 0.0))
-                    self.msci_vault_eur = float(data.get("msci_vault_eur", 0.0))
-                    return
             except Exception as e:
-                print(f"[Aviso] No se pudo cargar el archivo de portafolio: {e}. Se inicializará uno nuevo.")
+                print(f"[Aviso] No se pudo cargar el archivo local: {e}")
+
+        if data:
+            self.initial_capital = data.get("initial_capital", INITIAL_CAPITAL_EUR)
+            self.fee_rate = data.get("fee_rate", TRADING_FEE_RATE)
+            self.cash = float(data.get("cash", self.initial_capital))
+            self.positions = data.get("positions", {})
+            self.trades = data.get("trades", [])
+            self.total_fees_paid = float(data.get("total_fees_paid", 0.0))
+            self.realized_pnl = float(data.get("realized_pnl", 0.0))
+            self.msci_vault_eur = float(data.get("msci_vault_eur", 0.0))
+            return
 
         self.save()
 
     def save(self):
-        """Guarda el estado actual en el archivo JSON."""
+        """Guarda el estado actual en disco y en la base de datos externa."""
         data = {
             "initial_capital": self.initial_capital,
             "fee_rate": self.fee_rate,
@@ -51,15 +97,19 @@ class Portfolio:
             "msci_vault_eur": round(self.msci_vault_eur, 4),
             "last_updated": datetime.now().isoformat()
         }
+        # 1. Guardado local
         try:
             self.storage_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.storage_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
-            print(f"[Error] Fallo al guardar portafolio: {e}")
+            print(f"[Error] Fallo al guardar portafolio local: {e}")
+
+        # 2. Sincronización en la nube externa
+        self._save_to_db(data)
 
     def reset(self, new_capital: Optional[float] = None):
-        """Reinicia la cuenta virtual a los 30 € iniciales."""
+        """Reinicia la cuenta."""
         if new_capital is not None:
             self.initial_capital = float(new_capital)
         self.cash = self.initial_capital
@@ -71,11 +121,14 @@ class Portfolio:
         self.save()
 
     def buy(self, symbol: str, amount_eur: float, current_price: float, reason: str = "") -> Optional[Dict]:
-        """Ejecuta una compra virtual descontando comisiones y ajustando precio medio (DCA)."""
+        """Ejecuta una compra con validación estricta de filtros de exchange (MIN_NOTIONAL y LOT_SIZE)."""
         if amount_eur > self.cash:
-            amount_eur = self.cash  # Usa el máximo disponible si es menor
+            amount_eur = self.cash
 
-        if amount_eur < 1.0:  # Mínimo para poder ejecutar
+        # Control institucional de MIN_NOTIONAL de exchange
+        is_valid, adjusted_qty, err_msg = BinanceRulesEngine.validate_buy_order(symbol, amount_eur, current_price)
+        if not is_valid:
+            print(f"[Aviso Exchange]: Compra rechazada para {symbol}: {err_msg}")
             return None
 
         fee_eur = round(amount_eur * self.fee_rate, 4)
@@ -123,21 +176,28 @@ class Portfolio:
         return trade
 
     def sell(self, symbol: str, current_price: float, reason: str = "", sell_pct: float = 1.0, sweep_pct: Optional[float] = None) -> Optional[Dict]:
-        """Ejecuta una venta virtual de la posición abierta."""
+        """Ejecuta una venta ajustando al stepSize de Binance para evitar errores por polvo (dust)."""
         pos = self.positions.get(symbol)
         if not pos or pos["amount"] <= 0:
             return None
 
-        sell_amount = pos["amount"] * sell_pct
+        raw_sell_amount = pos["amount"] * sell_pct
+
+        # Ajuste por stepSize de Binance (redondeo hacia abajo para evitar balance insuficiente)
+        is_valid, sell_amount, err_msg = BinanceRulesEngine.adjust_quantity_for_sell(symbol, raw_sell_amount, current_price)
+        if not is_valid:
+            # Fallback en simulación si es por MIN_NOTIONAL pero tenemos posición residual: vender el total
+            sell_amount = raw_sell_amount
+
         gross_eur = sell_amount * current_price
         fee_eur = round(gross_eur * self.fee_rate, 4)
         net_eur = gross_eur - fee_eur
 
         # Coste proporcional
-        cost_basis = pos["total_cost_eur"] * sell_pct
+        cost_basis = pos["total_cost_eur"] * (sell_amount / pos["amount"]) if pos["amount"] > 0 else pos["total_cost_eur"]
         trade_pnl = net_eur - cost_basis
 
-        # Si hay ganancia, desviar el % configurado (ej: 50%) a la Bóveda de Ahorro MSCI World
+        # Si hay ganancia, desviar el % configurado a la Bóveda MSCI World
         swept_to_msci = 0.0
         if sweep_pct is None:
             from .config import CONFIG
@@ -153,13 +213,13 @@ class Portfolio:
         self.total_fees_paid += fee_eur
         self.realized_pnl += trade_pnl
 
-        # Actualizar o eliminar la posición
+        # Actualizar o liquidar la posición
         remaining_amount = pos["amount"] - sell_amount
-        if remaining_amount <= 1e-8 or sell_pct >= 0.999:
+        if remaining_amount <= 1e-6 or sell_pct >= 0.999:
             del self.positions[symbol]
         else:
             pos["amount"] = remaining_amount
-            pos["total_cost_eur"] -= cost_basis
+            pos["total_cost_eur"] = max(0.0, pos["total_cost_eur"] - cost_basis)
             self.positions[symbol] = pos
 
         trade = {
