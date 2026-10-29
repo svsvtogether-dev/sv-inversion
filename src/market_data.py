@@ -17,8 +17,20 @@ YAHOO_CRYPTO_MAP = {
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+def adaptive_round(val: Optional[float]) -> float:
+    """Ajusta dinámicamente la precisión de redondeo para soportar desde micro-memecoins (< 0.0001€) hasta BTC."""
+    if val is None or val == 0:
+        return 0.0
+    abs_val = abs(val)
+    if abs_val < 0.0001:
+        return round(val, 8)
+    elif abs_val < 0.01:
+        return round(val, 6)
+    else:
+        return round(val, 4)
+
 class MarketDataFeed:
-    def __init__(self, timeout: float = 6.0):
+    def __init__(self, timeout: float = 5.0):
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": USER_AGENT})
@@ -69,10 +81,10 @@ class MarketDataFeed:
                     d = s_resp.json()
                     price = float(d.get("lastPrice", 0))
                     stats = {
-                        "price": price,
-                        "priceChangePercent": float(d.get("priceChangePercent", 0)),
-                        "highPrice": float(d.get("highPrice", 0)),
-                        "lowPrice": float(d.get("lowPrice", 0)),
+                        "price": adaptive_round(price),
+                        "priceChangePercent": round(float(d.get("priceChangePercent", 0)), 2),
+                        "highPrice": adaptive_round(float(d.get("highPrice", 0))),
+                        "lowPrice": adaptive_round(float(d.get("lowPrice", 0))),
                         "volume": float(d.get("volume", 0)),
                     }
 
@@ -95,10 +107,10 @@ class MarketDataFeed:
 
                 if price and price > 0 and candles:
                     return price, stats, candles
-            except Exception as e:
-                print(f"[Aviso Binance {base_url} {symbol}]: {e}")
+            except Exception:
+                continue
 
-        # Fallback automático a Yahoo Finance si Binance está restringido en la región del servidor cloud
+        # Fallback a Yahoo Finance si Binance está restringido
         yahoo_sym = YAHOO_CRYPTO_MAP.get(symbol)
         if yahoo_sym:
             return self._get_yahoo_data(yahoo_sym)
@@ -106,7 +118,7 @@ class MarketDataFeed:
         return price, stats, candles
 
     # ----------------------------------------------------
-    # FEEDS DE YAHOO FINANCE (Acciones, Índices, Oro, Forex)
+    # FEEDS DE YAHOO FINANCE (Fallback secundario)
     # ----------------------------------------------------
     def _get_yahoo_data(self, symbol: str) -> Tuple[Optional[float], Dict, List[Dict]]:
         price_native = None
@@ -124,10 +136,10 @@ class MarketDataFeed:
 
                 chg_pct = ((price_native - prev_close) / prev_close) * 100 if prev_close > 0 else 0.0
                 stats = {
-                    "price": price_native,
-                    "priceChangePercent": chg_pct,
-                    "highPrice": float(meta.get("regularMarketDayHigh") or price_native),
-                    "lowPrice": float(meta.get("regularMarketDayLow") or price_native),
+                    "price": adaptive_round(price_native),
+                    "priceChangePercent": round(chg_pct, 2),
+                    "highPrice": adaptive_round(float(meta.get("regularMarketDayHigh") or price_native)),
+                    "lowPrice": adaptive_round(float(meta.get("regularMarketDayLow") or price_native)),
                     "volume": float(meta.get("regularMarketVolume") or 0),
                 }
 
@@ -150,8 +162,8 @@ class MarketDataFeed:
                             "close": float(c),
                             "volume": 0
                         })
-        except Exception as e:
-            print(f"[Error Yahoo {symbol}]: {e}")
+        except Exception:
+            pass
 
         return price_native, stats, candles
 
@@ -184,31 +196,34 @@ class MarketDataFeed:
         if not closes:
             return 0.0
         if len(closes) < period:
-            return round(sum(closes) / len(closes), 4)
+            return adaptive_round(sum(closes) / len(closes))
 
         multiplier = 2.0 / (period + 1)
         ema = sum(closes[:period]) / period
         for price in closes[period:]:
             ema = (price - ema) * multiplier + ema
-        return round(ema, 4)
+        return adaptive_round(ema)
 
     @staticmethod
     def calculate_bollinger_bands(closes: List[float], period: int = 20, num_std: float = 2.0) -> Tuple[float, float, float]:
         if len(closes) < period:
-            avg = round(sum(closes) / len(closes), 4) if closes else 0.0
+            avg = adaptive_round(sum(closes) / len(closes)) if closes else 0.0
             return avg, avg, avg
 
         slice_closes = closes[-period:]
         sma = sum(slice_closes) / period
         variance = sum((x - sma) ** 2 for x in slice_closes) / period
         std_dev = variance ** 0.5
-        return round(sma + (num_std * std_dev), 4), round(sma, 4), round(sma - (num_std * std_dev), 4)
+        upper = adaptive_round(sma + (num_std * std_dev))
+        middle = adaptive_round(sma)
+        lower = adaptive_round(sma - (num_std * std_dev))
+        return upper, middle, lower
 
     # ----------------------------------------------------
-    # ANÁLISIS UNIVERSAL CON CONVERSIÓN A EUR
+    # ANÁLISIS UNIVERSAL CON ADAPTATIVE ROUNDING
     # ----------------------------------------------------
     def analyze_symbol(self, symbol: str, interval: str = "1m", limit: int = 50) -> Dict:
-        meta = MARKETS_CATALOG.get(symbol, {"name": symbol, "source": "binance", "currency": "EUR", "category": "crypto"})
+        meta = MARKETS_CATALOG.get(symbol, {"name": symbol, "source": "binance", "currency": "EUR", "category": "crypto", "sub_category": "top"})
         source = meta.get("source", "binance")
         currency = meta.get("currency", "EUR")
         category = meta.get("category", "crypto")
@@ -228,12 +243,15 @@ class MarketDataFeed:
         else:
             raw_price = self.last_known_prices.get(symbol, 0.0)
 
-        # Si cotiza en USD (y no es un par Forex directo), convertir a EUR para contabilidad unificada
+        # Conversión a EUR si fuese necesario
         conversion_factor = (1.0 / rate) if (currency == "USD" and category != "forex" and rate > 0) else 1.0
         price_eur = raw_price * conversion_factor
 
+        rounded_raw = adaptive_round(raw_price)
+        rounded_eur = adaptive_round(price_eur)
+
         if price_eur > 0:
-            self.last_known_prices_eur[symbol] = round(price_eur, 4)
+            self.last_known_prices_eur[symbol] = rounded_eur
 
         if not candles:
             cached = self.last_analysis_cache.get(symbol)
@@ -243,13 +261,14 @@ class MarketDataFeed:
                 "symbol": symbol,
                 "name": meta.get("name", symbol),
                 "category": category,
+                "sub_category": meta.get("sub_category", "top"),
                 "clean_symbol": meta.get("symbol_clean", symbol),
                 "currency": currency,
-                "native_price": round(raw_price, 4),
-                "price": round(price_eur, 4),
+                "native_price": rounded_raw,
+                "price": rounded_eur,
                 "rsi": 50.0,
-                "ema_fast": round(price_eur, 4),
-                "ema_slow": round(price_eur, 4),
+                "ema_fast": rounded_eur,
+                "ema_slow": rounded_eur,
                 "bb_upper": 0.0,
                 "bb_lower": 0.0,
                 "stats_24h": stats_24h,
@@ -266,10 +285,11 @@ class MarketDataFeed:
             "symbol": symbol,
             "name": meta.get("name", symbol),
             "category": category,
+            "sub_category": meta.get("sub_category", "top"),
             "clean_symbol": meta.get("symbol_clean", symbol),
             "currency": currency,
-            "native_price": round(raw_price, 4),
-            "price": round(price_eur, 4),
+            "native_price": rounded_raw,
+            "price": rounded_eur,
             "rsi": rsi,
             "ema_fast": ema_fast,
             "ema_slow": ema_slow,

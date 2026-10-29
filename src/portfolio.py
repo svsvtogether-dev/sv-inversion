@@ -221,10 +221,13 @@ class Portfolio:
         self.total_fees_paid += fee_eur
         self.realized_pnl += trade_pnl
 
-        # Actualizar o liquidar la posición
+        # Actualizar o liquidar la posición (eliminando cualquier resto considerado polvo)
         remaining_amount = pos["amount"] - sell_amount
-        if remaining_amount <= 1e-6 or sell_pct >= 0.999:
-            del self.positions[symbol]
+        rule = BinanceRulesEngine.get_rule(symbol)
+        min_qty = rule.get("min_qty", 1e-5)
+        if remaining_amount < min_qty or sell_pct >= 0.999:
+            if symbol in self.positions:
+                del self.positions[symbol]
         else:
             pos["amount"] = remaining_amount
             pos["total_cost_eur"] = max(0.0, pos["total_cost_eur"] - cost_basis)

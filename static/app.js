@@ -67,12 +67,17 @@ const kpiMsciVault = document.getElementById("kpiMsciVault");
 const kpiMsciSub = document.getElementById("kpiMsciSub");
 
 function formatEur(val) {
+  if (val === 0 || !val) return "0,00 €";
+  if (Math.abs(val) < 0.0001) return `€${val.toFixed(8)}`;
+  if (Math.abs(val) < 0.01) return `€${val.toFixed(6)}`;
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(val);
 }
 
 function formatCrypto(val) {
-  if (val === 0) return "0";
-  if (val < 0.001) return val.toFixed(6);
+  if (val === 0 || !val) return "0";
+  if (Math.abs(val) < 0.0001) return val.toFixed(8);
+  if (Math.abs(val) < 0.01) return val.toFixed(6);
+  if (Math.abs(val) >= 1000) return val.toLocaleString('es-ES', { maximumFractionDigits: 2 });
   return val.toFixed(4);
 }
 
@@ -162,7 +167,7 @@ async function fetchState() {
 function renderPills(catalog, activeCat, activeSym) {
   symbolPillsContainer.innerHTML = "";
   for (const [sym, meta] of Object.entries(catalog)) {
-    if (activeCat !== "all" && meta.category !== activeCat) continue;
+    if (activeCat !== "all" && meta.category !== activeCat && meta.sub_category !== activeCat) continue;
 
     const btn = document.createElement("button");
     btn.className = `pill-btn ${sym === activeSym ? "active" : ""}`;

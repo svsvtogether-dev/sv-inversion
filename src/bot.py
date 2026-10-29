@@ -4,6 +4,7 @@ import threading
 from datetime import datetime
 from typing import Dict, Optional, List
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 # Garantizar compatibilidad con caracteres UTF-8 en consolas de Windows
 if sys.platform == "win32":
@@ -118,14 +119,20 @@ class TradingBot:
                     if self.current_symbol == new_sym:
                         self.last_analysis = analysis
 
-    def get_candidate_symbols(self) -> List[str]:
-        # En modo real con Binance, solo operamos pares de criptomonedas EUR
-        if self.active_environment == "live":
-            return [sym for sym, meta in MARKETS_CATALOG.items() if meta.get("category") == "crypto"]
+    @staticmethod
+    def format_price(p: float) -> str:
+        if p <= 0:
+            return "€0.00"
+        if p < 0.0001:
+            return f"€{p:.8f}"
+        if p < 0.01:
+            return f"€{p:.6f}"
+        return f"€{p:,.2f}"
 
-        if self.active_category == "all":
+    def get_candidate_symbols(self) -> List[str]:
+        if self.active_category in ["all", "crypto"]:
             return SUPPORTED_SYMBOLS
-        return [sym for sym, meta in MARKETS_CATALOG.items() if meta.get("category") == self.active_category]
+        return [sym for sym, meta in MARKETS_CATALOG.items() if meta.get("sub_category") == self.active_category or meta.get("category") == self.active_category]
 
     def step(self):
         """Ejecuta una iteración completa del ciclo con aislamiento por entorno."""
@@ -176,7 +183,7 @@ class TradingBot:
                             placed, res, order_msg = self.binance_client.place_market_order(sym, "SELL", adj_qty)
                             if placed:
                                 trade = active_port.sell(sym, price, f"[Binance Real] {reason}", sell_pct=1.0)
-                                self.log(f"🔴 VENTA REAL EN BINANCE: {adj_qty} {sym} a €{price:,.2f} | {reason}")
+                                self.log(f"🔴 VENTA REAL EN BINANCE: {adj_qty} {sym} a {self.format_price(price)} | {reason}")
                             else:
                                 self.log(f"⚠️ Error orden venta Binance: {order_msg}")
                     else:
@@ -184,7 +191,7 @@ class TradingBot:
                         trade = active_port.sell(sym, price, reason, sell_pct=1.0, sweep_pct=sweep_pct)
                         if trade:
                             pnl_sign = "+" if trade['realized_pnl_eur'] >= 0 else ""
-                            self.log(f"💰 VENTA ({trade['environment'].upper()}): €{trade['amount_eur']:.2f} {sym} a €{price:,.2f} | P&L: {pnl_sign}€{trade['realized_pnl_eur']:.4f} ({trade.get('pnl_pct', 0):+.2f}%) | {reason}")
+                            self.log(f"💰 VENTA ({trade['environment'].upper()}): €{trade['amount_eur']:.2f} {sym} a {self.format_price(price)} | P&L: {pnl_sign}€{trade['realized_pnl_eur']:.4f} ({trade.get('pnl_pct', 0):+.2f}%) | {reason}")
                             self.status_message = f"Venta de {sym} con beneficio {pnl_sign}€{trade['realized_pnl_eur']:.4f}"
                             self.last_action = {"action": action, "reason": reason, "time": now_str}
                             return
@@ -202,39 +209,49 @@ class TradingBot:
                             placed, res, order_msg = self.binance_client.place_market_order(sym, "BUY", adj_qty)
                             if placed:
                                 trade = active_port.buy(sym, amount_eur, price, f"[Binance Real] {reason}")
-                                self.log(f"🔴 COMPRA REAL EN BINANCE: {adj_qty} {sym} a €{price:,.2f} (€{amount_eur:.2f})")
+                                self.log(f"🔴 COMPRA REAL EN BINANCE: {adj_qty} {sym} a {self.format_price(price)} (€{amount_eur:.2f})")
                             else:
                                 self.log(f"⚠️ Error orden compra Binance: {order_msg}")
                     else:
                         trade = active_port.buy(sym, amount_eur, price, reason)
                         if trade:
-                            self.log(f"✅ DCA ({trade['environment'].upper()}): {trade['quantity']:.6f} {sym} a €{price:,.2f} (€{amount_eur:.2f} | {reason})")
+                            self.log(f"✅ DCA ({trade['environment'].upper()}): {trade['quantity']} {sym} a {self.format_price(price)} (€{amount_eur:.2f} | {reason})")
                             self.status_message = f"DCA en {sym}"
                             self.last_action = {"action": action, "reason": reason, "time": now_str}
                             return
 
-        # 2. Escanear candidatos según el entorno y filtro activo
+        # 2. Escanear candidatos concurrentemente según filtro activo (~2.5s para 29 mercados)
         candidate_symbols = self.get_candidate_symbols()
-        best_candidate = None
-        best_analysis = None
-        lowest_rsi = 999.0
-
         symbols_to_scan = list(candidate_symbols)
         if self.current_symbol not in symbols_to_scan and symbols_to_scan:
             symbols_to_scan.insert(0, self.current_symbol)
 
-        for sym in symbols_to_scan:
-            analysis = self.feed.analyze_symbol(sym)
-            if analysis.get("price", 0) > 0:
-                if sym == self.current_symbol:
-                    with self._lock:
-                        self.last_analysis = analysis
-                if sym in candidate_symbols:
-                    rsi = analysis.get("rsi", 50.0)
-                    if rsi < lowest_rsi:
-                        lowest_rsi = rsi
-                        best_candidate = sym
-                        best_analysis = analysis
+        analyses = {}
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_sym = {executor.submit(self.feed.analyze_symbol, s): s for s in symbols_to_scan}
+            for future in future_to_sym:
+                s = future_to_sym[future]
+                try:
+                    res = future.result()
+                    if res and res.get("price", 0) > 0:
+                        analyses[s] = res
+                except Exception:
+                    pass
+
+        best_candidate = None
+        best_analysis = None
+        lowest_rsi = 999.0
+
+        for sym, analysis in analyses.items():
+            if sym == self.current_symbol:
+                with self._lock:
+                    self.last_analysis = analysis
+            if sym in candidate_symbols:
+                rsi = analysis.get("rsi", 50.0)
+                if rsi < lowest_rsi:
+                    lowest_rsi = rsi
+                    best_candidate = sym
+                    best_analysis = analysis
 
         target_symbol = best_candidate or self.current_symbol
         target_analysis = best_analysis or self.last_analysis
@@ -265,7 +282,7 @@ class TradingBot:
                                 self.current_symbol = target_symbol
                                 self.last_analysis = target_analysis
                                 self.last_action = {"action": action, "reason": reason, "time": now_str}
-                                self.log(f"🔴 COMPRA REAL EN BINANCE ({target_name}): {adj_qty} a €{price:,.2f}")
+                                self.log(f"🔴 COMPRA REAL EN BINANCE ({target_name}): {adj_qty} a {self.format_price(price)}")
                                 self.status_message = f"Compra Real ejecutada en {target_name}"
                             else:
                                 self.log(f"⚠️ Error orden Binance: {order_msg}")
@@ -275,7 +292,7 @@ class TradingBot:
                         self.current_symbol = target_symbol
                         self.last_analysis = target_analysis
                         self.last_action = {"action": action, "reason": reason, "time": now_str}
-                        self.log(f"✅ COMPRA EJECUTADA ({target_name}): {trade['quantity']:.6f} a €{price:,.2f} (€{amount_eur:.2f} | {reason})")
+                        self.log(f"✅ COMPRA EJECUTADA ({target_name}): {trade['quantity']} a {self.format_price(price)} (€{amount_eur:.2f} | {reason})")
                         self.status_message = f"Compra ejecutada de {target_name}"
             else:
                 curr_analysis = self.feed.last_analysis_cache.get(self.current_symbol) or self.last_analysis
