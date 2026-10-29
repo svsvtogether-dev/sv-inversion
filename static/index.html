@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SV Inversión - Paper Trading (250 €)</title>
+  <title>SV Inversión - Paper Trading (15 €)</title>
   <link rel="icon" type="image/png" href="/static/favicon.png">
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#0a0d14">
@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SV Inversión">
   <link rel="apple-touch-icon" href="/static/logo-thumb.png">
-  <link rel="stylesheet" href="/static/style.css?v=7">
+  <link rel="stylesheet" href="/static/style.css?v=8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -27,13 +27,13 @@
       <div class="brand">
         <img src="/static/logo-thumb.png" alt="SV Inversión" class="brand-logo-img">
         <div>
-          <h1>SV Inversión AI <span id="headerEnvBadge" class="badge paper">SIMULACIÓN 250 €</span></h1>
-          <p class="subtitle">Motor Universal: Criptomonedas, Índices, Acciones, Oro y Forex</p>
+          <h1>SV Inversión AI <span id="headerEnvBadge" class="badge paper">SIMULACIÓN 15 €</span></h1>
+          <p class="subtitle">Operativa Algorítmica Exclusiva Binance Spot (EUR)</p>
         </div>
       </div>
 
       <div class="header-controls">
-        <button id="pwaInstallBtn" class="btn btn-primary has-help" style="display: none; background: #2563eb;"
+        <button id="pwaInstallBtn" class="btn btn-primary has-help" style="display: none; background: #563eb;"
                 data-tooltip-title="📲 Instalar en tu Móvil"
                 data-tooltip="Instala la aplicación SV Inversión directamente en tu teléfono móvil con su icono oficial.">📲 Instalar App</button>
         <div class="status-indicator has-help" id="statusIndicator"
@@ -52,8 +52,8 @@
                 data-tooltip="Vende INMEDIATAMENTE todas tus posiciones abiertas al precio actual de mercado y convierte todo de vuelta a Euros en efectivo.">🚨 Venta Emergencia</button>
         
         <button id="resetBtn" class="btn btn-outline has-help"
-                data-tooltip-title="🔄 Reiniciar Cartera a 250 €"
-                data-tooltip="Borra el historial de operaciones y restaura tu saldo virtual exactamente a 250,00 € si quieres empezar un nuevo experimento desde cero.">🔄 Reset 250€</button>
+                data-tooltip-title="🔄 Reiniciar Cartera a 15 €"
+                data-tooltip="Borra el historial de operaciones y restaura tu saldo virtual exactamente a 15,00 € si quieres empezar un nuevo experimento desde cero.">🔄 Reset 15€</button>
       </div>
     </header>
 
@@ -64,7 +64,7 @@
           <span class="env-tab-icon">🧪</span>
           <div class="env-tab-info">
             <span class="env-tab-title">Modo Simulación</span>
-            <span class="env-tab-desc">Paper Trading (250 € Virtuales)</span>
+            <span class="env-tab-desc">Paper Trading (15 € Virtuales)</span>
           </div>
           <span class="env-tab-pill pill-sim">VIRTUAL</span>
         </button>
@@ -109,23 +109,10 @@
     <nav class="market-nav">
       <div class="category-tabs" id="categoryTabs">
         <button class="cat-btn active has-help" data-category="all"
-                data-tooltip-title="Filtro: Todos los Mercados"
-                data-tooltip="El bot escanea simultáneamente criptomonedas, acciones de Wall Street, materias primas y divisas, eligiendo siempre la mejor oportunidad global.">🌐 Todos los Mercados</button>
-        <button class="cat-btn has-help" data-category="crypto"
-                data-tooltip-title="Filtro: Criptomonedas (24/7)"
-                data-tooltip="Mercado abierto las 24 horas del día. Alta volatilidad ideal para que el bot compre en caídas y venda en rebotes frecuentes.">🪙 Criptomonedas (24/7)</button>
-        <button class="cat-btn has-help" data-category="indices"
-                data-tooltip-title="Filtro: Índices & ETFs"
-                data-tooltip="Fondos cotizados como el S&P 500 y Nasdaq 100 que representan la economía global y las 500 mayores empresas de EE.UU.">📈 Índices & ETFs</button>
-        <button class="cat-btn has-help" data-category="stocks"
-                data-tooltip-title="Filtro: Acciones Líderes"
-                data-tooltip="Empresas individuales gigantes como Nvidia, Apple y Microsoft. Tienen tendencias de crecimiento muy sólidas.">🏢 Acciones Líderes</button>
-        <button class="cat-btn has-help" data-category="commodities"
-                data-tooltip-title="Filtro: Materias Primas"
-                data-tooltip="Bienes físicos como el Oro (refugio seguro histórico) y Petróleo Crudo (motor energético global).">🥇 Materias Primas</button>
-        <button class="cat-btn has-help" data-category="forex"
-                data-tooltip-title="Filtro: Mercado de Divisas (Forex)"
-                data-tooltip="El intercambio entre monedas del mundo (Euro, Dólar, Libra). Es el mercado más grande y líquido del planeta.">💱 Forex / Divisas</button>
+                data-tooltip-title="Binance Spot EUR (24/7)"
+                data-tooltip="El bot escanea en tiempo real los principales pares de Binance Spot (BTC, ETH, SOL y BNB) para ejecutar compras escalonadas de 5 EUR por tramo.">
+          🪙 Binance Spot EUR (BTC, ETH, SOL, BNB)
+        </button>
       </div>
 
       <div class="symbol-pills-container" id="symbolPillsContainer">
@@ -139,9 +126,9 @@
       <section class="kpi-row">
         <div class="card kpi-card has-help"
              data-tooltip-title="Valor Total de tu Cartera"
-             data-tooltip="La suma de TODO tu patrimonio: el dinero en efectivo que te queda libre más el valor actual en euros de lo que tienes invertido y tu bóveda MSCI World. Si este número sube por encima de 250 €, estás en ganancias.">
+             data-tooltip="La suma de TODO tu patrimonio: el dinero en efectivo que te queda libre más el valor actual en euros de lo que tienes invertido y tu bóveda MSCI World. Si este número sube por encima de 15 €, estás en ganancias.">
           <div class="kpi-title">VALOR TOTAL CARTERA <span class="help-icon">?</span></div>
-          <div class="kpi-value" id="kpiTotalValue">€250.00</div>
+          <div class="kpi-value" id="kpiTotalValue">€15.00</div>
           <div class="kpi-sub" id="kpiNetProfit">P&L: <span class="neutral">€0.00 (0.00%)</span></div>
         </div>
 
@@ -149,7 +136,7 @@
              data-tooltip-title="Efectivo Disponible (Liquidez)"
              data-tooltip="El dinero en Euros que NO está invertido en ningún activo en este instante. El bot lo guarda estratégicamente para poder comprar cuando el mercado caiga y ofrezca descuentos.">
           <div class="kpi-title">EFECTIVO DISPONIBLE <span class="help-icon">?</span></div>
-          <div class="kpi-value text-accent" id="kpiCash">€250.00</div>
+          <div class="kpi-value text-accent" id="kpiCash">€15.00</div>
           <div class="kpi-sub" id="kpiInPosition">En posiciones: €0.00</div>
         </div>
 
@@ -299,10 +286,10 @@
         <div class="config-grid">
           <div class="config-field has-help"
                data-tooltip-title="Tamaño por Compra (€)"
-               data-tooltip="Cuánto dinero gasta el bot en cada compra. Con 250 € de capital, poner 25 € te permite tener hasta 10 compras escalonadas para diversificar y promediar a la baja sin quedarte sin liquidez.">
+               data-tooltip="Cuánto dinero gasta el bot en cada compra. Con 15 € de capital, poner 5 € te permite tener hasta 10 compras escalonadas para diversificar y promediar a la baja sin quedarte sin liquidez.">
             <label>Tamaño por Compra (€): <span class="help-icon">?</span></label>
-            <input type="number" id="cfgOrderAmount" step="5.0" min="5" max="250" value="25.0">
-            <small class="hint">Con 250 €, €25.0 permite 10 compras escalonadas sin ahogar el capital.</small>
+            <input type="number" id="cfgOrderAmount" step="5.0" min="5" max="15" value="5.0">
+            <small class="hint">Con 15 €, €5.0 permite 10 compras escalonadas sin ahogar el capital.</small>
           </div>
           <div class="config-field has-help"
                data-tooltip-title="Take-Profit Objetivo (%)"
@@ -315,7 +302,7 @@
                data-tooltip-title="Stop-Loss Límite (%)"
                data-tooltip="Tu cinturón de seguridad anti-quiebra. Si un activo cae inesperadamente por debajo de este límite (ejemplo: -5.0%), el bot vende por protección para que no pierdas más.">
             <label>Stop-Loss Límite (%): <span class="help-icon">?</span></label>
-            <input type="number" id="cfgStopLoss" step="0.5" max="-1" min="-25" value="-3.5">
+            <input type="number" id="cfgStopLoss" step="0.5" max="-1" min="-5" value="-3.5">
             <small class="hint">Protección máxima de capital en caso de caída extrema.</small>
           </div>
           <div class="config-field has-help"
@@ -392,16 +379,16 @@
     </main>
 
     <footer class="footer">
-      <p>💡 <strong>Guía Interactiva:</strong> Mantén el ratón quieto durante <strong>2 segundos</strong> sobre cualquier casilla o indicador para ver la explicación sin molestias al mover el puntero. | <strong>Simulación con 250 €</strong></p>
+      <p>💡 <strong>Guía Interactiva:</strong> Mantén el ratón quieto durante <strong>2 segundos</strong> sobre cualquier casilla o indicador para ver la explicación sin molestias al mover el puntero. | <strong>Simulación con 15 €</strong></p>
     </footer>
   </div>
 
-  <script src="/static/app.js?v=7"></script>
+  <script src="/static/app.js?v=8"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=7').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=8').catch(err => console.log('SW error:', err));
       });
     }
 

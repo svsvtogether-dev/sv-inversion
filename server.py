@@ -89,7 +89,7 @@ async def data_category(request: Request, category: Optional[str] = None):
     return {"category": bot.active_category, "symbol": bot.current_symbol}
 
 @data_api_app.api_route("/reset", methods=["GET", "POST"])
-async def data_reset(request: Request, capital: float = 250.0):
+async def data_reset(request: Request, capital: float = 15.0):
     if request.method == "POST":
         try:
             body = await request.json()

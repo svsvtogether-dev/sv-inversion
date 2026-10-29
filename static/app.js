@@ -93,7 +93,7 @@ function updateEnvironmentUI(env) {
     tabLiveBtn.className = "env-tab-btn";
     if (liveWarningBanner) liveWarningBanner.style.display = "none";
     if (headerEnvBadge) {
-      headerEnvBadge.textContent = "SIMULACIÓN 250 €";
+      headerEnvBadge.textContent = "SIMULACIÓN 15 €";
       headerEnvBadge.className = "badge paper";
     }
     if (resetBtn) resetBtn.style.display = "inline-flex";
@@ -225,7 +225,7 @@ function renderState(data) {
       tabLiveBtn.className = "env-tab-btn";
       if (liveWarningBanner) liveWarningBanner.style.display = "none";
       if (headerEnvBadge) {
-        headerEnvBadge.textContent = "SIMULACIÓN 250 €";
+        headerEnvBadge.textContent = "SIMULACIÓN 15 €";
         headerEnvBadge.className = "badge paper";
       }
       if (resetBtn) resetBtn.style.display = "inline-flex";
@@ -455,11 +455,11 @@ emergencyBtn.addEventListener("click", async () => {
 });
 
 resetBtn.addEventListener("click", async () => {
-  if (confirm("¿Deseas reiniciar la cartera virtual a los 250 € iniciales?")) {
+  if (confirm("¿Deseas reiniciar la cartera virtual a los 15 € iniciales?")) {
     await fetch("/static/api/reset", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ capital: 250.0 })
+      body: JSON.stringify({ capital: 15.0 })
     });
     fetchState();
   }
