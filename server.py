@@ -28,10 +28,17 @@ def get_dashboard():
         return {"message": "El dashboard se está construyendo..."}
     return FileResponse(index_file)
 
+@app.get("/dashboard")
+def get_dashboard_alias():
+    return FileResponse(STATIC_DIR / "index.html")
+
+# Rutas de datos (compatibles tanto con /data_api/ como con /api/)
+@app.api_route("/data_api/status", methods=["GET", "POST"])
 @app.api_route("/api/status", methods=["GET", "POST"])
 def get_status():
     return bot.get_state()
 
+@app.api_route("/data_api/toggle", methods=["GET", "POST"])
 @app.api_route("/api/toggle", methods=["GET", "POST"])
 def toggle_bot():
     bot.is_running = not bot.is_running
@@ -39,9 +46,7 @@ def toggle_bot():
     bot.log(f"Bot marcado como {state_str} por el usuario.")
     return {"is_running": bot.is_running}
 
-class EnvironmentRequest(BaseModel):
-    environment: Optional[str] = None
-
+@app.api_route("/data_api/environment", methods=["GET", "POST"])
 @app.api_route("/api/environment", methods=["GET", "POST"])
 async def change_environment(request: Request, env: Optional[str] = None):
     chosen_env = env
@@ -56,9 +61,7 @@ async def change_environment(request: Request, env: Optional[str] = None):
         bot.set_environment(chosen_env)
     return {"active_environment": bot.active_environment}
 
-class LiveArmedRequest(BaseModel):
-    armed: Optional[bool] = None
-
+@app.api_route("/data_api/live_armed", methods=["GET", "POST"])
 @app.api_route("/api/live_armed", methods=["GET", "POST"])
 async def change_live_armed(request: Request, armed: Optional[bool] = None):
     chosen_armed = armed
@@ -73,9 +76,7 @@ async def change_live_armed(request: Request, armed: Optional[bool] = None):
         bot.set_live_armed(chosen_armed)
     return {"live_trading_armed": bot.live_trading_armed}
 
-class SymbolRequest(BaseModel):
-    symbol: Optional[str] = None
-
+@app.api_route("/data_api/symbol", methods=["GET", "POST"])
 @app.api_route("/api/symbol", methods=["GET", "POST"])
 async def change_symbol(request: Request, symbol: Optional[str] = None):
     chosen_symbol = symbol
@@ -90,9 +91,7 @@ async def change_symbol(request: Request, symbol: Optional[str] = None):
         bot.set_symbol(chosen_symbol)
     return {"symbol": bot.current_symbol}
 
-class CategoryRequest(BaseModel):
-    category: Optional[str] = None
-
+@app.api_route("/data_api/category", methods=["GET", "POST"])
 @app.api_route("/api/category", methods=["GET", "POST"])
 async def change_category(request: Request, category: Optional[str] = None):
     chosen_cat = category
@@ -107,9 +106,7 @@ async def change_category(request: Request, category: Optional[str] = None):
         bot.set_category(chosen_cat)
     return {"category": bot.active_category, "symbol": bot.current_symbol}
 
-class ResetRequest(BaseModel):
-    capital: float = 250.0
-
+@app.api_route("/data_api/reset", methods=["GET", "POST"])
 @app.api_route("/api/reset", methods=["GET", "POST"])
 async def reset_portfolio(request: Request, capital: float = 250.0):
     if request.method == "POST":
@@ -123,19 +120,13 @@ async def reset_portfolio(request: Request, capital: float = 250.0):
     bot.log(f"🔄 Cartera ({bot.active_environment.upper()}) reiniciada con €{capital:.2f}")
     return {"message": "Cartera reiniciada", "capital": capital}
 
+@app.api_route("/data_api/emergency_sell", methods=["GET", "POST"])
 @app.api_route("/api/emergency_sell", methods=["GET", "POST"])
 def emergency_sell():
     sold = bot.emergency_sell_all()
     return {"message": f"Se liquidaron {sold} posiciones"}
 
-class ConfigUpdateRequest(BaseModel):
-    order_amount_eur: float
-    take_profit_pct: float
-    stop_loss_pct: float
-    rsi_buy_threshold: float
-    rsi_sell_threshold: float
-    msci_sweep_pct: float = 0.0
-
+@app.api_route("/data_api/config", methods=["GET", "POST"])
 @app.api_route("/api/config", methods=["GET", "POST"])
 async def update_config(request: Request):
     if request.method == "POST":
@@ -148,6 +139,6 @@ async def update_config(request: Request):
                     CONFIG[key] = val
             bot.strategy.config = bot.config
             bot.log(f"⚙️ Parámetros actualizados.")
-        except Exception as e:
+        except Exception:
             pass
     return {"message": "Configuración actualizada con éxito", "config": bot.config}

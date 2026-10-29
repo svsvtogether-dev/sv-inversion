@@ -21,27 +21,31 @@ try:
 except Exception:
     pass
 
-# Bloque Gradio principal para Hugging Face Spaces
 with gr.Blocks(
     title="SV Inversión AI",
     css="footer {visibility: hidden !important;} .gradio-container {padding: 0 !important; margin: 0 !important; max-width: 100% !important; background: #0a0d14 !important;}"
 ) as demo:
     gr.HTML('<iframe src="/dashboard" style="width: 100%; height: 98vh; border: none; margin: 0; padding: 0; background: #0a0d14;" allow="clipboard-write"></iframe>')
 
-# Acceso a la aplicación FastAPI subyacente de Gradio
 app = demo.app
 
-# Montar recursos estáticos (CSS, JS, iconos)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 @app.get("/dashboard")
 def get_dashboard():
     return FileResponse(STATIC_DIR / "index.html")
 
+@app.get("/")
+def get_root():
+    return FileResponse(STATIC_DIR / "index.html")
+
+# Rutas de datos prioritarias /data_api/
+@app.api_route("/data_api/status", methods=["GET", "POST"])
 @app.api_route("/api/status", methods=["GET", "POST"])
 def get_status():
     return bot.get_state()
 
+@app.api_route("/data_api/environment", methods=["GET", "POST"])
 @app.api_route("/api/environment", methods=["GET", "POST"])
 async def change_environment(request: Request, env: Optional[str] = None):
     chosen_env = env
@@ -56,6 +60,7 @@ async def change_environment(request: Request, env: Optional[str] = None):
         bot.set_environment(chosen_env)
     return {"active_environment": bot.active_environment}
 
+@app.api_route("/data_api/live_armed", methods=["GET", "POST"])
 @app.api_route("/api/live_armed", methods=["GET", "POST"])
 async def change_live_armed(request: Request, armed: Optional[bool] = None):
     chosen_armed = armed
@@ -70,6 +75,7 @@ async def change_live_armed(request: Request, armed: Optional[bool] = None):
         bot.set_live_armed(chosen_armed)
     return {"live_trading_armed": bot.live_trading_armed}
 
+@app.api_route("/data_api/toggle", methods=["GET", "POST"])
 @app.api_route("/api/toggle", methods=["GET", "POST"])
 def toggle_bot():
     bot.is_running = not bot.is_running
@@ -77,6 +83,7 @@ def toggle_bot():
     bot.log(f"Bot marcado como {state_str} por el usuario.")
     return {"is_running": bot.is_running}
 
+@app.api_route("/data_api/symbol", methods=["GET", "POST"])
 @app.api_route("/api/symbol", methods=["GET", "POST"])
 async def change_symbol(request: Request, symbol: Optional[str] = None):
     chosen_symbol = symbol
@@ -91,6 +98,7 @@ async def change_symbol(request: Request, symbol: Optional[str] = None):
         bot.set_symbol(chosen_symbol)
     return {"symbol": bot.current_symbol}
 
+@app.api_route("/data_api/category", methods=["GET", "POST"])
 @app.api_route("/api/category", methods=["GET", "POST"])
 async def change_category(request: Request, category: Optional[str] = None):
     chosen_cat = category
@@ -105,6 +113,7 @@ async def change_category(request: Request, category: Optional[str] = None):
         bot.set_category(chosen_cat)
     return {"category": bot.active_category, "symbol": bot.current_symbol}
 
+@app.api_route("/data_api/reset", methods=["GET", "POST"])
 @app.api_route("/api/reset", methods=["GET", "POST"])
 async def reset_portfolio(request: Request, capital: float = 250.0):
     if request.method == "POST":
@@ -118,11 +127,13 @@ async def reset_portfolio(request: Request, capital: float = 250.0):
     bot.log(f"🔄 Cartera ({bot.active_environment.upper()}) reiniciada con €{capital:.2f}")
     return {"message": "Cartera reiniciada", "capital": capital}
 
+@app.api_route("/data_api/emergency_sell", methods=["GET", "POST"])
 @app.api_route("/api/emergency_sell", methods=["GET", "POST"])
 def emergency_sell():
     sold = bot.emergency_sell_all()
     return {"message": f"Se liquidaron {sold} posiciones"}
 
+@app.api_route("/data_api/config", methods=["GET", "POST"])
 @app.api_route("/api/config", methods=["GET", "POST"])
 async def update_config(request: Request):
     if request.method == "POST":
