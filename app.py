@@ -22,7 +22,19 @@ except Exception:
     pass
 
 with gr.Blocks(title="SV Inversión AI") as demo:
-    gr.HTML("<script>window.location.href='/';</script>")
+    gr.HTML("""
+    <script>
+      if (window.location.pathname !== '/dashboard') {
+        window.location.replace('/dashboard');
+      }
+    </script>
+    <div style="display:flex; justify-content:center; align-items:center; height:80vh; font-family:sans-serif; color:#f1f5f9; background:#0a0d14;">
+      <div style="text-align:center;">
+        <h2 style="color:#60a5fa; margin-bottom:10px;">Cargando SV Inversión AI...</h2>
+        <p style="color:#94a3b8;">Redirigiendo al panel de control... <a href="/dashboard" style="color:#38bdf8; font-weight:bold; text-decoration:underline;">Haz clic aquí si no redirige</a></p>
+      </div>
+    </div>
+    """)
 
 app = demo.app
 
