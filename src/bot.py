@@ -129,6 +129,72 @@ class TradingBot:
             return f"€{p:.6f}"
         return f"€{p:,.2f}"
 
+    @staticmethod
+    def calculate_opportunity_score(analysis: Dict) -> float:
+        """
+        Calcula una puntuación cuantitativa multicriterio para seleccionar el mejor activo,
+        priorizando sobreventa con confirmación de giro alcista y activos líderes (evitando trampas bajistas).
+        """
+        if not analysis or analysis.get("price", 0) <= 0:
+            return -999.0
+
+        rsi = analysis.get("rsi", 50.0)
+        rsi_prev = analysis.get("rsi_prev", rsi)
+        price = analysis.get("price", 0.0)
+        ema_fast = analysis.get("ema_fast", price)
+        ema_slow = analysis.get("ema_slow", price)
+        ema_trend = analysis.get("ema_trend", price)
+        bb_lower = analysis.get("bb_lower", 0.0)
+        sub_cat = analysis.get("sub_category", "")
+        candle_bullish = analysis.get("candle_bullish", False)
+
+        score = 0.0
+
+        # 1. Ponderación por calidad y liquidez (preferir activos Top de Binance)
+        if sub_cat == "top":
+            score += 25.0
+        elif sub_cat == "l1":
+            score += 15.0
+        elif sub_cat == "memes":
+            score += 5.0
+
+        # 2. Zona de sobreventa con confirmación de giro
+        if 25.0 <= rsi <= 36.0:
+            score += 45.0
+            if rsi > rsi_prev:
+                score += 25.0  # Giro alcista en formación
+            if candle_bullish:
+                score += 15.0  # Vela verde cerrando al alza
+        elif rsi < 25.0:
+            # Sobreventa extrema: si no hay giro, penalizar para evitar cuchillos cayendo
+            if rsi > rsi_prev or candle_bullish:
+                score += 35.0
+            else:
+                score -= 15.0  # Desplome vertical sin freno
+        elif 36.0 < rsi <= 45.0:
+            score += 15.0
+            if rsi > rsi_prev and candle_bullish:
+                score += 15.0
+
+        # 3. Soporte en Banda Bollinger Inferior
+        if bb_lower > 0 and price <= (bb_lower * 1.002):
+            score += 20.0
+
+        # 4. Filtro de tendencia macro (Precio vs EMA 50)
+        if ema_trend > 0:
+            if price >= ema_trend:
+                score += 20.0
+            elif price >= (ema_trend * 0.97):
+                score += 10.0
+            else:
+                score -= 25.0  # Tendencia bajista profunda
+
+        # 5. Estructura alcista de medias móviles (EMA 9 > EMA 21)
+        if ema_fast > ema_slow:
+            score += 15.0
+
+        return score
+
     def get_candidate_symbols(self) -> List[str]:
         if self.active_category in ["all", "crypto"]:
             return SUPPORTED_SYMBOLS
@@ -147,6 +213,11 @@ class TradingBot:
             acc_info = self.binance_client.get_account_summary()
             with self._lock:
                 self.live_portfolio.cash = acc_info.get("eur_cash", 0.0)
+                # Control de comisiones con BNB
+                if acc_info.get("has_bnb_fee_discount"):
+                    self.live_portfolio.fee_rate = 0.00075
+                else:
+                    self.live_portfolio.fee_rate = 0.0010
 
         # Heartbeat regular
         if self.iteration_count % 20 == 0:
@@ -220,45 +291,26 @@ class TradingBot:
                             self.last_action = {"action": action, "reason": reason, "time": now_str}
                             return
 
-        # 2. Escanear candidatos concurrentemente según filtro activo (~2.5s para 29 mercados)
-        candidate_symbols = self.get_candidate_symbols()
-        symbols_to_scan = list(candidate_symbols)
-        if self.current_symbol not in symbols_to_scan and symbols_to_scan:
-            symbols_to_scan.insert(0, self.current_symbol)
+        # 2. Protección de Saldo Mínimo: Bloquear nuevas entradas si no hay saldo para MIN_NOTIONAL
+        min_order = self.config.get("min_order_eur", 5.0)
+        if active_port.cash < min_order:
+            with self._lock:
+                now_str = datetime.now().strftime("%H:%M:%S")
+                env_prefix = "[REAL] " if self.active_environment == "live" else ""
+                msg = f"{env_prefix}Esperando cierre de posición (Saldo libre €{active_port.cash:.2f} < €{min_order:.2f} MIN_NOTIONAL)"
+                self.status_message = msg
+                self.last_action = {"action": "HOLD", "reason": msg, "time": now_str}
+            return
 
-        analyses = {}
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            future_to_sym = {executor.submit(self.feed.analyze_symbol, s): s for s in symbols_to_scan}
-            for future in future_to_sym:
-                s = future_to_sym[future]
-                try:
-                    res = future.result()
-                    if res and res.get("price", 0) > 0:
-                        analyses[s] = res
-                except Exception:
-                    pass
-
-        best_candidate = None
-        best_analysis = None
-        lowest_rsi = 999.0
-
-        for sym, analysis in analyses.items():
-            if sym == self.current_symbol:
-                with self._lock:
-                    self.last_analysis = analysis
-            if sym in candidate_symbols:
-                rsi = analysis.get("rsi", 50.0)
-                if rsi < lowest_rsi:
-                    lowest_rsi = rsi
-                    best_candidate = sym
-                    best_analysis = analysis
-
-        target_symbol = best_candidate or self.current_symbol
-        target_analysis = best_analysis or self.last_analysis
+        # 3. Operativa focalizada en el par consolidado configurado (BTCEUR por defecto o ETHEUR)
+        # Se elimina la dependencia de tokens volátiles de baja liquidez para evitar spreads y saltos falsos de Stop-Loss
+        target_symbol = self.current_symbol
+        target_analysis = self.feed.analyze_symbol(target_symbol)
+        if not target_analysis or target_analysis.get("price", 0) <= 0:
+            return
 
         with self._lock:
-            if not self.last_analysis and target_analysis:
-                self.last_analysis = target_analysis
+            self.last_analysis = target_analysis
             position = active_port.positions.get(target_symbol)
             cash = active_port.cash
             action, amount_eur, reason = self.strategy.evaluate(target_analysis, position, cash)
@@ -295,13 +347,9 @@ class TradingBot:
                         self.log(f"✅ COMPRA EJECUTADA ({target_name}): {trade['quantity']} a {self.format_price(price)} (€{amount_eur:.2f} | {reason})")
                         self.status_message = f"Compra ejecutada de {target_name}"
             else:
-                curr_analysis = self.feed.last_analysis_cache.get(self.current_symbol) or self.last_analysis
-                curr_pos = active_port.positions.get(self.current_symbol)
-                curr_act, _, curr_reason = self.strategy.evaluate(curr_analysis, curr_pos, cash)
-                self.last_action = {"action": curr_act, "reason": curr_reason, "time": now_str}
-                curr_name = MARKETS_CATALOG.get(self.current_symbol, {}).get("name", self.current_symbol)
+                self.last_action = {"action": action, "reason": reason, "time": now_str}
                 env_prefix = "[REAL] " if self.active_environment == "live" else ""
-                self.status_message = f"{env_prefix}Monitorizando {curr_name} ({self.current_symbol}): {curr_reason}"
+                self.status_message = f"{env_prefix}Monitorizando {target_name} ({target_symbol}): {reason}"
 
     def run_loop(self):
         self.log(f"🚀 SV Inversión iniciado | Entorno: {self.active_environment.upper()}")

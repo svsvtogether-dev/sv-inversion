@@ -83,6 +83,7 @@ class BinanceSpotClient:
                     raw_balances = data.get("balances", [])
 
                     eur_cash = 0.0
+                    bnb_cash = 0.0
                     active_balances = []
                     for b in raw_balances:
                         free = float(b.get("free", 0.0))
@@ -92,6 +93,8 @@ class BinanceSpotClient:
 
                         if asset == "EUR":
                             eur_cash = free
+                        elif asset == "BNB":
+                            bnb_cash = free
 
                         if total > 0.00000001:
                             active_balances.append({
@@ -101,11 +104,19 @@ class BinanceSpotClient:
                                 "total": total
                             })
 
+                    # Control de comisiones con BNB (-25% descuento oficial Binance Spot: 0.075% vs 0.10%)
+                    has_bnb_fee_discount = bnb_cash >= 0.005
+                    fee_rate = 0.00075 if has_bnb_fee_discount else 0.0010
+
                     result = {
                         "connected": True,
                         "can_trade": can_trade,
                         "status": "Conectado y listo" if can_trade else "Conectado (Lectura)",
                         "eur_cash": round(eur_cash, 2),
+                        "bnb_cash": round(bnb_cash, 4),
+                        "has_bnb_fee_discount": has_bnb_fee_discount,
+                        "effective_fee_rate": fee_rate,
+                        "fee_discount_desc": "Descuento BNB activo: 0.075%" if has_bnb_fee_discount else "Sin BNB: tarifa base 0.10%",
                         "balances": active_balances,
                         "total_estimated_eur": round(eur_cash, 2),
                         "maker_commission": data.get("makerCommission", 10),

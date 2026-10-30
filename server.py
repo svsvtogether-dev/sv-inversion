@@ -111,11 +111,18 @@ async def data_config(request: Request):
     if request.method == "POST":
         try:
             body = await request.json()
-            for key in ["order_amount_eur", "take_profit_pct", "stop_loss_pct", "rsi_buy_threshold", "rsi_sell_threshold", "msci_sweep_pct"]:
+            for key in [
+                "order_amount_eur", "take_profit_pct", "stop_loss_pct", 
+                "rsi_buy_threshold", "rsi_sell_threshold", "msci_sweep_pct",
+                "breakeven_trigger_pct", "early_take_profit_pct", "price_drop_trigger_pct",
+                "sma_period"
+            ]:
                 if key in body:
                     val = float(body[key])
                     bot.config[key] = val
                     CONFIG[key] = val
+            if "symbol" in body and body["symbol"]:
+                bot.set_symbol(str(body["symbol"]))
             bot.strategy.config = bot.config
             bot.log("⚙️ Parámetros actualizados.")
         except Exception:

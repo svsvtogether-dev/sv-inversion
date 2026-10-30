@@ -6,6 +6,7 @@ let configInitialized = false;
 let tradesFilter = "ALL"; // "ALL" | "SELL"
 let activeEnvironment = "simulation"; // "simulation" | "live"
 let isLiveArmed = false;
+let lastStateData = null;
 
 // DOM Elements
 const kpiTotalValue = document.getElementById("kpiTotalValue");
@@ -30,6 +31,7 @@ const rsiValue = document.getElementById("rsiValue");
 const rsiNeedle = document.getElementById("rsiNeedle");
 const emaFast = document.getElementById("emaFast");
 const emaSlow = document.getElementById("emaSlow");
+const sma50 = document.getElementById("sma50");
 const bbUpper = document.getElementById("bbUpper");
 const bbLower = document.getElementById("bbLower");
 
@@ -52,8 +54,14 @@ const tabLiveBtn = document.getElementById("tabLiveBtn");
 const liveWarningBanner = document.getElementById("liveWarningBanner");
 const liveApiStatusText = document.getElementById("liveApiStatusText");
 const liveEurBalanceBadge = document.getElementById("liveEurBalanceBadge");
+const liveBnbStatusBadge = document.getElementById("liveBnbStatusBadge");
 const liveArmToggleBtn = document.getElementById("liveArmToggleBtn");
 const headerEnvBadge = document.getElementById("headerEnvBadge");
+const headerSubtitle = document.getElementById("headerSubtitle");
+
+// Priority buttons
+const quickBtnBTC = document.getElementById("quickBtnBTC");
+const quickBtnETH = document.getElementById("quickBtnETH");
 
 // Form inputs
 const cfgOrderAmount = document.getElementById("cfgOrderAmount");
@@ -61,7 +69,9 @@ const cfgTakeProfit = document.getElementById("cfgTakeProfit");
 const cfgStopLoss = document.getElementById("cfgStopLoss");
 const cfgRsiBuy = document.getElementById("cfgRsiBuy");
 const cfgRsiSell = document.getElementById("cfgRsiSell");
+const cfgSmaPeriod = document.getElementById("cfgSmaPeriod");
 const cfgMsciSweep = document.getElementById("cfgMsciSweep");
+const dcaMarginHint = document.getElementById("dcaMarginHint");
 
 const kpiMsciVault = document.getElementById("kpiMsciVault");
 const kpiMsciSub = document.getElementById("kpiMsciSub");
@@ -81,6 +91,40 @@ function formatCrypto(val) {
   return val.toFixed(4);
 }
 
+// Cálculo dinámico del margen de compras escalonadas
+function updateDcaMarginHint() {
+  const orderAmt = parseFloat(cfgOrderAmount ? cfgOrderAmount.value : 5.0) || 5.0;
+  const p = (activeEnvironment === "live" && lastStateData && lastStateData.live) 
+    ? lastStateData.live 
+    : (lastStateData ? (lastStateData.simulation || lastStateData.portfolio) : null);
+  const cash = p ? (p.cash_eur ?? 15.0) : 15.0;
+  const steps = Math.floor(cash / orderAmt);
+  if (dcaMarginHint) {
+    if (cash < 5.0) {
+      dcaMarginHint.innerHTML = `<span style="color:#f87171; font-weight:600;">⚠️ Saldo libre (€${cash.toFixed(2)}) &lt; 5€ (MIN_NOTIONAL). Entradas bloqueadas: esperando cierre de posición.</span>`;
+    } else {
+      dcaMarginHint.innerHTML = `Margen: <strong>${steps} compra${steps === 1 ? "" : "s"} escalonada${steps === 1 ? "" : "s"}</strong> posibles (Saldo libre: €${cash.toFixed(2)} / Orden: €${orderAmt.toFixed(2)})`;
+    }
+  }
+}
+
+// Quick pair selector
+window.selectQuickSymbol = async function(symbol) {
+  currentSymbol = symbol;
+  updateQuickButtons(symbol);
+  await fetch("/static/api/symbol", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ symbol })
+  });
+  fetchState();
+};
+
+function updateQuickButtons(activeSym) {
+  if (quickBtnBTC) quickBtnBTC.classList.toggle("active", activeSym === "BTCEUR");
+  if (quickBtnETH) quickBtnETH.classList.toggle("active", activeSym === "ETHEUR");
+}
+
 // Environment Management
 function updateEnvironmentUI(env) {
   if (!tabSimBtn || !tabLiveBtn) return;
@@ -89,8 +133,11 @@ function updateEnvironmentUI(env) {
     tabSimBtn.className = "env-tab-btn";
     if (liveWarningBanner) liveWarningBanner.style.display = "flex";
     if (headerEnvBadge) {
-      headerEnvBadge.textContent = "🔴 DINERO REAL (BINANCE)";
+      headerEnvBadge.textContent = "🔴 DINERO REAL (BINANCE LIVE)";
       headerEnvBadge.className = "badge live";
+    }
+    if (headerSubtitle) {
+      headerSubtitle.textContent = "🔴 Binance Spot Oficial (EUR) - Operativa en Producción";
     }
     if (resetBtn) resetBtn.style.display = "none";
   } else {
@@ -98,6 +145,16 @@ function updateEnvironmentUI(env) {
     tabLiveBtn.className = "env-tab-btn";
     if (liveWarningBanner) liveWarningBanner.style.display = "none";
     if (headerEnvBadge) {
+      headerEnvBadge.textContent = "🧪 SIMULACIÓN 15 €";
+      headerEnvBadge.className = "badge paper";
+    }
+    if (headerSubtitle) {
+      headerSubtitle.textContent = "🧪 Paper Trading Cuantitativo (Forward-testing hasta el viernes)";
+    }
+    if (resetBtn) resetBtn.style.display = "inline-flex";
+  }
+  updateDcaMarginHint();
+}
       headerEnvBadge.textContent = "SIMULACIÓN 15 €";
       headerEnvBadge.className = "badge paper";
     }
@@ -189,12 +246,15 @@ function renderPills(catalog, activeCat, activeSym) {
 }
 
 function renderState(data) {
+  lastStateData = data;
   currentSymbol = data.current_symbol;
   currentCategory = data.active_category || "all";
   isRunning = data.is_running;
   marketsCatalog = data.markets_catalog || {};
   activeEnvironment = data.active_environment || "simulation";
   isLiveArmed = Boolean(data.live_trading_armed);
+
+  updateQuickButtons(currentSymbol);
 
   // Environment Switcher UI state
   if (tabSimBtn && tabLiveBtn) {
@@ -203,8 +263,11 @@ function renderState(data) {
       tabSimBtn.className = "env-tab-btn";
       if (liveWarningBanner) liveWarningBanner.style.display = "flex";
       if (headerEnvBadge) {
-        headerEnvBadge.textContent = "🔴 DINERO REAL (BINANCE)";
+        headerEnvBadge.textContent = "🔴 DINERO REAL (BINANCE LIVE)";
         headerEnvBadge.className = "badge live";
+      }
+      if (headerSubtitle) {
+        headerSubtitle.textContent = "🔴 Binance Spot Oficial (EUR) - Operativa en Producción";
       }
       if (resetBtn) resetBtn.style.display = "none";
 
@@ -215,6 +278,15 @@ function renderState(data) {
       }
       if (liveEurBalanceBadge) {
         liveEurBalanceBadge.textContent = formatEur(binance.eur_cash || 0);
+      }
+      if (liveBnbStatusBadge) {
+        if (binance.has_bnb_fee_discount) {
+          liveBnbStatusBadge.textContent = `✅ Activo (0.075%) - Saldo: ${binance.bnb_cash} BNB`;
+          liveBnbStatusBadge.style.color = "#fbbf24";
+        } else {
+          liveBnbStatusBadge.textContent = `ℹ️ ${binance.bnb_cash ? binance.bnb_cash + ' BNB' : 'Sin BNB'} (Tarifa 0.10%)`;
+          liveBnbStatusBadge.style.color = "#94a3b8";
+        }
       }
       if (liveArmToggleBtn) {
         if (isLiveArmed) {
@@ -230,8 +302,11 @@ function renderState(data) {
       tabLiveBtn.className = "env-tab-btn";
       if (liveWarningBanner) liveWarningBanner.style.display = "none";
       if (headerEnvBadge) {
-        headerEnvBadge.textContent = "SIMULACIÓN 15 €";
+        headerEnvBadge.textContent = "🧪 SIMULACIÓN 15 €";
         headerEnvBadge.className = "badge paper";
+      }
+      if (headerSubtitle) {
+        headerSubtitle.textContent = "🧪 Paper Trading Cuantitativo (Forward-testing hasta el viernes)";
       }
       if (resetBtn) resetBtn.style.display = "inline-flex";
     }
@@ -252,13 +327,17 @@ function renderState(data) {
 
   // Sincronizar casillas de configuración si no se están editando activamente
   if (data.config) {
-    if (document.activeElement !== cfgOrderAmount) cfgOrderAmount.value = data.config.order_amount_eur ?? 25.0;
-    if (document.activeElement !== cfgTakeProfit) cfgTakeProfit.value = data.config.take_profit_pct ?? 4.5;
-    if (document.activeElement !== cfgStopLoss) cfgStopLoss.value = data.config.stop_loss_pct ?? -3.5;
-    if (document.activeElement !== cfgRsiBuy) cfgRsiBuy.value = data.config.rsi_buy_threshold ?? 35;
-    if (document.activeElement !== cfgRsiSell) cfgRsiSell.value = data.config.rsi_sell_threshold ?? 65;
+    if (document.activeElement !== cfgOrderAmount) cfgOrderAmount.value = data.config.order_amount_eur ?? 5.0;
+    if (document.activeElement !== cfgTakeProfit) cfgTakeProfit.value = data.config.take_profit_pct ?? 3.5;
+    if (document.activeElement !== cfgStopLoss) cfgStopLoss.value = data.config.stop_loss_pct ?? -3.0;
+    if (document.activeElement !== cfgRsiBuy) cfgRsiBuy.value = data.config.rsi_buy_threshold ?? 32;
+    if (document.activeElement !== cfgRsiSell) cfgRsiSell.value = data.config.rsi_sell_threshold ?? 68;
+    if (document.activeElement !== cfgSmaPeriod && cfgSmaPeriod) cfgSmaPeriod.value = data.config.sma_period ?? 50;
     if (document.activeElement !== cfgMsciSweep) cfgMsciSweep.value = data.config.msci_sweep_pct ?? 0;
   }
+
+  // Actualizar cálculo dinámico del hint de compras escalonadas
+  updateDcaMarginHint();
 
   // Category buttons
   document.querySelectorAll(".cat-btn").forEach(btn => {
@@ -332,11 +411,23 @@ function renderState(data) {
   const clampedRsi = Math.max(0, Math.min(100, rsi));
   rsiNeedle.style.left = `${clampedRsi}%`;
 
-  // Moving Averages & Bollinger
+  // Moving Averages, Bollinger & SMA Macro
   emaFast.textContent = formatEur(a.ema_fast || 0);
   emaSlow.textContent = formatEur(a.ema_slow || 0);
   bbUpper.textContent = formatEur(a.bb_upper || 0);
   bbLower.textContent = formatEur(a.bb_lower || 0);
+
+  if (sma50) {
+    const smaVal = a.sma_50 || a.ema_trend || 0;
+    sma50.textContent = formatEur(smaVal);
+    if (a.price >= smaVal) {
+      sma50.style.color = "#4ade80"; // Sobre SMA: alcista
+    } else if (a.price >= smaVal * 0.992) {
+      sma50.style.color = "#38bdf8"; // Convergiendo
+    } else {
+      sma50.style.color = "#f87171"; // Caída libre bajo SMA
+    }
+  }
 
   // Positions Table (Aislada por Entorno)
   const posCount = Object.keys(p.positions || {}).length;
@@ -477,6 +568,7 @@ saveConfigBtn.addEventListener("click", async () => {
     stop_loss_pct: parseFloat(cfgStopLoss.value),
     rsi_buy_threshold: parseFloat(cfgRsiBuy.value),
     rsi_sell_threshold: parseFloat(cfgRsiSell.value),
+    sma_period: parseFloat(cfgSmaPeriod ? cfgSmaPeriod.value : 50),
     msci_sweep_pct: parseFloat(cfgMsciSweep.value)
   };
   const res = await fetch("/static/api/config", {
@@ -489,6 +581,10 @@ saveConfigBtn.addEventListener("click", async () => {
     fetchState();
   }
 });
+
+if (cfgOrderAmount) {
+  cfgOrderAmount.addEventListener("input", updateDcaMarginHint);
+}
 
 // Interactive Educational Tooltip Engine con retraso de 2 segundos
 const globalTooltip = document.getElementById("globalTooltip");

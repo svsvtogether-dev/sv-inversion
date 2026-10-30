@@ -64,7 +64,7 @@ class MarketDataFeed:
     # ----------------------------------------------------
     # FEEDS DE BINANCE (Criptomonedas 24/7 con Fallback Global)
     # ----------------------------------------------------
-    def _get_binance_data(self, symbol: str) -> Tuple[Optional[float], Dict, List[Dict]]:
+    def _get_binance_data(self, symbol: str, interval: str = "5m", limit: int = 100) -> Tuple[Optional[float], Dict, List[Dict]]:
         price = None
         stats = {}
         candles = []
@@ -88,10 +88,10 @@ class MarketDataFeed:
                         "volume": float(d.get("volume", 0)),
                     }
 
-                # 2. Velas
+                # 2. Velas con intervalo optimizado
                 k_resp = self.session.get(
                     f"{base_url}/klines",
-                    params={"symbol": symbol, "interval": "1m", "limit": 50},
+                    params={"symbol": symbol, "interval": interval, "limit": limit},
                     timeout=self.timeout
                 )
                 if k_resp.status_code == 200:
@@ -186,10 +186,24 @@ class MarketDataFeed:
             avg_gain = (avg_gain * (period - 1) + gains[i]) / period
             avg_loss = (avg_loss * (period - 1) + losses[i]) / period
 
+        if avg_loss == 0 and avg_gain == 0:
+            return 50.0
         if avg_loss == 0:
             return 100.0
+        if avg_gain == 0:
+            return 10.0  # Evita lectura anómala de 0.0 que confunde al bot con una oportunidad irreal
+
         rs = avg_gain / avg_loss
         return round(100.0 - (100.0 / (1.0 + rs)), 2)
+
+    @staticmethod
+    def calculate_sma(closes: List[float], period: int = 50) -> float:
+        """Calcula la Media Móvil Simple (SMA) para filtros de tendencia macro."""
+        if not closes:
+            return 0.0
+        if len(closes) < period:
+            return adaptive_round(sum(closes) / len(closes))
+        return adaptive_round(sum(closes[-period:]) / period)
 
     @staticmethod
     def calculate_ema(closes: List[float], period: int) -> float:
@@ -222,7 +236,7 @@ class MarketDataFeed:
     # ----------------------------------------------------
     # ANÁLISIS UNIVERSAL CON ADAPTATIVE ROUNDING
     # ----------------------------------------------------
-    def analyze_symbol(self, symbol: str, interval: str = "1m", limit: int = 50) -> Dict:
+    def analyze_symbol(self, symbol: str, interval: str = "5m", limit: int = 100) -> Dict:
         meta = MARKETS_CATALOG.get(symbol, {"name": symbol, "source": "binance", "currency": "EUR", "category": "crypto", "sub_category": "top"})
         source = meta.get("source", "binance")
         currency = meta.get("currency", "EUR")
@@ -234,7 +248,7 @@ class MarketDataFeed:
             rate = self.update_eur_usd_rate()
 
         if source == "binance":
-            raw_price, stats_24h, candles = self._get_binance_data(symbol)
+            raw_price, stats_24h, candles = self._get_binance_data(symbol, interval=interval, limit=limit)
         else:
             raw_price, stats_24h, candles = self._get_yahoo_data(symbol)
 
@@ -267,19 +281,31 @@ class MarketDataFeed:
                 "native_price": rounded_raw,
                 "price": rounded_eur,
                 "rsi": 50.0,
+                "rsi_prev": 50.0,
                 "ema_fast": rounded_eur,
                 "ema_slow": rounded_eur,
+                "ema_trend": rounded_eur,
+                "sma_50": rounded_eur,
+                "sma_200": rounded_eur,
                 "bb_upper": 0.0,
                 "bb_lower": 0.0,
+                "candle_bullish": False,
                 "stats_24h": stats_24h,
                 "candles": []
             }
 
         closes_eur = [c["close"] * conversion_factor for c in candles]
         rsi = self.calculate_rsi(closes_eur, period=14)
+        rsi_prev = self.calculate_rsi(closes_eur[:-1], period=14) if len(closes_eur) > 15 else rsi
         ema_fast = self.calculate_ema(closes_eur, period=9)
         ema_slow = self.calculate_ema(closes_eur, period=21)
+        ema_trend = self.calculate_ema(closes_eur, period=50)
+        sma_50 = self.calculate_sma(closes_eur, period=50)
+        sma_200 = self.calculate_sma(closes_eur, period=200) if len(closes_eur) >= 200 else sma_50
         bb_upper, bb_mid, bb_lower = self.calculate_bollinger_bands(closes_eur, period=20, num_std=2.0)
+
+        last_c = candles[-1] if candles else {}
+        candle_bullish = float(last_c.get("close", 0)) >= float(last_c.get("open", 0))
 
         result = {
             "symbol": symbol,
@@ -291,11 +317,16 @@ class MarketDataFeed:
             "native_price": rounded_raw,
             "price": rounded_eur,
             "rsi": rsi,
+            "rsi_prev": rsi_prev,
             "ema_fast": ema_fast,
             "ema_slow": ema_slow,
+            "ema_trend": ema_trend,
+            "sma_50": sma_50,
+            "sma_200": sma_200,
             "bb_upper": bb_upper,
             "bb_middle": bb_mid,
             "bb_lower": bb_lower,
+            "candle_bullish": candle_bullish,
             "stats_24h": stats_24h,
             "candles": candles[-20:]
         }

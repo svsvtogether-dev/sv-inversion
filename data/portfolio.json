@@ -2,55 +2,11 @@
   "environment": "simulation",
   "initial_capital": 15.0,
   "fee_rate": 0.001,
-  "cash": 5.0,
-  "positions": {
-    "SOLEUR": {
-      "amount": 0.05572910855740266,
-      "avg_entry_price": 89.63,
-      "total_cost_eur": 5.0,
-      "dca_count": 1,
-      "first_buy_time": "2026-10-29 20:37:08",
-      "last_buy_price": 89.63
-    },
-    "DOTEUR": {
-      "amount": 5.689066059225513,
-      "avg_entry_price": 0.878,
-      "total_cost_eur": 5.0,
-      "dca_count": 1,
-      "first_buy_time": "2026-10-29 20:47:18",
-      "last_buy_price": 0.878
-    }
-  },
-  "trades": [
-    {
-      "id": 2,
-      "environment": "simulation",
-      "timestamp": "2026-10-29 20:47:18",
-      "symbol": "DOTEUR",
-      "side": "BUY",
-      "price": 0.878,
-      "quantity": 5.689066059225513,
-      "amount_eur": 5.0,
-      "fee_eur": 0.005,
-      "realized_pnl_eur": 0.0,
-      "reason": "\ud83d\udfe2 Se\u00f1al de compra: RSI en sobreventa estricta (0.0 <= 35.0)"
-    },
-    {
-      "id": 1,
-      "environment": "simulation",
-      "timestamp": "2026-10-29 20:37:08",
-      "symbol": "SOLEUR",
-      "side": "BUY",
-      "price": 89.63,
-      "quantity": 0.05572910855740266,
-      "amount_eur": 5.0,
-      "fee_eur": 0.005,
-      "realized_pnl_eur": 0.0,
-      "reason": "\ud83d\udfe2 Se\u00f1al de compra: Soporte en Banda Bollinger Inferior (\u20ac89.62) y RSI 39.9"
-    }
-  ],
-  "total_fees_paid": 0.01,
+  "cash": 15.0,
+  "positions": {},
+  "trades": [],
+  "total_fees_paid": 0.0,
   "realized_pnl": 0.0,
   "msci_vault_eur": 0.0,
-  "last_updated": "2026-10-29T20:47:18.016182"
+  "last_updated": "2026-10-30T15:58:08.717430"
 }

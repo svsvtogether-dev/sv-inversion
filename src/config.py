@@ -39,28 +39,30 @@ MARKETS_CATALOG = {
     "VETEUR": {"name": "VeChain", "category": "crypto", "sub_category": "l1", "source": "binance", "currency": "EUR", "symbol_clean": "VET/EUR"},
     "EGLDEUR": {"name": "MultiversX", "category": "crypto", "sub_category": "l1", "source": "binance", "currency": "EUR", "symbol_clean": "EGLD/EUR"},
     "SEUR": {"name": "Sonic (S)", "category": "crypto", "sub_category": "l1", "source": "binance", "currency": "EUR", "symbol_clean": "S/EUR"},
-    "WLFIEUR": {"name": "World Liberty Financial", "category": "crypto", "sub_category": "l1", "source": "binance", "currency": "EUR", "symbol_clean": "WLFI/EUR"},
     "WINEUR": {"name": "WINkLink", "category": "crypto", "sub_category": "l1", "source": "binance", "currency": "EUR", "symbol_clean": "WIN/EUR"}
 }
 
 SUPPORTED_SYMBOLS = list(MARKETS_CATALOG.keys())
 DEFAULT_SYMBOL = "BTCEUR"
 
-# Parámetros de la Estrategia Smart DCA Cuantitativa
+# Parámetros de la Estrategia Smart DCA Cuantitativa Optimizada para Win Rate > 65%
 CONFIG = {
     "symbol": DEFAULT_SYMBOL,
     "initial_capital": INITIAL_CAPITAL_EUR,
     "fee_rate": TRADING_FEE_RATE,
-    "order_amount_eur": 5.00,       # Tamaño por compra DCA (€5.00 permite 3 tramos cumpliendo el MIN_NOTIONAL de Binance)
+    "order_amount_eur": 5.00,       # Tamaño por compra DCA (€5.00 permite escalonar cumpliendo el MIN_NOTIONAL de Binance)
     "min_order_eur": 5.00,          # Mínimo para poder ejecutar una orden (cumple MIN_NOTIONAL de Binance)
-    "take_profit_pct": 4.5,         # Objetivo de beneficio neto (+4.5% - Asimetría matemática favorable)
-    "stop_loss_pct": -3.5,          # Límite de pérdida por protección estricta (-3.5%)
-    "rsi_buy_threshold": 35.0,      # Comprar cuando RSI está en sobreventa real (<= 35)
-    "rsi_sell_threshold": 65.0,     # Sugerir toma de beneficios si RSI >= 65 con ganancia positiva
-    "price_drop_trigger_pct": 1.5,  # Si el precio cae >= 1.5% respecto a la última compra, promediar
-    "candle_interval": "1m",        # Intervalo de velas para análisis
-    "candle_limit": 50,             # Número de velas históricas
+    "take_profit_pct": 3.5,         # Objetivo de beneficio neto (+3.5%)
+    "stop_loss_pct": -3.0,          # Límite de pérdida por protección estricta (-3.0%)
+    "breakeven_trigger_pct": 1.6,   # Al subir >= +1.6%, el SL sube a +0.25% (Break-Even) asegurando comisiones
+    "early_take_profit_pct": 2.4,   # Ganancia mínima para salidas técnicas dinámicas (evita cerrar con migajas)
+    "rsi_buy_threshold": 32.0,      # Comprar cuando RSI entra en sobreventa profunda (<= 32)
+    "rsi_sell_threshold": 68.0,     # Sugerir toma de beneficios si RSI >= 68 con ganancia positiva
+    "sma_period": 50,               # Período de la Media Móvil Simple (SMA) para filtro de tendencia macro
+    "price_drop_trigger_pct": 2.0,  # Si el precio cae >= 2.0% respecto a la última compra, promediar
+    "candle_interval": "5m",        # Intervalo de velas de 5 minutos (filtra el ruido aleatorio de 1m)
+    "candle_limit": 100,            # 100 velas históricas (contexto cuantitativo para SMA 50)
     "check_interval_seconds": 6,    # Frecuencia de revisión del mercado
-    "active_category": "all",       # Escanea todos los mercados de Binance
+    "active_category": "top",       # Por defecto pares consolidados de máxima liquidez (BTC, ETH, BNB...)
     "msci_sweep_pct": 0.0           # % de las ganancias netas que se desvían a la Bóveda MSCI World
 }

@@ -939,3 +939,90 @@ h1 {
   background: #dc2626 !important;
   color: white !important;
 }
+
+
+/* Priority Pair Selector (BTC / ETH) */
+.priority-pair-container {
+  background: #111724;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.priority-pair-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.priority-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.priority-toggle-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.priority-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #192233;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font-main);
+  transition: all 0.2s ease;
+}
+
+.priority-btn:hover {
+  background: #202b40;
+  color: #f8fafc;
+  border-color: #475569;
+}
+
+.priority-btn.active {
+  background: #1e3a5f;
+  color: #38bdf8;
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+  font-weight: 700;
+}
+
+.symbol-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.symbol-circle.btc {
+  background: #f7931a;
+  color: #ffffff;
+}
+
+.symbol-circle.eth {
+  background: #627eea;
+  color: #ffffff;
+}
+
+.priority-pair-note {
+  font-size: 11px;
+  color: #94a3b8;
+}
