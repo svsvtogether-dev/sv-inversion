@@ -40,7 +40,7 @@ App.create_app = _patched_create_app
 
 # Gradio Blocks container con iframe a pantalla completa hacia /static/index.html
 with gr.Blocks(title="SV Inversión AI") as demo:
-    gr.HTML('<iframe src="/static/index.html" style="position:fixed; top:0; left:0; width:100vw; height:100vh; border:none; z-index:99999; background:#0a0d14;" allow="clipboard-write"></iframe>')
+    gr.HTML('<iframe src="/static/index.html?v=10" style="position:fixed; top:0; left:0; width:100vw; height:100vh; border:none; z-index:99999; background:#0a0d14;" allow="clipboard-write"></iframe>')
 
 if __name__ == "__main__":
     demo.launch()

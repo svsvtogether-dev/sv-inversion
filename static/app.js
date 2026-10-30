@@ -155,12 +155,6 @@ function updateEnvironmentUI(env) {
   }
   updateDcaMarginHint();
 }
-      headerEnvBadge.textContent = "SIMULACIÓN 15 €";
-      headerEnvBadge.className = "badge paper";
-    }
-    if (resetBtn) resetBtn.style.display = "inline-flex";
-  }
-}
 
 window.setEnvironment = async function(env) {
   activeEnvironment = env;
@@ -434,7 +428,7 @@ function renderState(data) {
   positionsBadge.textContent = `${posCount} activa${posCount === 1 ? "" : "s"}`;
 
   if (!p.positions || p.positions.length === 0) {
-    positionsTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No hay posiciones abiertas en este entorno</td></tr>`;
+    positionsTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No hay posiciones abiertas en este entorno</td></tr>`;
   } else {
     positionsTableBody.innerHTML = p.positions.map(pos => {
       const pnlSign = pos.unrealized_pnl_eur >= 0 ? "+" : "";
@@ -447,6 +441,7 @@ function renderState(data) {
           <td>${formatCrypto(pos.amount)}</td>
           <td>${formatEur(pos.avg_entry_price)}</td>
           <td>${formatEur(pos.current_price)}</td>
+          <td>${formatEur(pos.total_cost_eur)}</td>
           <td>${formatEur(pos.current_value_eur)}</td>
           <td class="${pnlClass}">${pnlSign}${formatEur(pos.unrealized_pnl_eur)} (${pnlSign}${pos.unrealized_pnl_pct}%)</td>
           <td><span class="dca-badge">Nivel ${pos.dca_count}</span></td>
