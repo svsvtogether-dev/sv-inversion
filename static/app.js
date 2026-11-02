@@ -62,6 +62,8 @@ const headerSubtitle = document.getElementById("headerSubtitle");
 // Priority buttons
 const quickBtnBTC = document.getElementById("quickBtnBTC");
 const quickBtnETH = document.getElementById("quickBtnETH");
+const quickBtnBNB = document.getElementById("quickBtnBNB");
+const quickBtnSOL = document.getElementById("quickBtnSOL");
 
 // Form inputs
 const cfgOrderAmount = document.getElementById("cfgOrderAmount");
@@ -123,6 +125,8 @@ window.selectQuickSymbol = async function(symbol) {
 function updateQuickButtons(activeSym) {
   if (quickBtnBTC) quickBtnBTC.classList.toggle("active", activeSym === "BTCEUR");
   if (quickBtnETH) quickBtnETH.classList.toggle("active", activeSym === "ETHEUR");
+  if (quickBtnBNB) quickBtnBNB.classList.toggle("active", activeSym === "BNBEUR");
+  if (quickBtnSOL) quickBtnSOL.classList.toggle("active", activeSym === "SOLEUR");
 }
 
 // Environment Management
@@ -218,7 +222,7 @@ async function fetchState() {
 function renderPills(catalog, activeCat, activeSym) {
   symbolPillsContainer.innerHTML = "";
   for (const [sym, meta] of Object.entries(catalog)) {
-    if (activeCat !== "all" && meta.category !== activeCat && meta.sub_category !== activeCat) continue;
+    if (activeCat !== "all" && meta.category !== activeCat && meta.sub_category !== activeCat && !(activeCat === "top" && meta.sub_category === "top4")) continue;
 
     const btn = document.createElement("button");
     btn.className = `pill-btn ${sym === activeSym ? "active" : ""}`;

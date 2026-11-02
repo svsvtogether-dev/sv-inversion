@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SV Inversión">
   <link rel="apple-touch-icon" href="/static/logo-thumb.png">
-  <link rel="stylesheet" href="/static/style.css?v=10">
+  <link rel="stylesheet" href="/static/style.css?v=11">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -107,28 +107,39 @@
       </div>
     </div>
 
-    <!-- Activo Principal de Alta Liquidez (Selector Rápido BTC / ETH) -->
+    <!-- Activo Principal de Alta Liquidez (Selector Rápido Top 4 Líderes) -->
     <div class="priority-pair-container">
       <div class="priority-pair-header">
-        <span class="priority-title">💎 Activo Operativo de Alta Liquidez:</span>
+        <span class="priority-title">💎 Top 4 Blue-Chips Cuantitativo (Escáner Automático):</span>
         <div class="priority-toggle-buttons">
           <button id="quickBtnBTC" class="priority-btn active" onclick="selectQuickSymbol('BTCEUR')">
-            <span class="symbol-circle btc">₿</span> <strong>BTC / EUR</strong> (Bitcoin - Principal)
+            <span class="symbol-circle btc">₿</span> <strong>BTC</strong> (Bitcoin)
           </button>
           <button id="quickBtnETH" class="priority-btn" onclick="selectQuickSymbol('ETHEUR')">
-            <span class="symbol-circle eth">Ξ</span> <strong>ETH / EUR</strong> (Ethereum - Alternativa)
+            <span class="symbol-circle eth">Ξ</span> <strong>ETH</strong> (Ethereum)
+          </button>
+          <button id="quickBtnBNB" class="priority-btn" onclick="selectQuickSymbol('BNBEUR')">
+            <span class="symbol-circle bnb" style="background:#fbbf24; color:#000;">🔶</span> <strong>BNB</strong> (Binance)
+          </button>
+          <button id="quickBtnSOL" class="priority-btn" onclick="selectQuickSymbol('SOLEUR')">
+            <span class="symbol-circle sol" style="background:#a855f7; color:#fff;">◎</span> <strong>SOL</strong> (Solana)
           </button>
         </div>
       </div>
       <div class="priority-pair-note">
-        🛡️ <strong>Protección Antivolatilidad:</strong> Operativa restringida a libros profundos para eliminar spreads elevados y saltos falsos de Stop-Loss.
+        🛡️ <strong>Estrategia Ganadora Top 4:</strong> Escaneo en paralelo de los 4 gigantes de Binance Spot. Compra automáticamente el activo con mayor descuento y rebote asegurando cero riesgo de trampas o spreads.
       </div>
     </div>
 
     <!-- Category Tabs & Market Selector -->
     <nav class="market-nav">
       <div class="category-tabs" id="categoryTabs">
-        <button class="cat-btn active has-help" data-category="all"
+        <button class="cat-btn active has-help" data-category="top4"
+                data-tooltip-title="⭐ Top 4 Líderes (BTC, ETH, BNB, SOL)"
+                data-tooltip="Estrategia recomendada: El bot escanea de forma automática los 4 gigantes de máxima liquidez y profundidad de Binance.">
+          ⭐ Top 4 Líderes (4)
+        </button>
+        <button class="cat-btn has-help" data-category="all"
                 data-tooltip-title="Todos los Mercados Binance EUR (29)"
                 data-tooltip="El bot escanea en paralelo los 29 pares oficiales de Binance Spot cotizados directamente en Euros.">
           🪙 Todos (29)
@@ -136,7 +147,7 @@
         <button class="cat-btn has-help" data-category="top"
                 data-tooltip-title="Top Caps (11)"
                 data-tooltip="Pares de mayor capitalización: Bitcoin, Ethereum, Solana, BNB, XRP, Cardano, Avalanche, Chainlink, Polkadot, Litecoin y Bitcoin Cash.">
-          ⭐ Top Caps (11)
+          🏆 Top Caps (11)
         </button>
         <button class="cat-btn has-help" data-category="l1"
                 data-tooltip-title="Infra & Layer 1 (15)"
@@ -431,12 +442,12 @@
     </footer>
   </div>
 
-  <script src="/static/app.js?v=10"></script>
+  <script src="/static/app.js?v=11"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=10').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=11').catch(err => console.log('SW error:', err));
       });
     }
 

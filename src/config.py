@@ -12,10 +12,10 @@ TRADING_FEE_RATE = 0.001     # Comisión Binance Spot estándar (0.10%)
 
 # Catálogo Exclusivo de Mercados de Binance Spot (29 Pares EUR Oficiales - 24/7)
 MARKETS_CATALOG = {
-    "BTCEUR": {"name": "Bitcoin", "category": "crypto", "sub_category": "top", "source": "binance", "currency": "EUR", "symbol_clean": "BTC/EUR"},
-    "ETHEUR": {"name": "Ethereum", "category": "crypto", "sub_category": "top", "source": "binance", "currency": "EUR", "symbol_clean": "ETH/EUR"},
-    "BNBEUR": {"name": "BNB (Binance)", "category": "crypto", "sub_category": "top", "source": "binance", "currency": "EUR", "symbol_clean": "BNB/EUR"},
-    "SOLEUR": {"name": "Solana", "category": "crypto", "sub_category": "top", "source": "binance", "currency": "EUR", "symbol_clean": "SOL/EUR"},
+    "BTCEUR": {"name": "Bitcoin", "category": "crypto", "sub_category": "top4", "source": "binance", "currency": "EUR", "symbol_clean": "BTC/EUR"},
+    "ETHEUR": {"name": "Ethereum", "category": "crypto", "sub_category": "top4", "source": "binance", "currency": "EUR", "symbol_clean": "ETH/EUR"},
+    "BNBEUR": {"name": "BNB (Binance)", "category": "crypto", "sub_category": "top4", "source": "binance", "currency": "EUR", "symbol_clean": "BNB/EUR"},
+    "SOLEUR": {"name": "Solana", "category": "crypto", "sub_category": "top4", "source": "binance", "currency": "EUR", "symbol_clean": "SOL/EUR"},
     "XRPEUR": {"name": "XRP (Ripple)", "category": "crypto", "sub_category": "top", "source": "binance", "currency": "EUR", "symbol_clean": "XRP/EUR"},
     "DOGEEUR": {"name": "Dogecoin", "category": "crypto", "sub_category": "memes", "source": "binance", "currency": "EUR", "symbol_clean": "DOGE/EUR"},
     "ADAEUR": {"name": "Cardano", "category": "crypto", "sub_category": "top", "source": "binance", "currency": "EUR", "symbol_clean": "ADA/EUR"},
@@ -43,6 +43,7 @@ MARKETS_CATALOG = {
 }
 
 SUPPORTED_SYMBOLS = list(MARKETS_CATALOG.keys())
+TOP4_SYMBOLS = ["BTCEUR", "ETHEUR", "BNBEUR", "SOLEUR"]
 DEFAULT_SYMBOL = "BTCEUR"
 
 # Parámetros de la Estrategia Smart DCA Cuantitativa Optimizada para Win Rate > 65%
@@ -63,6 +64,6 @@ CONFIG = {
     "candle_interval": "5m",        # Intervalo de velas de 5 minutos (filtra el ruido aleatorio de 1m)
     "candle_limit": 100,            # 100 velas históricas (contexto cuantitativo para SMA 50)
     "check_interval_seconds": 6,    # Frecuencia de revisión del mercado
-    "active_category": "top",       # Por defecto pares consolidados de máxima liquidez (BTC, ETH, BNB...)
+    "active_category": "top4",      # Estrategia recomendada: Top 4 Líderes Blue-Chips (BTC, ETH, BNB, SOL)
     "msci_sweep_pct": 0.0           # % de las ganancias netas que se desvían a la Bóveda MSCI World
 }

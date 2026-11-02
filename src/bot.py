@@ -14,7 +14,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from .config import CONFIG, SUPPORTED_SYMBOLS, MARKETS_CATALOG, DATA_DIR
+from .config import CONFIG, SUPPORTED_SYMBOLS, TOP4_SYMBOLS, MARKETS_CATALOG, DATA_DIR
 from .market_data import MarketDataFeed
 from .portfolio import Portfolio
 from .strategy import SmartDCAStrategy
@@ -151,7 +151,7 @@ class TradingBot:
         score = 0.0
 
         # 1. Ponderación por calidad y liquidez (preferir activos Top de Binance)
-        if sub_cat == "top":
+        if sub_cat in ["top4", "top"]:
             score += 25.0
         elif sub_cat == "l1":
             score += 15.0
@@ -196,8 +196,12 @@ class TradingBot:
         return score
 
     def get_candidate_symbols(self) -> List[str]:
+        if self.active_category in ["top4", "top_4"]:
+            return TOP4_SYMBOLS
         if self.active_category in ["all", "crypto"]:
             return SUPPORTED_SYMBOLS
+        if self.active_category == "top":
+            return [sym for sym, meta in MARKETS_CATALOG.items() if meta.get("sub_category") in ["top", "top4"]]
         return [sym for sym, meta in MARKETS_CATALOG.items() if meta.get("sub_category") == self.active_category or meta.get("category") == self.active_category]
 
     def step(self):
@@ -302,24 +306,72 @@ class TradingBot:
                 self.last_action = {"action": "HOLD", "reason": msg, "time": now_str}
             return
 
-        # 3. Operativa focalizada en el par consolidado configurado (BTCEUR por defecto o ETHEUR)
-        # Se elimina la dependencia de tokens volátiles de baja liquidez para evitar spreads y saltos falsos de Stop-Loss
-        target_symbol = self.current_symbol
-        target_analysis = self.feed.analyze_symbol(target_symbol)
-        if not target_analysis or target_analysis.get("price", 0) <= 0:
+        # 3. Escáner Cuantitativo Multiactivo (Top 4 Líderes: BTC, ETH, BNB, SOL)
+        candidate_symbols = self.get_candidate_symbols()
+        # Filtrar candidatos que no tengan posición abierta ya (la posición abierta se gestiona en el paso 1)
+        unheld_candidates = [s for s in candidate_symbols if s not in active_port.positions]
+        if not unheld_candidates:
+            unheld_candidates = candidate_symbols or [self.current_symbol]
+
+        analyses = {}
+        with ThreadPoolExecutor(max_workers=min(len(unheld_candidates), 8)) as executor:
+            future_to_sym = {executor.submit(self.feed.analyze_symbol, s): s for s in unheld_candidates}
+            for future in future_to_sym:
+                s = future_to_sym[future]
+                try:
+                    res = future.result()
+                    if res and res.get("price", 0) > 0:
+                        analyses[s] = res
+                except Exception:
+                    pass
+
+        if not analyses:
             return
 
+        # Evaluar decisiones para cada candidato
+        best_buy_sym = None
+        best_buy_analysis = None
+        best_buy_score = -9999.0
+        best_buy_reason = ""
+        best_buy_amount = 0.0
+
+        # Para cuando ninguno de la señal de compra: encontrar el activo en mejor posición cuantitativa
+        radar_sym = self.current_symbol if self.current_symbol in analyses else list(analyses.keys())[0]
+        radar_analysis = analyses.get(radar_sym, list(analyses.values())[0])
+        radar_score = -9999.0
+        radar_reason = ""
+
         with self._lock:
-            self.last_analysis = target_analysis
-            position = active_port.positions.get(target_symbol)
             cash = active_port.cash
-            action, amount_eur, reason = self.strategy.evaluate(target_analysis, position, cash)
+            for sym, analysis in analyses.items():
+                pos = active_port.positions.get(sym)
+                act, amt, rsn = self.strategy.evaluate(analysis, pos, cash)
+                score = self.calculate_opportunity_score(analysis)
+
+                if act == "BUY" and amt > 0:
+                    if score > best_buy_score:
+                        best_buy_score = score
+                        best_buy_sym = sym
+                        best_buy_analysis = analysis
+                        best_buy_reason = rsn
+                        best_buy_amount = amt
+
+                if score > radar_score:
+                    radar_score = score
+                    radar_sym = sym
+                    radar_analysis = analysis
+                    radar_reason = rsn
+
             now_str = datetime.now().strftime("%H:%M:%S")
+            env_prefix = "[REAL] " if self.active_environment == "live" else ""
 
-            target_name = MARKETS_CATALOG.get(target_symbol, {}).get("name", target_symbol)
-
-            if action == "BUY" and amount_eur > 0:
+            if best_buy_sym:
+                target_symbol = best_buy_sym
+                target_analysis = best_buy_analysis
                 price = target_analysis.get("price", 0.0)
+                amount_eur = best_buy_amount
+                target_name = MARKETS_CATALOG.get(target_symbol, {}).get("name", target_symbol)
+
                 if self.active_environment == "live":
                     if not self.live_trading_armed:
                         self.status_message = f"Modo Real: Señal de compra en {target_name} (Trading Real Desarmado)"
@@ -330,26 +382,32 @@ class TradingBot:
                         if ok:
                             placed, res, order_msg = self.binance_client.place_market_order(target_symbol, "BUY", adj_qty)
                             if placed:
-                                trade = active_port.buy(target_symbol, amount_eur, price, f"[Binance Real] {reason}")
+                                trade = active_port.buy(target_symbol, amount_eur, price, f"[Binance Real] {best_buy_reason}")
                                 self.current_symbol = target_symbol
                                 self.last_analysis = target_analysis
-                                self.last_action = {"action": action, "reason": reason, "time": now_str}
+                                self.last_action = {"action": "BUY", "reason": best_buy_reason, "time": now_str}
                                 self.log(f"🔴 COMPRA REAL EN BINANCE ({target_name}): {adj_qty} a {self.format_price(price)}")
                                 self.status_message = f"Compra Real ejecutada en {target_name}"
                             else:
                                 self.log(f"⚠️ Error orden Binance: {order_msg}")
                 else:
-                    trade = active_port.buy(target_symbol, amount_eur, price, reason)
+                    trade = active_port.buy(target_symbol, amount_eur, price, best_buy_reason)
                     if trade:
                         self.current_symbol = target_symbol
                         self.last_analysis = target_analysis
-                        self.last_action = {"action": action, "reason": reason, "time": now_str}
-                        self.log(f"✅ COMPRA EJECUTADA ({target_name}): {trade['quantity']} a {self.format_price(price)} (€{amount_eur:.2f} | {reason})")
+                        self.last_action = {"action": "BUY", "reason": best_buy_reason, "time": now_str}
+                        self.log(f"✅ COMPRA EJECUTADA ({target_name}): {trade['quantity']} a {self.format_price(price)} (€{amount_eur:.2f} | {best_buy_reason})")
                         self.status_message = f"Compra ejecutada de {target_name}"
             else:
-                self.last_action = {"action": action, "reason": reason, "time": now_str}
-                env_prefix = "[REAL] " if self.active_environment == "live" else ""
-                self.status_message = f"{env_prefix}Monitorizando {target_name} ({target_symbol}): {reason}"
+                # Mantener en radar el activo con mejor análisis o el que el usuario tenga seleccionado
+                target_symbol = self.current_symbol if self.current_symbol in analyses else radar_sym
+                target_analysis = analyses.get(target_symbol, radar_analysis)
+                self.last_analysis = target_analysis
+                target_name = MARKETS_CATALOG.get(target_symbol, {}).get("name", target_symbol)
+                target_reason = radar_reason if target_symbol == radar_sym else self.strategy.evaluate(target_analysis, None, cash)[2]
+                self.last_action = {"action": "HOLD", "reason": target_reason, "time": now_str}
+                cat_label = "Top 4" if self.active_category in ["top4", "top_4"] else self.active_category.upper()
+                self.status_message = f"{env_prefix}Escaneando {cat_label} | En radar: {target_name} ({target_symbol}) - {target_reason}"
 
     def run_loop(self):
         self.log(f"🚀 SV Inversión iniciado | Entorno: {self.active_environment.upper()}")
