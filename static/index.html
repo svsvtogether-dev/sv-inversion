@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SV Inversión">
   <link rel="apple-touch-icon" href="/static/logo-thumb.png">
-  <link rel="stylesheet" href="/static/style.css?v=15">
+  <link rel="stylesheet" href="/static/style.css?v=16">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -27,33 +27,33 @@
       <div class="brand">
         <img src="/static/logo-thumb.png" alt="SV Inversión" class="brand-logo-img">
         <div>
-          <h1>SV Inversión <span style="font-size: 14px; color: #c084fc; font-weight: 600; padding: 2px 8px; background: rgba(192, 132, 252, 0.15); border-radius: 6px; border: 1px solid rgba(192, 132, 252, 0.3);">x Conway Automaton</span> <span id="headerEnvBadge" class="badge paper">🧪 SIMULACIÓN 15 €</span></h1>
-          <p class="subtitle" id="headerSubtitle">Gestión de Inversiones Autónoma por Conway Automaton • Interfaz SV Inversión</p>
+          <h1>SV Inversión <span style="font-size: 13px; color: #c084fc; font-weight: 700; padding: 3px 8px; background: rgba(192, 132, 252, 0.15); border-radius: 6px; border: 1px solid rgba(192, 132, 252, 0.3);">POWERED BY CONWAY AUTOMATON</span> <span id="headerEnvBadge" class="badge paper">🧪 SIMULACIÓN 15 €</span></h1>
+          <p class="subtitle" id="headerSubtitle">100% de la gestión, capital, estrategia y supervivencia a cargo de Conway Automaton</p>
         </div>
       </div>
 
       <div class="header-controls">
         <button id="pwaInstallBtn" class="btn btn-primary has-help" style="display: none; background: #563eb;"
                 data-tooltip-title="📲 Instalar en tu Móvil"
-                data-tooltip="Instala la aplicación SV Inversión directamente en tu teléfono móvil con su icono oficial.">📲 Instalar App</button>
+                data-tooltip="Instala la aplicación SV Inversión en tu teléfono móvil con acceso directo al runtime de Automaton.">📲 Instalar App</button>
         <div class="status-indicator has-help" id="statusIndicator"
-             data-tooltip-title="Estado del Algoritmo"
-             data-tooltip="Muestra si el bot está activamente analizando el mercado y listo para operar, o si lo has puesto en pausa.">
+             data-tooltip-title="Estado de Automaton"
+             data-tooltip="Muestra si el agente soberano Automaton está analizando activamente el mercado o si se encuentra en pausa.">
           <span class="dot live"></span>
-          <span id="botStateLabel">ACTIVO</span>
+          <span id="botStateLabel">AUTOMATON: ACTIVO</span>
         </div>
 
         <button id="toggleBotBtn" class="btn btn-secondary has-help"
-                data-tooltip-title="Pausar / Reanudar"
-                data-tooltip="Detiene temporalmente al bot para que no compre ni venda nada nuevo, o lo reanuda para seguir operando.">⏸️ Pausar</button>
+                data-tooltip-title="Pausar / Reanudar Automaton"
+                data-tooltip="Pausa temporalmente el razonamiento de Automaton para que no opere, o lo reanuda para seguir gestionando la cartera.">⏸️ Pausar</button>
         
         <button id="emergencyBtn" class="btn btn-danger has-help"
-                data-tooltip-title="🚨 Venta de Emergencia (Botón de Pánico)"
-                data-tooltip="Vende INMEDIATAMENTE todas tus posiciones abiertas al precio actual de mercado y convierte todo de vuelta a Euros en efectivo.">🚨 Venta Emergencia</button>
+                data-tooltip-title="🚨 Liquidación de Emergencia Automaton"
+                data-tooltip="Ordena a Automaton liquidar inmediatamente todas sus posiciones abiertas a precio de mercado y devolver el efectivo libre a la cartera.">🚨 Venta Emergencia</button>
         
         <button id="resetBtn" class="btn btn-outline has-help"
-                data-tooltip-title="🔄 Reiniciar Cartera a 15 €"
-                data-tooltip="Borra el historial de operaciones y restaura tu saldo virtual exactamente a 15,00 € para empezar de cero en simulación.">🔄 Reset 15€</button>
+                data-tooltip-title="🔄 Reiniciar Cartera de Automaton"
+                data-tooltip="Restaura el capital asignado a Automaton a exactamente 15,00 € virtuales para iniciar un nuevo ciclo de prueba.">🔄 Reset 15€</button>
       </div>
     </header>
 
@@ -63,8 +63,8 @@
         <button id="tabSimBtn" class="env-tab-btn active" onclick="setEnvironment('simulation')">
           <span class="env-tab-icon">🧪</span>
           <div class="env-tab-info">
-            <span class="env-tab-title">[🧪 Simulación (Paper Trading)]</span>
-            <span class="env-tab-desc">Pruebas cuantitativas y forward-testing (15 € Virtuales)</span>
+            <span class="env-tab-title">[🧪 Simulación Soberana]</span>
+            <span class="env-tab-desc">Automaton gestiona 15 € virtuales con datos de mercado en tiempo real</span>
           </div>
           <span class="env-tab-pill pill-sim">VIRTUAL</span>
         </button>
@@ -73,7 +73,7 @@
           <span class="env-tab-icon">🔴</span>
           <div class="env-tab-info">
             <span class="env-tab-title">[🔴 Dinero Real (Binance Live)]</span>
-            <span class="env-tab-desc">Binance Spot Oficial con balance real y comisiones BNB</span>
+            <span class="env-tab-desc">Automaton gestiona capital real en Binance Spot con su regla de supervivencia</span>
           </div>
           <span class="env-tab-pill pill-live">LIVE</span>
         </button>
@@ -364,27 +364,27 @@
       <section class="card">
         <div class="card-header">
           <h2 class="has-help"
-              data-tooltip-title="Posiciones Abiertas (Tus Inversiones Actuales)"
-              data-tooltip="Muestra los activos en los que el bot tiene dinero colocado en este momento, a qué precio entró, cuánto valen ahora y cuánto vas ganando o perdiendo en vivo.">Posiciones Abiertas <span class="help-icon">?</span></h2>
-          <span class="badge" id="positionsBadge">0 abiertas</span>
+              data-tooltip-title="Posiciones Abiertas Gestionadas por Automaton"
+              data-tooltip="Muestra los activos en los que Automaton tiene capital invertido en este momento, a qué precio entró, su meta de Take-Profit dinámico y su rentabilidad en vivo.">Posiciones Abiertas Gestionadas por Automaton <span class="help-icon">?</span></h2>
+          <span class="badge" id="positionsBadge">0 activas</span>
         </div>
         <div class="table-container">
           <table class="data-table">
             <thead>
               <tr>
-                <th class="has-help" data-tooltip-title="Activo" data-tooltip="Nombre de la moneda, acción o materia prima comprada.">Activo</th>
-                <th class="has-help" data-tooltip-title="Cantidad" data-tooltip="Número de unidades o fracciones que posees en cartera.">Cantidad</th>
-                <th class="has-help" data-tooltip-title="Precio Entrada Medio" data-tooltip="El precio medio ponderado al que compraste. Si hiciste varias compras escalonadas (DCA), este precio baja para facilitar ganar antes.">Precio Entrada Medio</th>
+                <th class="has-help" data-tooltip-title="Activo" data-tooltip="Activo seleccionado y gestionado por Automaton.">Activo</th>
+                <th class="has-help" data-tooltip-title="Cantidad" data-tooltip="Número de unidades o fracciones que Automaton posee en cartera.">Cantidad</th>
+                <th class="has-help" data-tooltip-title="Precio Entrada Medio" data-tooltip="El precio medio ponderado de entrada calculado por Automaton.">Precio Entrada Medio</th>
                 <th class="has-help" data-tooltip-title="Precio Actual" data-tooltip="Cotización del activo en el mercado en este segundo.">Precio Actual</th>
-                <th class="has-help" data-tooltip-title="Total Invertido" data-tooltip="La cantidad de euros que desembolsaste en esta posición.">Total Invertido</th>
-                <th class="has-help" data-tooltip-title="Valor Actual" data-tooltip="Lo que recibirías en euros si vendieras esta posición ahora mismo.">Valor Actual</th>
-                <th class="has-help" data-tooltip-title="P&L No Realizado" data-tooltip="Ganancia o pérdida potencial que tienes en este momento (mientras la posición siga abierta).">P&L No Realizado</th>
-                <th class="has-help" data-tooltip-title="DCA Compras" data-tooltip="Número de compras escalonadas realizadas (hasta un máximo de 3) para promediar a la baja.">DCA Compras</th>
+                <th class="has-help" data-tooltip-title="Total Invertido" data-tooltip="La cantidad de euros desembolsada en esta posición por Automaton.">Total Invertido</th>
+                <th class="has-help" data-tooltip-title="Valor Actual" data-tooltip="Valor actual de liquidación en euros.">Valor Actual</th>
+                <th class="has-help" data-tooltip-title="P&L No Realizado y Meta" data-tooltip="Ganancia o pérdida latente frente a la meta Take-Profit fijada por Automaton.">P&L No Realizado & Meta</th>
+                <th class="has-help" data-tooltip-title="Gestión de Riesgo DCA" data-tooltip="Escalones de DCA ejecutados por Automaton para proteger la posición.">Gestión DCA</th>
               </tr>
             </thead>
             <tbody id="positionsTableBody">
               <tr>
-                <td colspan="8" class="text-center empty-state">Sin posiciones abiertas. El bot comprará automáticamente cuando detecte una oportunidad de descuento o sobreventa.</td>
+                <td colspan="8" class="text-center empty-state">Sin posiciones abiertas. Automaton comprará automáticamente cuando su radar detecte convicción >= 60 pts.</td>
               </tr>
             </tbody>
           </table>
@@ -462,8 +462,8 @@
         <section class="card">
           <div class="card-header">
             <h2 class="has-help"
-                data-tooltip-title="Historial de Órdenes"
-                data-tooltip="El libro contable transparente de cada compra y venta que el bot ha ejecutado, con fecha, hora, comisiones exactas y ganancia neta conseguida.">Historial de Órdenes Recientes <span class="help-icon">?</span></h2>
+                data-tooltip-title="Historial de Decisiones de Automaton"
+                data-tooltip="El libro contable transparente de cada compra y venta ejecutada por Automaton, con fecha, hora, comisiones y la justificación cognitiva exacta.">Historial de Decisiones de Automaton <span class="help-icon">?</span></h2>
             <div style="display: flex; gap: 6px;">
               <button id="filterAllTradesBtn" class="btn btn-primary btn-sm" style="padding: 4px 10px; font-size: 12px;">📋 Todas</button>
               <button id="filterSellTradesBtn" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 12px;">💰 Solo Ventas (Ganancias)</button>
@@ -473,19 +473,19 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th class="has-help" data-tooltip-title="Hora" data-tooltip="Momento exacto en que se ejecutó la orden.">Hora</th>
-                  <th class="has-help" data-tooltip-title="Tipo" data-tooltip="COMPRA (entrada en el mercado) o VENTA (salida para recoger beneficio o cortar pérdidas).">Tipo</th>
+                  <th class="has-help" data-tooltip-title="Hora" data-tooltip="Momento exacto en que Automaton ejecutó la orden.">Hora</th>
+                  <th class="has-help" data-tooltip-title="Tipo" data-tooltip="COMPRA (entrada) o VENTA (salida para recoger beneficio o cortar pérdidas).">Tipo</th>
                   <th class="has-help" data-tooltip-title="Par" data-tooltip="El activo financiero operado.">Par</th>
-                  <th class="has-help" data-tooltip-title="Precio" data-tooltip="Precio de ejecución de la orden en ese segundo.">Precio</th>
-                  <th class="has-help" data-tooltip-title="Total" data-tooltip="Importe total de euros involucrados en la transacción.">Total</th>
-                  <th class="has-help" data-tooltip-title="Comisión" data-tooltip="Tarifa de exchange descontada (0.10%) para garantizar que el beneficio mostrado sea 100% neto.">Comisión</th>
-                  <th class="has-help" data-tooltip-title="P&L Ganancia" data-tooltip="Beneficio o pérdida neta conseguida en esta venta.">P&L Ganancia</th>
-                  <th class="has-help" data-tooltip-title="Razón" data-tooltip="El motivo matemático exacto por el cual el algoritmo tomó la decisión de ejecutar esta orden.">Razón</th>
+                  <th class="has-help" data-tooltip-title="Precio" data-tooltip="Precio de ejecución de la orden.">Precio</th>
+                  <th class="has-help" data-tooltip-title="Total" data-tooltip="Importe total de euros involucrados.">Total</th>
+                  <th class="has-help" data-tooltip-title="Comisión" data-tooltip="Tarifa de exchange descontada (0.10%).">Comisión</th>
+                  <th class="has-help" data-tooltip-title="P&L Ganancia" data-tooltip="Beneficio neto conseguido para la vida de Automaton.">P&L Vital</th>
+                  <th class="has-help" data-tooltip-title="Razonamiento de Automaton" data-tooltip="El motivo matemático y cognitivo exacto por el que Automaton tomó la decisión.">Razonamiento Cognitivo</th>
                 </tr>
               </thead>
               <tbody id="tradesTableBody">
                 <tr>
-                  <td colspan="8" class="text-center empty-state">Aún no hay operaciones registradas.</td>
+                  <td colspan="8" class="text-center empty-state">Aún no hay operaciones registradas por Automaton.</td>
                 </tr>
               </tbody>
             </table>
@@ -514,12 +514,12 @@
     </footer>
   </div>
 
-  <script src="/static/app.js?v=15"></script>
+  <script src="/static/app.js?v=16"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=15').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=16').catch(err => console.log('SW error:', err));
       });
     }
 

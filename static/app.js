@@ -305,7 +305,7 @@ function renderState(data) {
         headerEnvBadge.className = "badge paper";
       }
       if (headerSubtitle) {
-        headerSubtitle.textContent = "🧪 Paper Trading Cuantitativo (Forward-testing hasta el viernes)";
+        headerSubtitle.textContent = "100% de la gestión, capital, estrategia y supervivencia a cargo de Conway Automaton";
       }
       if (resetBtn) resetBtn.style.display = "inline-flex";
     }
