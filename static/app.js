@@ -253,6 +253,7 @@ function renderState(data) {
   isLiveArmed = Boolean(data.live_trading_armed);
 
   updateQuickButtons(currentSymbol);
+  renderAutomaton(data.automaton);
 
   // Environment Switcher UI state
   if (tabSimBtn && tabLiveBtn) {
@@ -670,6 +671,108 @@ setupTooltips();
 if (tabSimBtn) tabSimBtn.addEventListener("click", () => window.setEnvironment("simulation"));
 if (tabLiveBtn) tabLiveBtn.addEventListener("click", () => window.setEnvironment("live"));
 if (liveArmToggleBtn) liveArmToggleBtn.addEventListener("click", () => window.toggleLiveArmed());
+
+// Render Conway Automaton Sovereign AI State
+function renderAutomaton(auto) {
+  if (!auto) return;
+  const tierBadge = document.getElementById("automatonTierBadge");
+  const pulseDot = document.getElementById("automatonPulseDot");
+  const batteryFill = document.getElementById("automatonBatteryFill");
+  const treasuryVal = document.getElementById("automatonTreasuryVal");
+  const burnRateVal = document.getElementById("automatonBurnRateVal");
+  const walletAddr = document.getElementById("automatonWalletAddress");
+  const earnedVal = document.getElementById("automatonEarnedVal");
+  const cyclesVal = document.getElementById("automatonCyclesVal");
+  const thoughtText = document.getElementById("automatonThoughtText");
+  const thoughtTime = document.getElementById("automatonThoughtTime");
+  const reviveBtn = document.getElementById("reviveAutomatonBtn");
+  const fundBtn = document.getElementById("fundAutomatonBtn");
+
+  const tier = auto.tier || "NORMAL";
+  if (tierBadge) {
+    tierBadge.textContent = `TIER ${tier.replace('_', ' ')}`;
+    tierBadge.className = `tier-pill tier-${tier.toLowerCase().replace('_', '-')}`;
+  }
+
+  if (pulseDot) {
+    pulseDot.className = `automaton-pulse-dot ${auto.is_alive ? '' : 'dead'}`;
+  }
+
+  if (batteryFill) {
+    const pct = auto.battery_pct != null ? auto.battery_pct : 100;
+    batteryFill.style.width = `${pct}%`;
+    if (tier === "DEAD") {
+      batteryFill.style.background = "#ef4444";
+    } else if (tier === "CRITICAL") {
+      batteryFill.style.background = "linear-gradient(90deg, #ef4444 0%, #f97316 100%)";
+    } else if (tier === "LOW_COMPUTE") {
+      batteryFill.style.background = "linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)";
+    } else {
+      batteryFill.style.background = "linear-gradient(90deg, #10b981 0%, #34d399 100%)";
+    }
+  }
+
+  if (treasuryVal) {
+    treasuryVal.textContent = `$${(auto.treasury_usd || 0).toFixed(4)} USD`;
+    treasuryVal.style.color = tier === "DEAD" ? "#ef4444" : (tier === "CRITICAL" ? "#f87171" : (tier === "LOW_COMPUTE" ? "#fbbf24" : "#4ade80"));
+  }
+
+  if (burnRateVal) {
+    burnRateVal.textContent = `Burn: -$${(auto.burn_rate || 0.002).toFixed(4)}/ciclo`;
+  }
+
+  if (walletAddr && auto.wallet_address) {
+    const w = auto.wallet_address;
+    walletAddr.textContent = `${w.slice(0, 6)}...${w.slice(-4)}`;
+    walletAddr.title = w;
+  }
+
+  if (earnedVal) {
+    earnedVal.textContent = `Ganancias vida: +$${(auto.total_earned_usd || 0).toFixed(2)}`;
+  }
+
+  if (cyclesVal) {
+    cyclesVal.textContent = `Ciclos: #${auto.cycle_count || 0}`;
+  }
+
+  if (thoughtText && auto.last_thought) {
+    thoughtText.textContent = auto.last_thought;
+  }
+
+  if (thoughtTime) {
+    thoughtTime.textContent = new Date().toLocaleTimeString();
+  }
+
+  if (reviveBtn) {
+    reviveBtn.style.display = auto.is_alive ? "none" : "inline-flex";
+  }
+}
+
+window.fundAutomaton = async function(amount = 5.0) {
+  try {
+    const res = await fetch("/static/api/automaton/fund", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount })
+    });
+    fetchState();
+  } catch (err) {
+    console.error("Error al recargar Automaton:", err);
+  }
+};
+
+window.reviveAutomaton = async function() {
+  try {
+    const res = await fetch("/static/api/automaton/revive", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ grant: 3.0 })
+    });
+    fetchState();
+  } catch (err) {
+    console.error("Error al revivir Automaton:", err);
+  }
+};
 
 // Loop
 fetchState();

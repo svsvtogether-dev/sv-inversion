@@ -129,6 +129,52 @@ async def data_config(request: Request):
             pass
     return {"message": "Configuración actualizada con éxito", "config": bot.config}
 
+@data_api_app.api_route("/automaton/status", methods=["GET", "POST"])
+def data_automaton_status():
+    return bot.automaton.get_status_dict()
+
+@data_api_app.api_route("/automaton/fund", methods=["GET", "POST"])
+async def data_automaton_fund(request: Request, amount: float = 5.0):
+    if request.method == "POST":
+        try:
+            body = await request.json()
+            if body and "amount" in body:
+                amount = float(body["amount"])
+        except Exception:
+            pass
+    res = bot.automaton.fund(amount)
+    bot.log(f"🔋 Tesorería Automaton recargada con +${amount:.2f} USD")
+    return res
+
+@data_api_app.api_route("/automaton/revive", methods=["GET", "POST"])
+async def data_automaton_revive(request: Request, grant: float = 3.0):
+    if request.method == "POST":
+        try:
+            body = await request.json()
+            if body and "grant" in body:
+                grant = float(body["grant"])
+        except Exception:
+            pass
+    res = bot.automaton.revive(grant)
+    bot.log(f"✨ Automaton ha sido reanimado con subvención de ${grant:.2f} USD")
+    return res
+
+@data_api_app.api_route("/automaton/soul", methods=["GET"])
+def data_automaton_soul():
+    soul_text = ""
+    if bot.automaton.soul_file.exists():
+        try:
+            soul_text = bot.automaton.soul_file.read_text(encoding="utf-8")
+        except Exception:
+            pass
+    return {
+        "soul": soul_text,
+        "thought_history": bot.automaton.thought_history,
+        "wallet_address": bot.automaton.wallet_address,
+        "tier": bot.automaton.tier,
+        "treasury_usd": bot.automaton.treasury_usd
+    }
+
 # Montar data_api_app en subrutas universales (incluyendo /static/api para compatibilidad HF proxy)
 app.mount("/static/api", data_api_app)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

@@ -1026,3 +1026,262 @@ h1 {
   font-size: 11px;
   color: #94a3b8;
 }
+
+/* ========================================================
+   CONWAY AUTOMATON SOVEREIGN AI CORE STYLES
+   ======================================================== */
+.automaton-card {
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, rgba(20, 26, 42, 0.95) 0%, rgba(15, 20, 32, 0.98) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  box-shadow: 0 8px 32px -4px rgba(139, 92, 246, 0.15), 0 0 16px rgba(16, 185, 129, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.automaton-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #8b5cf6, #10b981, #3b82f6);
+}
+
+.automaton-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  margin-bottom: 16px;
+}
+
+.automaton-title-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.automaton-avatar-wrapper {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+}
+
+.automaton-avatar-icon {
+  font-size: 22px;
+}
+
+.automaton-pulse-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #0a0d14;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.automaton-pulse-dot.dead {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.automaton-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.automaton-title-row h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.tier-pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tier-normal {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.tier-low {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.tier-critical {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.tier-dead {
+  background: rgba(15, 23, 42, 0.8);
+  color: #94a3b8;
+  border: 1px solid #475569;
+}
+
+.sovereign-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: #c084fc;
+  background: rgba(192, 132, 252, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(192, 132, 252, 0.25);
+}
+
+.automaton-sub {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 2px 0 0 0;
+}
+
+.automaton-sub em {
+  color: #f59e0b;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.automaton-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.automaton-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .automaton-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.automaton-metric-item {
+  background: rgba(15, 20, 32, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.automaton-metric-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.automaton-battery-bar-container {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 6px 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.automaton-battery-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+  transition: width 0.4s ease, background 0.4s ease;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.automaton-battery-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.automaton-wallet-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.automaton-wallet-chip:hover {
+  border-color: #60a5fa;
+}
+
+.automaton-thought-box {
+  background: rgba(10, 13, 20, 0.85);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.automaton-thought-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.thought-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #c084fc;
+  letter-spacing: 0.5px;
+}
+
+.automaton-thought-text {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #e2e8f0;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid #8b5cf6;
+  min-height: 48px;
+  word-break: break-word;
+}

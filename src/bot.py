@@ -20,6 +20,7 @@ from .portfolio import Portfolio
 from .strategy import SmartDCAStrategy
 from .binance_client import BinanceSpotClient
 from .binance_rules import BinanceRulesEngine
+from .automaton_brain import AutomatonBrain
 
 class TradingBot:
     def __init__(self, config: Dict = None):
@@ -36,6 +37,8 @@ class TradingBot:
         self.binance_client = BinanceSpotClient()
 
         self.strategy = SmartDCAStrategy(self.config)
+        # Cerebro soberano de inversión Conway Automaton
+        self.automaton = AutomatonBrain(DATA_DIR)
 
         self.is_running = True
         self.current_symbol = self.config.get("symbol", "BTCEUR")
@@ -212,6 +215,9 @@ class TradingBot:
                 self.status_message = "Bot en Pausa por el usuario"
                 return
 
+        # Ciclo vital y consumo de cómputo de Conway Automaton
+        self.automaton.burn_cycle()
+
         # Sincronizar saldos reales de Binance si estamos en modo real
         if self.active_environment == "live":
             acc_info = self.binance_client.get_account_summary()
@@ -246,7 +252,7 @@ class TradingBot:
                     self.last_analysis = analysis
                 position = active_port.positions.get(sym)
                 cash = active_port.cash
-                action, amount_eur, reason = self.strategy.evaluate(analysis, position, cash)
+                action, amount_eur, reason = self.automaton.evaluate_position_management(sym, analysis, position, cash, self.config)
                 now_str = datetime.now().strftime("%H:%M:%S")
 
                 if action == "SELL":
@@ -258,6 +264,8 @@ class TradingBot:
                             placed, res, order_msg = self.binance_client.place_market_order(sym, "SELL", adj_qty)
                             if placed:
                                 trade = active_port.sell(sym, price, f"[Binance Real] {reason}", sell_pct=1.0)
+                                if trade:
+                                    self.automaton.record_profit(trade.get('realized_pnl_eur', 0.0), reason)
                                 self.log(f"🔴 VENTA REAL EN BINANCE: {adj_qty} {sym} a {self.format_price(price)} | {reason}")
                             else:
                                 self.log(f"⚠️ Error orden venta Binance: {order_msg}")
@@ -266,6 +274,8 @@ class TradingBot:
                         trade = active_port.sell(sym, price, reason, sell_pct=1.0, sweep_pct=sweep_pct)
                         if trade:
                             pnl_sign = "+" if trade['realized_pnl_eur'] >= 0 else ""
+                            # Alimentar a Automaton con los beneficios generados
+                            self.automaton.record_profit(trade.get('realized_pnl_eur', 0.0), reason)
                             self.log(f"💰 VENTA ({trade['environment'].upper()}): €{trade['amount_eur']:.2f} {sym} a {self.format_price(price)} | P&L: {pnl_sign}€{trade['realized_pnl_eur']:.4f} ({trade.get('pnl_pct', 0):+.2f}%) | {reason}")
                             self.status_message = f"Venta de {sym} con beneficio {pnl_sign}€{trade['realized_pnl_eur']:.4f}"
                             self.last_action = {"action": action, "reason": reason, "time": now_str}
@@ -328,40 +338,12 @@ class TradingBot:
         if not analyses:
             return
 
-        # Evaluar decisiones para cada candidato
-        best_buy_sym = None
-        best_buy_analysis = None
-        best_buy_score = -9999.0
-        best_buy_reason = ""
-        best_buy_amount = 0.0
-
-        # Para cuando ninguno de la señal de compra: encontrar el activo en mejor posición cuantitativa
-        radar_sym = self.current_symbol if self.current_symbol in analyses else list(analyses.keys())[0]
-        radar_analysis = analyses.get(radar_sym, list(analyses.values())[0])
-        radar_score = -9999.0
-        radar_reason = ""
-
+        # 3. Evaluación Autónoma de Inversión por Conway Automaton
         with self._lock:
             cash = active_port.cash
-            for sym, analysis in analyses.items():
-                pos = active_port.positions.get(sym)
-                act, amt, rsn = self.strategy.evaluate(analysis, pos, cash)
-                score = self.calculate_opportunity_score(analysis)
-
-                if act == "BUY" and amt > 0:
-                    if score > best_buy_score:
-                        best_buy_score = score
-                        best_buy_sym = sym
-                        best_buy_analysis = analysis
-                        best_buy_reason = rsn
-                        best_buy_amount = amt
-
-                if score > radar_score:
-                    radar_score = score
-                    radar_sym = sym
-                    radar_analysis = analysis
-                    radar_reason = rsn
-
+            best_buy_sym, best_buy_analysis, best_buy_amount, best_buy_reason = self.automaton.evaluate_new_entry(
+                analyses, cash, self.config
+            )
             now_str = datetime.now().strftime("%H:%M:%S")
             env_prefix = "[REAL] " if self.active_environment == "live" else ""
 
@@ -400,14 +382,14 @@ class TradingBot:
                         self.status_message = f"Compra ejecutada de {target_name}"
             else:
                 # Mantener en radar el activo con mejor análisis o el que el usuario tenga seleccionado
-                target_symbol = self.current_symbol if self.current_symbol in analyses else radar_sym
-                target_analysis = analyses.get(target_symbol, radar_analysis)
+                target_symbol = self.current_symbol if self.current_symbol in analyses else list(analyses.keys())[0]
+                target_analysis = analyses.get(target_symbol, list(analyses.values())[0])
                 self.last_analysis = target_analysis
                 target_name = MARKETS_CATALOG.get(target_symbol, {}).get("name", target_symbol)
-                target_reason = radar_reason if target_symbol == radar_sym else self.strategy.evaluate(target_analysis, None, cash)[2]
+                target_reason = best_buy_reason
                 self.last_action = {"action": "HOLD", "reason": target_reason, "time": now_str}
                 cat_label = "Top 4" if self.active_category in ["top4", "top_4"] else self.active_category.upper()
-                self.status_message = f"{env_prefix}Escaneando {cat_label} | En radar: {target_name} ({target_symbol}) - {target_reason}"
+                self.status_message = f"{env_prefix}Escaneando {cat_label} | {target_name} ({target_symbol}) - {target_reason}"
 
     def run_loop(self):
         self.log(f"🚀 SV Inversión iniciado | Entorno: {self.active_environment.upper()}")
@@ -496,6 +478,7 @@ class TradingBot:
                 "portfolio": active_summary,
                 "simulation": sim_summary,
                 "live": live_summary,
+                "automaton": self.automaton.get_status_dict(),
                 "config": self.config,
                 "logs": self.logs[:35]
             }

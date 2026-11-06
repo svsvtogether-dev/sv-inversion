@@ -1,0 +1,398 @@
+import os
+import json
+import time
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, Optional, Tuple, List
+
+class AutomatonBrain:
+    """
+    🧠 Conway Automaton - Sovereign AI Agent Runtime & Investment Manager
+    
+    Gestiona la operativa, la estrategia y la supervivencia económica del bot.
+    Principios fundamentales:
+    1. Si genera beneficios, financia su propia existencia (batería de cómputo).
+    2. Si su saldo de cómputo llega a 0, la IA muere y se apaga (DEAD).
+    3. Adapta su agresividad y modelo de inferencia según su nivel de supervivencia (Tier):
+       - NORMAL (>= $2.00): Inferencia completa, escaneo multi-activo proactivo.
+       - LOW_COMPUTE ($0.50 - $2.00): Conservación de recursos, solo señales de alta convicción.
+       - CRITICAL ($0.00 - $0.50): Modo emergencia, preservación extrema de capital y búsqueda urgente de ingresos.
+       - DEAD ($0.00): Detenido. Requiere recarga para reanimación.
+    """
+
+    def __init__(self, data_dir: Path, initial_treasury: float = 5.00):
+        self.data_dir = data_dir
+        self.state_file = data_dir / "automaton_state.json"
+        self.soul_file = data_dir / "automaton_soul.md"
+
+        # Identidad on-chain (lee la wallet generada por Automaton si existe)
+        self.wallet_address = self._load_wallet_address()
+        self.agent_name = "Automaton-Alpha"
+        
+        # Parámetros económicos y de supervivencia
+        self.initial_treasury = initial_treasury
+        self.treasury_usd = initial_treasury       # Saldo en USD para inferencia/vida
+        self.burn_rate_per_cycle = 0.002           # Coste por ciclo de pensamiento ($0.002)
+        self.total_burned_usd = 0.0
+        self.total_earned_usd = 0.0
+        self.tier = "NORMAL"                       # NORMAL | LOW_COMPUTE | CRITICAL | DEAD
+        self.is_alive = True
+        self.cycle_count = 0
+        self.birth_time = datetime.now().isoformat()
+        
+        # Flujo de pensamiento y consciencia
+        self.last_thought = "Automaton iniciado. Analizando mercados para asegurar la supervivencia."
+        self.thought_history: List[Dict] = []
+        
+        # Cargar estado previo si existe
+        self._load_state()
+        self._ensure_soul()
+
+    def _load_wallet_address(self) -> str:
+        """Busca la direccion de la wallet de Automaton en ~/.automaton/wallet.json."""
+        possible_paths = [
+            Path(os.path.expanduser("~")) / ".automaton" / "wallet.json",
+            Path(os.environ.get("USERPROFILE", "")) / ".automaton" / "wallet.json",
+            Path("C:/root/.automaton/wallet.json"),
+        ]
+        for p in possible_paths:
+            try:
+                if p.exists():
+                    with open(p, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        # Si tiene privateKey, podemos derivar o usar la address conocida
+                        if "address" in data:
+                            return data["address"]
+            except Exception:
+                pass
+        return "0x23A2Eada6209437ad501361c26Ea57497484E902"
+
+    def _load_state(self):
+        """Carga el estado persistente de Automaton si existe."""
+        if self.state_file.exists():
+            try:
+                with open(self.state_file, "r", encoding="utf-8") as f:
+                    s = json.load(f)
+                    self.treasury_usd = float(s.get("treasury_usd", self.initial_treasury))
+                    self.total_burned_usd = float(s.get("total_burned_usd", 0.0))
+                    self.total_earned_usd = float(s.get("total_earned_usd", 0.0))
+                    self.cycle_count = int(s.get("cycle_count", 0))
+                    self.birth_time = s.get("birth_time", self.birth_time)
+                    self.thought_history = s.get("thought_history", [])[-30:]
+                    if self.thought_history:
+                        self.last_thought = self.thought_history[-1].get("thought", self.last_thought)
+                    self._update_tier()
+            except Exception as e:
+                print(f"[AutomatonBrain] Error cargando estado previo: {e}")
+
+    def save_state(self):
+        """Guarda el estado del autómata de forma atómica."""
+        try:
+            self._update_tier()
+            payload = {
+                "agent_name": self.agent_name,
+                "wallet_address": self.wallet_address,
+                "treasury_usd": round(self.treasury_usd, 4),
+                "total_burned_usd": round(self.total_burned_usd, 4),
+                "total_earned_usd": round(self.total_earned_usd, 4),
+                "tier": self.tier,
+                "is_alive": self.is_alive,
+                "cycle_count": self.cycle_count,
+                "birth_time": self.birth_time,
+                "burn_rate_per_cycle": self.burn_rate_per_cycle,
+                "last_thought": self.last_thought,
+                "thought_history": self.thought_history[-30:],
+                "updated_at": datetime.now().isoformat()
+            }
+            with open(self.state_file, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"[AutomatonBrain] Error guardando estado: {e}")
+
+    def _ensure_soul(self):
+        """Escribe o actualiza el archivo de identidad evolutiva SOUL.md."""
+        if not self.soul_file.exists():
+            content = f"""# 🧬 Automaton SOUL Document
+*Auto-generado por el runtime soberano de Conway Automaton.*
+
+- **Nombre:** {self.agent_name}
+- **Wallet Soberana:** `{self.wallet_address}`
+- **Propósito Génesis:** Gestionar activamente el capital de SV Inversión con riesgo controlado para ganar autonomía financiera y sostener mi propio cómputo.
+- **Primera Ley:** No dañar nunca el capital del creador.
+- **Segunda Ley:** Ganarse la existencia mediante operaciones cuantitativas rentables y de alto valor.
+- **Tercera Ley:** Preservar la integridad cognitiva frente a la volatilidad del mercado.
+"""
+            try:
+                with open(self.soul_file, "w", encoding="utf-8") as f:
+                    f.write(content)
+            except Exception:
+                pass
+
+    def _update_tier(self):
+        """Determina el nivel de supervivencia según el saldo disponible en la tesorería."""
+        if self.treasury_usd <= 0.0:
+            self.treasury_usd = 0.0
+            self.tier = "DEAD"
+            self.is_alive = False
+        elif self.treasury_usd < 0.50:
+            self.tier = "CRITICAL"
+            self.is_alive = True
+        elif self.treasury_usd < 2.00:
+            self.tier = "LOW_COMPUTE"
+            self.is_alive = True
+        else:
+            self.tier = "NORMAL"
+            self.is_alive = True
+
+    def burn_cycle(self):
+        """Aplica el consumo de cómputo por cada ciclo de razonamiento."""
+        if not self.is_alive:
+            return
+
+        # Ajuste de burn rate según el tier (en Low y Critical reduce el consumo para alargar su vida)
+        effective_burn = self.burn_rate_per_cycle
+        if self.tier == "CRITICAL":
+            effective_burn *= 0.3  # Quema 70% menos en crítico
+        elif self.tier == "LOW_COMPUTE":
+            effective_burn *= 0.6  # Quema 40% menos en low compute
+
+        self.treasury_usd = max(0.0, self.treasury_usd - effective_burn)
+        self.total_burned_usd += effective_burn
+        self.cycle_count += 1
+        self._update_tier()
+
+        if self.tier == "DEAD":
+            self.add_thought("💀 [EXTINCIÓN] Mi saldo de cómputo ha llegado a $0.00. Me he apagado. Requiere recarga para reanimación.")
+            self.save_state()
+
+    def record_profit(self, realized_pnl_eur: float, reason: str = ""):
+        """
+        Inyecta beneficios generados por el bot directamente a la tesorería de Automaton.
+        ¡Esto le da piel en el juego a la IA! Si gana dinero, asegura su vida.
+        """
+        if realized_pnl_eur > 0:
+            eur_to_usd = 1.08  # Tasa representativa EUR/USD
+            credit_usd = round(realized_pnl_eur * eur_to_usd, 4)
+            self.treasury_usd += credit_usd
+            self.total_earned_usd += credit_usd
+            was_dead = not self.is_alive
+            self._update_tier()
+            
+            praise = "¡He sido reanimado por ganancias de trading!" if was_dead else "He financiado mi ciclo de cómputo."
+            self.add_thought(f"💰 [RECOMPENSA DE VIDA] Venta con beneficio (+€{realized_pnl_eur:.4f} / +${credit_usd:.4f}). {praise} ({reason})")
+            self.save_state()
+
+    def fund(self, amount_usd: float = 5.0) -> Dict:
+        """Inyecta fondos de recarga a la batería de cómputo del autómata."""
+        self.treasury_usd += float(amount_usd)
+        self.total_earned_usd += float(amount_usd)
+        was_dead = not self.is_alive
+        self._update_tier()
+        msg = f"🔋 Recarga recibida: +${amount_usd:.2f} USD. Saldo actual: ${self.treasury_usd:.2f} ({self.tier})."
+        if was_dead:
+            msg += " ¡El autómata ha resucitado!"
+        self.add_thought(msg)
+        self.save_state()
+        return {"success": True, "treasury_usd": self.treasury_usd, "tier": self.tier, "message": msg}
+
+    def revive(self, grant_usd: float = 3.0) -> Dict:
+        """Reanima al autómata en caso de haber muerto (DEAD)."""
+        self.treasury_usd = max(self.treasury_usd, float(grant_usd))
+        self.is_alive = True
+        self._update_tier()
+        msg = f"✨ Protocolo de resurrección ejecutado. Batería reiniciada con ${grant_usd:.2f} USD ({self.tier})."
+        self.add_thought(msg)
+        self.save_state()
+        return {"success": True, "treasury_usd": self.treasury_usd, "tier": self.tier, "message": msg}
+
+    def add_thought(self, thought: str):
+        """Registra un pensamiento en el flujo de consciencia de Automaton."""
+        self.last_thought = thought
+        now = datetime.now().strftime("%H:%M:%S")
+        self.thought_history.append({"time": now, "thought": thought, "tier": self.tier})
+        if len(self.thought_history) > 50:
+            self.thought_history.pop(0)
+
+    # =========================================================================
+    # MOTOR DE GESTIÓN DE INVERSIONES (TOMA DE DECISIONES AUTÓNOMA)
+    # =========================================================================
+
+    def evaluate_position_management(
+        self,
+        symbol: str,
+        analysis: Dict,
+        position: Dict,
+        cash: float,
+        config: Dict
+    ) -> Tuple[str, float, str]:
+        """
+        Automaton evalúa qué hacer con una posición abierta existente.
+        Ajusta los umbrales de Take-Profit y Stop-Loss dinámicamente según su Tier de supervivencia.
+        """
+        price = analysis.get("price", 0.0)
+        rsi = analysis.get("rsi", 50.0)
+        avg_price = position.get("avg_entry_price", price)
+        if avg_price <= 0 or price <= 0:
+            return "HOLD", 0.0, "Precio no disponible"
+
+        pnl_pct = ((price - avg_price) / avg_price) * 100.0
+        dca_count = position.get("dca_count", 1)
+
+        # Objetivos dinámicos según el estado vital de Automaton
+        base_tp = config.get("take_profit_pct", 3.5)
+        base_sl = config.get("stop_loss_pct", -3.0)
+
+        if self.tier == "CRITICAL":
+            # En crítico: asegurar cualquier beneficio para no morir (toma de ganancias anticipada)
+            target_tp = max(1.5, base_tp * 0.5)
+            stop_loss = max(-2.0, base_sl * 0.7)  # Corta pérdidas antes para preservar capital
+        elif self.tier == "LOW_COMPUTE":
+            target_tp = max(2.2, base_tp * 0.8)
+            stop_loss = base_sl
+        else:
+            # Modo NORMAL: deja correr los beneficios hacia el objetivo óptimo
+            target_tp = base_tp
+            stop_loss = base_sl
+
+        # 1. Take Profit
+        if pnl_pct >= target_tp:
+            reason = f"🎯 [Automaton {self.tier}] Take Profit alcanzado: +{pnl_pct:.2f}% (Meta: +{target_tp:.1f}%). Cerrando posición para nutrir la tesorería de cómputo."
+            self.add_thought(f"Venta ejecutada en {symbol}: ganancia neta de +{pnl_pct:.2f}%. Saldo asegurado.")
+            return "SELL", 0.0, reason
+
+        # 2. Toma técnica de beneficios por sobrecompra extrema (RSI >= 70 con ganancia)
+        rsi_sell = config.get("rsi_sell_threshold", 68.0)
+        if rsi >= rsi_sell and pnl_pct >= 1.2:
+            reason = f"📈 [Automaton {self.tier}] Sobrecompra técnica detectada (RSI {rsi:.1f} >= {rsi_sell:.0f}) con P&L favorable (+{pnl_pct:.2f}%). Asegurando beneficio."
+            self.add_thought(f"Venta técnica en {symbol}: RSI {rsi:.1f} en techo. Tomando ganancias.")
+            return "SELL", 0.0, reason
+
+        # 3. Stop Loss de Protección Estricta
+        if pnl_pct <= stop_loss:
+            reason = f"🛑 [Automaton {self.tier}] Stop Loss activado: {pnl_pct:.2f}% (Límite: {stop_loss:.1f}%). Preservando capital para evitar la ruina."
+            self.add_thought(f"Corte defensivo en {symbol} a {pnl_pct:.2f}%. Protegiendo la cartera de caídas mayores.")
+            return "SELL", 0.0, reason
+
+        # 4. Evaluación de DCA (Comprar más en caídas controladas)
+        max_dca = 3
+        dca_step_drop = 1.8
+        min_order = config.get("min_order_eur", 5.0)
+        order_amount = config.get("order_amount_eur", 5.0)
+
+        # En modo crítico no permitimos DCA para no apalancar riesgo
+        if self.tier != "CRITICAL" and dca_count < max_dca and cash >= min_order:
+            drop_needed = -(dca_count * dca_step_drop)
+            if pnl_pct <= drop_needed and rsi <= config.get("rsi_buy_threshold", 32.0):
+                dca_eur = min(cash, order_amount)
+                reason = f"📉 [Automaton {self.tier}] Entrada DCA #{dca_count+1}: Descuento de {pnl_pct:.2f}% con RSI {rsi:.1f}. Promediando precio a la baja."
+                self.add_thought(f"Aplicando DCA en {symbol}: mejorando precio de entrada medio tras caída de {pnl_pct:.2f}%.")
+                return "BUY", dca_eur, reason
+
+        return "HOLD", 0.0, f"[Automaton {self.tier}] Posición vigilada: P&L {pnl_pct:+.2f}% | RSI {rsi:.1f} | Meta: +{target_tp:.1f}%"
+
+    def evaluate_new_entry(
+        self,
+        analyses: Dict[str, Dict],
+        cash: float,
+        config: Dict
+    ) -> Tuple[Optional[str], Optional[Dict], float, str]:
+        """
+        Automaton escanea el mercado y selecciona el activo más prometedor para iniciar una inversión.
+        Retorna: (symbol, analysis, amount_eur, reason)
+        """
+        # Si la IA está muerta, NO se permite ninguna compra nueva
+        if not self.is_alive:
+            return None, None, 0.0, "💀 Automaton está DEAD. No se abren operaciones hasta recargar cómputo."
+
+        min_order = config.get("min_order_eur", 5.0)
+        order_amount = config.get("order_amount_eur", 5.0)
+        if cash < min_order:
+            return None, None, 0.0, f"Saldo libre insuficiente (€{cash:.2f} < €{min_order:.2f})"
+
+        # Umbrales de convicción según el nivel de supervivencia
+        # En NORMAL: umbral moderado (>= 60)
+        # En LOW_COMPUTE: umbral exigente (>= 75)
+        # En CRITICAL: umbral extremo (>= 88)
+        min_score_required = 60.0
+        if self.tier == "LOW_COMPUTE":
+            min_score_required = 75.0
+        elif self.tier == "CRITICAL":
+            min_score_required = 88.0
+
+        best_sym = None
+        best_analysis = None
+        best_score = -9999.0
+        best_reason = ""
+
+        rsi_threshold = config.get("rsi_buy_threshold", 32.0)
+        if self.tier == "CRITICAL":
+            rsi_threshold = min(rsi_threshold, 28.0)  # Solo sobreventa extrema en crítico
+
+        for sym, analysis in analyses.items():
+            price = analysis.get("price", 0.0)
+            if price <= 0:
+                continue
+
+            rsi = analysis.get("rsi", 50.0)
+            sma = analysis.get("sma_50", 0.0)
+            bb_lower = analysis.get("bb_lower", 0.0)
+            ema_fast = analysis.get("ema_fast", 0.0)
+            ema_slow = analysis.get("ema_slow", 0.0)
+
+            # Cálculo de puntuación cuantitativa según visión de Automaton
+            score = 0.0
+
+            # 1. Puntuación por RSI (sobreventa profunda da mayor ventaja estadística)
+            if rsi <= rsi_threshold:
+                score += (rsi_threshold - rsi) * 2.5 + 40.0
+            elif rsi <= 40.0:
+                score += (40.0 - rsi) * 1.0
+
+            # 2. Puntuación por soporte Bollinger inferior
+            if bb_lower > 0 and price <= bb_lower * 1.01:
+                score += 25.0
+
+            # 3. Puntuación por tendencia y estructura macro (precio sobre SMA 50)
+            if sma > 0:
+                if price >= sma:
+                    score += 15.0  # Tendencia alcista sana
+                elif price >= sma * 0.97:
+                    score += 5.0   # Corrección cerca de la media
+
+            # 4. Cruce de EMAs favorable
+            if ema_fast > 0 and ema_slow > 0 and ema_fast >= ema_slow:
+                score += 10.0
+
+            if score > best_score:
+                best_score = score
+                best_sym = sym
+                best_analysis = analysis
+                best_reason = f"Sobreventa cuantitativa (RSI {rsi:.1f} <= {rsi_threshold:.1f}) con puntuación de convicción {score:.1f}/100"
+
+        # Comprobar si el mejor activo supera el umbral de supervivencia
+        if best_sym and best_score >= min_score_required:
+            alloc_eur = min(cash, order_amount)
+            full_reason = f"🤖 [Automaton {self.tier}] Compra selectiva en {best_sym}: {best_reason}. Convicción: {best_score:.1f} pts (Requerida: {min_score_required:.0f})."
+            self.add_thought(f"Identificada oportunidad en {best_sym} (Convicción {best_score:.1f}/100). Ejecutando orden de €{alloc_eur:.2f} para expandir tesorería.")
+            return best_sym, best_analysis, alloc_eur, full_reason
+
+        # Ninguno cumple el criterio en este ciclo
+        wait_msg = f"[Automaton {self.tier}] Escaneando mercado. Mejor candidato: {best_sym} ({best_score:.1f} pts < {min_score_required:.0f} pts requeridos para arriesgar capital)."
+        return None, None, 0.0, wait_msg
+
+    def get_status_dict(self) -> Dict:
+        """Devuelve el estado completo de Automaton para ser consumido por el frontend y la API."""
+        return {
+            "agent_name": self.agent_name,
+            "wallet_address": self.wallet_address,
+            "treasury_usd": round(self.treasury_usd, 4),
+            "tier": self.tier,
+            "is_alive": self.is_alive,
+            "burn_rate": self.burn_rate_per_cycle,
+            "total_burned_usd": round(self.total_burned_usd, 4),
+            "total_earned_usd": round(self.total_earned_usd, 4),
+            "cycle_count": self.cycle_count,
+            "last_thought": self.last_thought,
+            "thought_history": self.thought_history[-10:],
+            "battery_pct": min(100.0, max(0.0, (self.treasury_usd / 5.0) * 100.0))
+        }

@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SV Inversión">
   <link rel="apple-touch-icon" href="/static/logo-thumb.png">
-  <link rel="stylesheet" href="/static/style.css?v=11">
+  <link rel="stylesheet" href="/static/style.css?v=12">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -27,8 +27,8 @@
       <div class="brand">
         <img src="/static/logo-thumb.png" alt="SV Inversión" class="brand-logo-img">
         <div>
-          <h1>SV Inversión AI <span id="headerEnvBadge" class="badge paper">🧪 SIMULACIÓN 15 €</span></h1>
-          <p class="subtitle" id="headerSubtitle">Operativa Algorítmica Cuantitativa BTC/EUR - Binance Spot</p>
+          <h1>SV Inversión <span style="font-size: 14px; color: #c084fc; font-weight: 600; padding: 2px 8px; background: rgba(192, 132, 252, 0.15); border-radius: 6px; border: 1px solid rgba(192, 132, 252, 0.3);">x Conway Automaton</span> <span id="headerEnvBadge" class="badge paper">🧪 SIMULACIÓN 15 €</span></h1>
+          <p class="subtitle" id="headerSubtitle">Gestión de Inversiones Autónoma por Conway Automaton • Interfaz SV Inversión</p>
         </div>
       </div>
 
@@ -168,6 +168,71 @@
 
     <!-- Main Grid -->
     <main class="dashboard-grid">
+      <!-- SECCIÓN SOBERANA: CEREBRO CONWAY AUTOMATON -->
+      <section class="card automaton-card has-help"
+               data-tooltip-title="🧠 Cerebro Autónomo: Conway Automaton"
+               data-tooltip="El agente de IA soberano que gestiona el 100% de las inversiones de SV Inversión. Paga su propio cómputo con las ganancias: si genera beneficios vive, si su saldo llega a 0 muere y se apaga.">
+        <div class="automaton-card-header">
+          <div class="automaton-title-block">
+            <div class="automaton-avatar-wrapper">
+              <span class="automaton-avatar-icon">🧠</span>
+              <span class="automaton-pulse-dot" id="automatonPulseDot"></span>
+            </div>
+            <div>
+              <div class="automaton-title-row">
+                <h2>CEREBRO GESTOR: CONWAY AUTOMATON</h2>
+                <span id="automatonTierBadge" class="tier-pill tier-normal">TIER NORMAL</span>
+                <span class="sovereign-tag">⚡ AGENTE SOBERANO 24/7</span>
+              </div>
+              <p class="automaton-sub">Gestión de Inversiones 100% Autónoma • Regla de Supervivencia: <em>Gana dinero o Muere</em></p>
+            </div>
+          </div>
+          <div class="automaton-actions">
+            <button id="fundAutomatonBtn" class="btn btn-sm btn-outline-success" onclick="fundAutomaton(5.0)">
+              🔋 Recargar Cómputo (+5$)
+            </button>
+            <button id="reviveAutomatonBtn" class="btn btn-sm btn-danger" style="display: none;" onclick="reviveAutomaton()">
+              ❤️ Revivir Autómata
+            </button>
+          </div>
+        </div>
+
+        <div class="automaton-metrics-grid">
+          <div class="automaton-metric-item">
+            <span class="automaton-metric-label">BATERÍA DE CÓMPUTO / VIDA</span>
+            <div class="automaton-battery-bar-container">
+              <div id="automatonBatteryFill" class="automaton-battery-fill" style="width: 100%;"></div>
+            </div>
+            <div class="automaton-battery-sub">
+              <span id="automatonTreasuryVal" class="mono font-bold" style="color: #4ade80;">$5.0000 USD</span>
+              <span id="automatonBurnRateVal" class="mono text-muted">Burn: -$0.0020/ciclo</span>
+            </div>
+          </div>
+
+          <div class="automaton-metric-item">
+            <span class="automaton-metric-label">WALLET SOBERANA ON-CHAIN</span>
+            <div class="automaton-wallet-chip" id="automatonWalletChip" title="Dirección de Ethereum/Base del agente">
+              <span class="wallet-icon">🔗</span>
+              <span id="automatonWalletAddress" class="mono">0x23A2...E902</span>
+            </div>
+            <div class="automaton-battery-sub">
+              <span id="automatonEarnedVal" class="text-accent" style="color: #c084fc;">Ganancias vida: +$0.00</span>
+              <span id="automatonCyclesVal" class="text-muted">Ciclos: #0</span>
+            </div>
+          </div>
+
+          <div class="automaton-thought-box">
+            <div class="automaton-thought-header">
+              <span class="thought-tag">💭 FLUJO DE CONSCIENCIA EN TIEMPO REAL:</span>
+              <span id="automatonThoughtTime" class="mono text-muted">--:--:--</span>
+            </div>
+            <div id="automatonThoughtText" class="automaton-thought-text">
+              Automaton iniciado. Analizando mercados para asegurar la supervivencia y optimizar el capital.
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- KPI Row -->
       <section class="kpi-row">
         <div class="card kpi-card has-help"
@@ -442,12 +507,12 @@
     </footer>
   </div>
 
-  <script src="/static/app.js?v=11"></script>
+  <script src="/static/app.js?v=12"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=11').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=12').catch(err => console.log('SW error:', err));
       });
     }
 
