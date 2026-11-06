@@ -324,15 +324,15 @@ function renderState(data) {
     toggleBotBtn.className = "btn btn-primary has-help";
   }
 
-  // Sincronizar casillas de configuración si no se están editando activamente
-  if (data.config) {
+  // Sincronizar casillas de configuración si existen en el DOM
+  if (data.config && cfgOrderAmount) {
     if (document.activeElement !== cfgOrderAmount) cfgOrderAmount.value = data.config.order_amount_eur ?? 5.0;
-    if (document.activeElement !== cfgTakeProfit) cfgTakeProfit.value = data.config.take_profit_pct ?? 3.5;
-    if (document.activeElement !== cfgStopLoss) cfgStopLoss.value = data.config.stop_loss_pct ?? -3.0;
-    if (document.activeElement !== cfgRsiBuy) cfgRsiBuy.value = data.config.rsi_buy_threshold ?? 32;
-    if (document.activeElement !== cfgRsiSell) cfgRsiSell.value = data.config.rsi_sell_threshold ?? 68;
-    if (document.activeElement !== cfgSmaPeriod && cfgSmaPeriod) cfgSmaPeriod.value = data.config.sma_period ?? 50;
-    if (document.activeElement !== cfgMsciSweep) cfgMsciSweep.value = data.config.msci_sweep_pct ?? 0;
+    if (cfgTakeProfit && document.activeElement !== cfgTakeProfit) cfgTakeProfit.value = data.config.take_profit_pct ?? 3.5;
+    if (cfgStopLoss && document.activeElement !== cfgStopLoss) cfgStopLoss.value = data.config.stop_loss_pct ?? -3.0;
+    if (cfgRsiBuy && document.activeElement !== cfgRsiBuy) cfgRsiBuy.value = data.config.rsi_buy_threshold ?? 32;
+    if (cfgRsiSell && document.activeElement !== cfgRsiSell) cfgRsiSell.value = data.config.rsi_sell_threshold ?? 68;
+    if (cfgSmaPeriod && document.activeElement !== cfgSmaPeriod) cfgSmaPeriod.value = data.config.sma_period ?? 50;
+    if (cfgMsciSweep && document.activeElement !== cfgMsciSweep) cfgMsciSweep.value = data.config.msci_sweep_pct ?? 0;
   }
 
   // Actualizar cálculo dinámico del hint de compras escalonadas
@@ -561,26 +561,28 @@ resetBtn.addEventListener("click", async () => {
   }
 });
 
-saveConfigBtn.addEventListener("click", async () => {
-  const payload = {
-    order_amount_eur: parseFloat(cfgOrderAmount.value),
-    take_profit_pct: parseFloat(cfgTakeProfit.value),
-    stop_loss_pct: parseFloat(cfgStopLoss.value),
-    rsi_buy_threshold: parseFloat(cfgRsiBuy.value),
-    rsi_sell_threshold: parseFloat(cfgRsiSell.value),
-    sma_period: parseFloat(cfgSmaPeriod ? cfgSmaPeriod.value : 50),
-    msci_sweep_pct: parseFloat(cfgMsciSweep.value)
-  };
-  const res = await fetch("/static/api/config", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+if (saveConfigBtn) {
+  saveConfigBtn.addEventListener("click", async () => {
+    const payload = {
+      order_amount_eur: parseFloat(cfgOrderAmount ? cfgOrderAmount.value : 5.0),
+      take_profit_pct: parseFloat(cfgTakeProfit ? cfgTakeProfit.value : 3.5),
+      stop_loss_pct: parseFloat(cfgStopLoss ? cfgStopLoss.value : -3.0),
+      rsi_buy_threshold: parseFloat(cfgRsiBuy ? cfgRsiBuy.value : 32),
+      rsi_sell_threshold: parseFloat(cfgRsiSell ? cfgRsiSell.value : 68),
+      sma_period: parseFloat(cfgSmaPeriod ? cfgSmaPeriod.value : 50),
+      msci_sweep_pct: parseFloat(cfgMsciSweep ? cfgMsciSweep.value : 0)
+    };
+    const res = await fetch("/static/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      alert("✅ Parámetros de la estrategia guardados correctamente.");
+      fetchState();
+    }
   });
-  if (res.ok) {
-    alert("✅ Parámetros de la estrategia guardados correctamente.");
-    fetchState();
-  }
-});
+}
 
 if (cfgOrderAmount) {
   cfgOrderAmount.addEventListener("input", updateDcaMarginHint);
@@ -741,6 +743,74 @@ function renderAutomaton(auto) {
 
   if (thoughtTime) {
     thoughtTime.textContent = new Date().toLocaleTimeString();
+  }
+
+  // Actualizar criterios auto-calibrados por Automaton
+  const autoRiskLevel = document.getElementById("autoRiskLevel");
+  const autoRiskHint = document.getElementById("autoRiskHint");
+  const autoTakeProfit = document.getElementById("autoTakeProfit");
+  const autoStopLoss = document.getElementById("autoStopLoss");
+  const autoMinScore = document.getElementById("autoMinScore");
+  const autoScoreHint = document.getElementById("autoScoreHint");
+  const autoDcaStatus = document.getElementById("autoDcaStatus");
+
+  if (autoRiskLevel) {
+    if (tier === "DEAD") {
+      autoRiskLevel.textContent = "INACTIVO (Muerto)";
+      autoRiskLevel.style.color = "#ef4444";
+      if (autoRiskHint) autoRiskHint.textContent = "La IA está apagada. No se realizan operaciones.";
+    } else if (tier === "CRITICAL") {
+      autoRiskLevel.textContent = "EXTREMO / ULTRA-DEFENSIVO";
+      autoRiskLevel.style.color = "#f87171";
+      if (autoRiskHint) autoRiskHint.textContent = "Batería baja. Solo acepta operaciones de convicción > 88 pts.";
+    } else if (tier === "LOW_COMPUTE") {
+      autoRiskLevel.textContent = "ALTO / CONSERVADOR";
+      autoRiskLevel.style.color = "#fbbf24";
+      if (autoRiskHint) autoRiskHint.textContent = "Modo conservación activo. Convicción mínima requerida: 75 pts.";
+    } else {
+      autoRiskLevel.textContent = "MODERADO (Tier Normal)";
+      autoRiskLevel.style.color = "#4ade80";
+      if (autoRiskHint) autoRiskHint.textContent = "Capacidad de cálculo plena y búsqueda activa de oportunidades.";
+    }
+  }
+
+  if (autoTakeProfit) {
+    if (tier === "CRITICAL") {
+      autoTakeProfit.textContent = "+1.5% (Toma rápida de supervivencia)";
+      autoTakeProfit.style.color = "#f87171";
+    } else if (tier === "LOW_COMPUTE") {
+      autoTakeProfit.textContent = "+2.2% (Toma prudente)";
+      autoTakeProfit.style.color = "#fbbf24";
+    } else {
+      autoTakeProfit.textContent = "+3.5% (Objetivo óptimo)";
+      autoTakeProfit.style.color = "#38bdf8";
+    }
+  }
+
+  if (autoStopLoss) {
+    if (tier === "CRITICAL") {
+      autoStopLoss.textContent = "-2.0% (Corte de emergencia anticipado)";
+    } else {
+      autoStopLoss.textContent = "-3.0% (Protección estricta)";
+    }
+  }
+
+  if (autoMinScore) {
+    const scoreReq = tier === "CRITICAL" ? "88 / 100 pts" : (tier === "LOW_COMPUTE" ? "75 / 100 pts" : "60 / 100 pts");
+    autoMinScore.textContent = scoreReq;
+    if (autoScoreHint) {
+      autoScoreHint.textContent = tier === "CRITICAL" ? "Solo setups con ventaja estadística casi garantizada." : "Filtro cuantitativo adaptativo.";
+    }
+  }
+
+  if (autoDcaStatus) {
+    if (tier === "CRITICAL" || tier === "DEAD") {
+      autoDcaStatus.textContent = "BLOQUEADA (Preservación de capital)";
+      autoDcaStatus.style.color = "#ef4444";
+    } else {
+      autoDcaStatus.textContent = "HABILITADA (Hasta 3 escalones)";
+      autoDcaStatus.style.color = "#34d399";
+    }
   }
 
   if (reviveBtn) {

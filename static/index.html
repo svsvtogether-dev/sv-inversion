@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SV Inversión">
   <link rel="apple-touch-icon" href="/static/logo-thumb.png">
-  <link rel="stylesheet" href="/static/style.css?v=12">
+  <link rel="stylesheet" href="/static/style.css?v=13">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -390,65 +390,68 @@
         </div>
       </section>
 
-      <!-- Strategy Parameters & Controls -->
+      <!-- Automaton Autonomous Strategy & Risk Telemetry -->
       <section class="card config-card">
         <div class="card-header">
-          <h2 class="has-help"
-              data-tooltip-title="Parámetros de la Estrategia"
-              data-tooltip="Aquí puedes calibrar las reglas matemáticas que guían las decisiones del bot. Puedes ajustar tus metas de beneficio y protección de riesgo.">Parámetros de la Estrategia Smart DCA <span class="help-icon">?</span></h2>
-          <button id="saveConfigBtn" class="btn btn-primary btn-sm has-help"
-                  data-tooltip-title="Guardar Parámetros"
-                  data-tooltip="Aplica inmediatamente los nuevos valores que hayas configurado en las casillas.">Guardar Ajustes</button>
+          <div>
+            <h2 class="has-help"
+                data-tooltip-title="Criterios Autónomos de Automaton"
+                data-tooltip="Estos parámetros NO los ajusta un humano: Automaton los auto-calibra en vivo en cada ciclo según su nivel de supervivencia (Tier), la volatilidad del mercado y su algoritmo de protección.">
+              🧠 Criterios de Gestión Auto-Calibrados por Automaton <span class="help-icon">?</span>
+            </h2>
+            <p style="font-size: 11px; color: #a855f7; margin-top: 2px;">⚡ Modo Soberano Activo: La IA adapta sus márgenes en tiempo real según su supervivencia</p>
+          </div>
+          <span class="badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4);">
+            🤖 100% AUTÓNOMO
+          </span>
         </div>
         <div class="config-grid">
           <div class="config-field has-help"
-               data-tooltip-title="Tamaño por Compra (€)"
-               data-tooltip="Importe en Euros por orden. Margen dinámico = Saldo Total Disponible / Tamaño por Compra. Permite escalonar entradas promediadas a la baja.">
-            <label>Tamaño por Compra (€): <span class="help-icon">?</span></label>
-            <input type="number" id="cfgOrderAmount" step="5.0" min="5" max="30" value="5.0">
-            <small class="hint" id="dcaMarginHint">Margen: 3 compras escalonadas posibles (€15.00 / €5.00)</small>
+               data-tooltip-title="Aversión al Riesgo"
+               data-tooltip="Nivel de precaución con el que Automaton analiza las operaciones. Si su batería baja, aumenta drásticamente su aversión al riesgo.">
+            <label>Nivel de Aversión al Riesgo: <span class="help-icon">?</span></label>
+            <div class="ind-val mono font-bold" id="autoRiskLevel" style="color: #4ade80; font-size: 14px; margin-top: 4px;">MODERADO (Tier Normal)</div>
+            <small class="hint" id="autoRiskHint">Operando con capacidad plena y búsqueda activa de alfa.</small>
           </div>
+
           <div class="config-field has-help"
-               data-tooltip-title="Take-Profit Objetivo (%)"
-               data-tooltip="Tu meta de beneficio automático. Cuando una inversión suba este porcentaje neto (+3.5%), el bot vende y asegura las ganancias.">
-            <label>Take-Profit Objetivo (%): <span class="help-icon">?</span></label>
-            <input type="number" id="cfgTakeProfit" step="0.1" min="0.5" max="20" value="3.5">
-            <small class="hint">Objetivo óptimo de salida: +3.5%</small>
+               data-tooltip-title="Take-Profit Dinámico"
+               data-tooltip="Meta de beneficio que Automaton exige para cerrar la posición. En Tier Crítico la reduce (+1.5%) para asegurar saldo de supervivencia inmediato.">
+            <label>Take-Profit Dinámico: <span class="help-icon">?</span></label>
+            <div class="ind-val mono font-bold" id="autoTakeProfit" style="color: #38bdf8; font-size: 14px; margin-top: 4px;">+3.5% (Auto-adaptado)</div>
+            <small class="hint">Cierre en objetivo óptimo para nutrir la tesorería.</small>
           </div>
+
           <div class="config-field has-help"
-               data-tooltip-title="Stop-Loss Límite (%)"
-               data-tooltip="Límite estricto de protección de capital (-3.0%). Vende inmediatamente si el activo perfora este umbral.">
-            <label>Stop-Loss Límite (%): <span class="help-icon">?</span></label>
-            <input type="number" id="cfgStopLoss" step="0.5" max="-1" min="-10" value="-3.0">
-            <small class="hint">Protección de capital estricta: -3.0%</small>
+               data-tooltip-title="Stop-Loss Protector"
+               data-tooltip="Corte estricto de pérdidas auto-gestionado para garantizar que la cartera nunca sufra drawdowns severos.">
+            <label>Stop-Loss Límite: <span class="help-icon">?</span></label>
+            <div class="ind-val mono font-bold" id="autoStopLoss" style="color: #f87171; font-size: 14px; margin-top: 4px;">-3.0% (Protección Estricta)</div>
+            <small class="hint">Preserva el capital del creador ante todo.</small>
           </div>
+
           <div class="config-field has-help"
-               data-tooltip-title="Umbral RSI Compra (<=)"
-               data-tooltip="Nivel de sobreventa profunda (<= 32) para ejecutar compras, evitando entradas prematuras.">
-            <label>Umbral RSI Compra (<=): <span class="help-icon">?</span></label>
-            <input type="number" id="cfgRsiBuy" step="1" min="15" max="45" value="32">
-            <small class="hint">Sobreventa profunda (<= 32) para mayor margen.</small>
+               data-tooltip-title="Convicción Mínima Requerida"
+               data-tooltip="Puntuación cuantitativa mínima (de 0 a 100) que una oportunidad debe alcanzar para que Automaton decida arriesgar capital.">
+            <label>Convicción Requerida: <span class="help-icon">?</span></label>
+            <div class="ind-val mono font-bold" id="autoMinScore" style="color: #fbbf24; font-size: 14px; margin-top: 4px;">60 / 100 pts</div>
+            <small class="hint" id="autoScoreHint">Filtro de entrada cuantitativo para descartar ruido.</small>
           </div>
+
           <div class="config-field has-help"
-               data-tooltip-title="Umbral RSI Venta (>=)"
-               data-tooltip="Si el mercado se calienta (RSI >= 68) y se tienen ganancias netas aseguradas, se toma beneficio.">
-            <label>Umbral RSI Venta (>=): <span class="help-icon">?</span></label>
-            <input type="number" id="cfgRsiSell" step="1" min="55" max="85" value="68">
-            <small class="hint">Toma técnica si RSI >= 68 con P&L positivo.</small>
+               data-tooltip-title="Estrategia DCA"
+               data-tooltip="Permite promediar a la baja hasta 3 compras si hay sobreventa confirmada. En Tier Crítico se bloquea para no concentrar riesgo.">
+            <label>Estrategia DCA Inteligente: <span class="help-icon">?</span></label>
+            <div class="ind-val mono font-bold" id="autoDcaStatus" style="color: #34d399; font-size: 14px; margin-top: 4px;">HABILITADA (Hasta 3 escalones)</div>
+            <small class="hint">Compras escalonadas de 5,00 € por rebote.</small>
           </div>
+
           <div class="config-field has-help"
-               data-tooltip-title="Período SMA Macro (50 o 200)"
-               data-tooltip="Media Móvil Simple macro. Obligatorio: no se compran activos en caída libre bajo la SMA.">
-            <label>Período SMA Macro: <span class="help-icon">?</span></label>
-            <input type="number" id="cfgSmaPeriod" step="10" min="20" max="200" value="50">
-            <small class="hint">Filtro de tendencia macro: SMA 50 períodos.</small>
-          </div>
-          <div class="config-field has-help"
-               data-tooltip-title="% Ganancias a MSCI World (0 a 100%)"
-               data-tooltip="De cada venta en la que ganes dinero, este porcentaje se retirará automáticamente del trading y se invertirá en el Fondo Indexado MSCI World. Si está en 0%, el 100% del beneficio se reinvierte en el bot.">
-            <label style="color: #fbbf24;">% Ganancias a MSCI World: <span class="help-icon">?</span></label>
-            <input type="number" id="cfgMsciSweep" step="5" min="0" max="100" value="0">
-            <small class="hint">0% = Reinvertir el 100% de las ganancias en el bot.</small>
+               data-tooltip-title="Constitución Soberana"
+               data-tooltip="Las directrices inmutables que gobiernan cada decisión de Automaton: no dañar capital, ganar la existencia y sobrevivir.">
+            <label>Leyes de Gestión Automaton: <span class="help-icon">?</span></label>
+            <div class="ind-val mono font-bold" style="color: #c084fc; font-size: 13px; margin-top: 4px;">Ley I: Protección • Ley II: Valor</div>
+            <small class="hint">Incentivo darwiniano: Genera beneficios o muere.</small>
           </div>
         </div>
       </section>
@@ -507,12 +510,12 @@
     </footer>
   </div>
 
-  <script src="/static/app.js?v=12"></script>
+  <script src="/static/app.js?v=13"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=12').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=13').catch(err => console.log('SW error:', err));
       });
     }
 
