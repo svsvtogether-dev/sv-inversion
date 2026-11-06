@@ -44,6 +44,12 @@ class AutomatonBrain:
         self.last_thought = "Automaton iniciado. Analizando mercados para asegurar la supervivencia."
         self.thought_history: List[Dict] = []
         
+        # Telemetría de puntuaciones y candidatos
+        self.candidate_scores: Dict[str, float] = {}
+        self.best_candidate: Optional[str] = None
+        self.best_candidate_score: float = 0.0
+        self.min_score_required: float = 60.0
+        
         # Cargar estado previo si existe
         self._load_state()
         self._ensure_soul()
@@ -323,6 +329,7 @@ class AutomatonBrain:
         best_analysis = None
         best_score = -9999.0
         best_reason = ""
+        current_scores = {}
 
         rsi_threshold = config.get("rsi_buy_threshold", 32.0)
         if self.tier == "CRITICAL":
@@ -363,11 +370,19 @@ class AutomatonBrain:
             if ema_fast > 0 and ema_slow > 0 and ema_fast >= ema_slow:
                 score += 10.0
 
+            current_scores[sym] = round(score, 1)
+
             if score > best_score:
                 best_score = score
                 best_sym = sym
                 best_analysis = analysis
                 best_reason = f"Sobreventa cuantitativa (RSI {rsi:.1f} <= {rsi_threshold:.1f}) con puntuación de convicción {score:.1f}/100"
+
+        # Guardar telemetría
+        self.candidate_scores = current_scores
+        self.best_candidate = best_sym
+        self.best_candidate_score = round(best_score, 1) if best_sym else 0.0
+        self.min_score_required = min_score_required
 
         # Comprobar si el mejor activo supera el umbral de supervivencia
         if best_sym and best_score >= min_score_required:
@@ -394,5 +409,13 @@ class AutomatonBrain:
             "cycle_count": self.cycle_count,
             "last_thought": self.last_thought,
             "thought_history": self.thought_history[-10:],
-            "battery_pct": min(100.0, max(0.0, (self.treasury_usd / 5.0) * 100.0))
+            "battery_pct": min(100.0, max(0.0, (self.treasury_usd / 5.0) * 100.0)),
+            "candidate_scores": self.candidate_scores,
+            "best_candidate": self.best_candidate,
+            "best_candidate_score": self.best_candidate_score,
+            "min_score_required": self.min_score_required,
+            "risk_level": "MODERADO" if self.tier == "NORMAL" else ("ALTO" if self.tier == "LOW_COMPUTE" else ("EXTREMO" if self.tier == "CRITICAL" else "APAGADO")),
+            "target_tp_pct": 3.5 if self.tier == "NORMAL" else (2.2 if self.tier == "LOW_COMPUTE" else 1.5),
+            "stop_loss_pct": -3.0 if self.tier != "CRITICAL" else -2.0,
+            "dca_enabled": self.tier != "CRITICAL" and self.tier != "DEAD"
         }

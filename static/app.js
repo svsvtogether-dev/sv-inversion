@@ -311,18 +311,57 @@ function renderState(data) {
     }
   }
 
-  // Header controls
-  botStateLabel.textContent = isRunning ? "ACTIVO" : "PAUSADO";
-  const dot = statusIndicator.querySelector(".dot");
+  // Header controls & Automaton status
+  const auto = data.automaton || {};
+  if (!auto.is_alive) {
+    botStateLabel.textContent = "AUTOMATON: APAGADO (DEAD)";
+    statusIndicator.querySelector(".dot").className = "dot paused";
+  } else if (isRunning) {
+    botStateLabel.textContent = `AUTOMATON: ACTIVO (${auto.tier || "NORMAL"})`;
+    statusIndicator.querySelector(".dot").className = "dot live";
+  } else {
+    botStateLabel.textContent = "AUTOMATON: EN PAUSA";
+    statusIndicator.querySelector(".dot").className = "dot paused";
+  }
+
   if (isRunning) {
-    dot.className = "dot live";
     toggleBotBtn.textContent = "⏸️ Pausar";
     toggleBotBtn.className = "btn btn-secondary has-help";
   } else {
-    dot.className = "dot paused";
     toggleBotBtn.textContent = "▶️ Reanudar";
     toggleBotBtn.className = "btn btn-primary has-help";
   }
+
+  // Radar de Convicción Automaton para Top 4
+  const scores = auto.candidate_scores || {};
+  const minReq = auto.min_score_required || 60;
+  const radarMinReqBadge = document.getElementById("radarMinReqBadge");
+  if (radarMinReqBadge) radarMinReqBadge.textContent = `${minReq} pts`;
+
+  const setConvBadge = (id, sc, sym) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (sc != null) {
+      if (sc >= minReq) {
+        el.className = "conviction-badge high";
+        el.textContent = `${sc} pts ✅`;
+      } else if (auto.best_candidate === sym) {
+        el.className = "conviction-badge radar";
+        el.textContent = `${sc} pts ⭐ Radar`;
+      } else {
+        el.className = "conviction-badge";
+        el.textContent = `${sc} pts`;
+      }
+    } else {
+      el.textContent = "-- pts";
+      el.className = "conviction-badge";
+    }
+  };
+
+  setConvBadge("convictionBTC", scores["BTCEUR"], "BTCEUR");
+  setConvBadge("convictionETH", scores["ETHEUR"], "ETHEUR");
+  setConvBadge("convictionBNB", scores["BNBEUR"], "BNBEUR");
+  setConvBadge("convictionSOL", scores["SOLEUR"], "SOLEUR");
 
   // Sincronizar casillas de configuración si existen en el DOM
   if (data.config && cfgOrderAmount) {
@@ -334,9 +373,6 @@ function renderState(data) {
     if (cfgSmaPeriod && document.activeElement !== cfgSmaPeriod) cfgSmaPeriod.value = data.config.sma_period ?? 50;
     if (cfgMsciSweep && document.activeElement !== cfgMsciSweep) cfgMsciSweep.value = data.config.msci_sweep_pct ?? 0;
   }
-
-  // Actualizar cálculo dinámico del hint de compras escalonadas
-  updateDcaMarginHint();
 
   // Category buttons
   document.querySelectorAll(".cat-btn").forEach(btn => {
@@ -359,17 +395,25 @@ function renderState(data) {
 
   const rPnlClass = p.realized_pnl_eur > 0 ? "text-green" : (p.realized_pnl_eur < 0 ? "text-red" : "");
   kpiRealizedPnl.innerHTML = `<span class="${rPnlClass}">${profitSign}${formatEur(p.realized_pnl_eur)}</span>`;
-  kpiFees.textContent = `Comisiones (0.1%): ${formatEur(p.total_fees_paid_eur)}`;
+  
+  const lifeContributed = document.getElementById("kpiLifeContributed");
+  if (lifeContributed) {
+    lifeContributed.textContent = `+$${(auto.total_earned_usd || 0).toFixed(2)} USD`;
+  } else {
+    kpiFees.textContent = `Comisiones (0.1%): ${formatEur(p.total_fees_paid_eur)}`;
+  }
 
   kpiWinRate.textContent = `${p.win_rate_pct}%`;
   kpiTradesCount.textContent = `${p.closed_trades_count} cerradas (${p.total_trades_count} totales)`;
 
-  // Bóveda MSCI World
-  if (kpiMsciVault) {
-    kpiMsciVault.textContent = formatEur(p.msci_vault_eur || 0);
+  // Saldo Vital Automaton & Bóveda
+  const kpiVitalTreasury = document.getElementById("kpiVitalTreasury");
+  if (kpiVitalTreasury) {
+    kpiVitalTreasury.textContent = `$${(auto.treasury_usd || 0).toFixed(3)} USD`;
+    kpiVitalTreasury.style.color = auto.tier === "DEAD" ? "#ef4444" : (auto.tier === "CRITICAL" ? "#f87171" : "#4ade80");
   }
   if (kpiMsciSub) {
-    kpiMsciSub.textContent = `Proyección 10a: ${formatEur(p.msci_proj_10yr || 0)}`;
+    kpiMsciSub.textContent = `Bóveda MSCI: ${formatEur(p.msci_vault_eur || 0)} • Tier: ${auto.tier || 'NORMAL'}`;
   }
 
   // Market & Technicals

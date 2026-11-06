@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SV Inversión">
   <link rel="apple-touch-icon" href="/static/logo-thumb.png">
-  <link rel="stylesheet" href="/static/style.css?v=13">
+  <link rel="stylesheet" href="/static/style.css?v=14">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -110,24 +110,24 @@
     <!-- Activo Principal de Alta Liquidez (Selector Rápido Top 4 Líderes) -->
     <div class="priority-pair-container">
       <div class="priority-pair-header">
-        <span class="priority-title">💎 Top 4 Blue-Chips Cuantitativo (Escáner Automático):</span>
+        <span class="priority-title">💎 Top 4 Blue-Chips (Radar Cuantitativo Automaton):</span>
         <div class="priority-toggle-buttons">
           <button id="quickBtnBTC" class="priority-btn active" onclick="selectQuickSymbol('BTCEUR')">
-            <span class="symbol-circle btc">₿</span> <strong>BTC</strong> (Bitcoin)
+            <span class="symbol-circle btc">₿</span> <strong>BTC</strong> <span id="convictionBTC" class="conviction-badge">-- pts</span>
           </button>
           <button id="quickBtnETH" class="priority-btn" onclick="selectQuickSymbol('ETHEUR')">
-            <span class="symbol-circle eth">Ξ</span> <strong>ETH</strong> (Ethereum)
+            <span class="symbol-circle eth">Ξ</span> <strong>ETH</strong> <span id="convictionETH" class="conviction-badge">-- pts</span>
           </button>
           <button id="quickBtnBNB" class="priority-btn" onclick="selectQuickSymbol('BNBEUR')">
-            <span class="symbol-circle bnb" style="background:#fbbf24; color:#000;">🔶</span> <strong>BNB</strong> (Binance)
+            <span class="symbol-circle bnb" style="background:#fbbf24; color:#000;">🔶</span> <strong>BNB</strong> <span id="convictionBNB" class="conviction-badge">-- pts</span>
           </button>
           <button id="quickBtnSOL" class="priority-btn" onclick="selectQuickSymbol('SOLEUR')">
-            <span class="symbol-circle sol" style="background:#a855f7; color:#fff;">◎</span> <strong>SOL</strong> (Solana)
+            <span class="symbol-circle sol" style="background:#a855f7; color:#fff;">◎</span> <strong>SOL</strong> <span id="convictionSOL" class="conviction-badge">-- pts</span>
           </button>
         </div>
       </div>
       <div class="priority-pair-note">
-        🛡️ <strong>Estrategia Ganadora Top 4:</strong> Escaneo en paralelo de los 4 gigantes de Binance Spot. Compra automáticamente el activo con mayor descuento y rebote asegurando cero riesgo de trampas o spreads.
+        🛡️ <strong>Radar de Convicción Automaton:</strong> La IA evalúa la ventaja cuantitativa de cada gigante en vivo. Solo entra cuando la puntuación supera su umbral de supervivencia (actualmente <span id="radarMinReqBadge" style="color: #fbbf24; font-weight: 700;">60 pts</span>).
       </div>
     </div>
 
@@ -236,43 +236,43 @@
       <!-- KPI Row -->
       <section class="kpi-row">
         <div class="card kpi-card has-help"
-             data-tooltip-title="Valor Total de tu Cartera"
-             data-tooltip="La suma de TODO tu patrimonio: el dinero en efectivo que te queda libre más el valor actual en euros de lo que tienes invertido y tu bóveda MSCI World. Si este número sube por encima de 15 €, estás en ganancias.">
-          <div class="kpi-title">VALOR TOTAL CARTERA <span class="help-icon">?</span></div>
+             data-tooltip-title="Patrimonio Gestionado por Automaton"
+             data-tooltip="La suma de TODO el capital que Automaton tiene bajo su gestión: liquidez libre en efectivo más el valor a precio de mercado de las posiciones abiertas y el ahorro acumulado.">
+          <div class="kpi-title">PATRIMONIO GESTIONADO <span class="help-icon">?</span></div>
           <div class="kpi-value" id="kpiTotalValue">€15.00</div>
           <div class="kpi-sub" id="kpiNetProfit">P&L: <span class="neutral">€0.00 (0.00%)</span></div>
         </div>
 
         <div class="card kpi-card has-help"
-             data-tooltip-title="Efectivo Disponible (Liquidez)"
-             data-tooltip="El dinero en Euros que NO está invertido en ningún activo en este instante. El bot lo guarda estratégicamente para poder comprar cuando el mercado caiga y ofrezca descuentos.">
-          <div class="kpi-title">EFECTIVO DISPONIBLE <span class="help-icon">?</span></div>
+             data-tooltip-title="Efectivo Libre (Liquidez de Automaton)"
+             data-tooltip="El dinero en Euros que Automaton mantiene en reserva estratégica para comprar en momentos de sobreventa y descuento profundo.">
+          <div class="kpi-title">LIQUIDEZ DISPONIBLE <span class="help-icon">?</span></div>
           <div class="kpi-value text-accent" id="kpiCash">€15.00</div>
           <div class="kpi-sub" id="kpiInPosition">En posiciones: €0.00</div>
         </div>
 
         <div class="card kpi-card has-help"
-             data-tooltip-title="P&L Realizado Neto (Ganancia Real)"
-             data-tooltip="El dinero real que ya has ganado (o perdido) de operaciones que ya se han VENDIDO y cerrado por completo, descontando todas las comisiones del 0.1%. Es tu beneficio neto consolidado.">
-          <div class="kpi-title">P&L REALIZADO NETO <span class="help-icon">?</span></div>
+             data-tooltip-title="Beneficio Neto Conseguido por Automaton"
+             data-tooltip="Ganancias netas reales consolidadas de operaciones ya cerradas. Cada céntimo ganado alimenta directamente la supervivencia de Automaton.">
+          <div class="kpi-title">P&L NETO CONSEGUIDO <span class="help-icon">?</span></div>
           <div class="kpi-value" id="kpiRealizedPnl">€0.00</div>
-          <div class="kpi-sub" id="kpiFees">Comisiones (0.1%): €0.00</div>
+          <div class="kpi-sub" id="kpiFees">Aportado a la Vida: <span id="kpiLifeContributed" style="color: #c084fc; font-weight: 600;">+$0.00 USD</span></div>
         </div>
 
         <div class="card kpi-card has-help"
-             data-tooltip-title="Tasa de Acierto (Win Rate)"
-             data-tooltip="El porcentaje de operaciones en las que el bot ha ganado dinero frente al total de operaciones cerradas. Si cierras 10 operaciones y 8 son positivas, tu Win Rate es del 80%.">
-          <div class="kpi-title">TASA DE ACIERTO (WIN RATE) <span class="help-icon">?</span></div>
+             data-tooltip-title="Tasa de Acierto de Automaton (Win Rate)"
+             data-tooltip="Porcentaje de operaciones ganadoras ejecutadas por el cerebro de la IA frente al total de operaciones cerradas.">
+          <div class="kpi-title">WIN RATE DE LA IA <span class="help-icon">?</span></div>
           <div class="kpi-value" id="kpiWinRate">0.0%</div>
           <div class="kpi-sub" id="kpiTradesCount">0 operaciones cerradas</div>
         </div>
 
-        <div class="card kpi-card has-help" style="border-color: rgba(245, 158, 11, 0.4); background: linear-gradient(180deg, #181c2a 0%, #121622 100%);"
-             data-tooltip-title="🏛️ Bóveda de Ahorro Indexado: MSCI World"
-             data-tooltip="El porcentaje de beneficios que el bot retira automáticamente de cada venta exitosa para acumularlo en el Fondo Indexado MSCI World a largo plazo. Este dinero ya no se arriesga en trading y crece con interés compuesto.">
-          <div class="kpi-title" style="color: #fbbf24;">🏛️ BÓVEDA MSCI WORLD <span class="help-icon">?</span></div>
-          <div class="kpi-value" style="color: #fbbf24;" id="kpiMsciVault">€0.00</div>
-          <div class="kpi-sub" id="kpiMsciSub">Ahorro protegido a largo plazo</div>
+        <div class="card kpi-card has-help" style="border-color: rgba(168, 85, 247, 0.4); background: linear-gradient(180deg, #181c2a 0%, #121622 100%);"
+             data-tooltip-title="⚡ Batería Vital y Bóveda MSCI World"
+             data-tooltip="Saldo en USD de la tesorería de Automaton para pagar su propia inferencia más el capital reservado en el Fondo Indexado MSCI World.">
+          <div class="kpi-title" style="color: #c084fc;">⚡ SALDO VITAL IA <span class="help-icon">?</span></div>
+          <div class="kpi-value" style="color: #4ade80;" id="kpiVitalTreasury">$5.00 USD</div>
+          <div class="kpi-sub" id="kpiMsciSub">Bóveda MSCI: €0.00 • Tier: NORMAL</div>
         </div>
       </section>
 
@@ -293,8 +293,9 @@
             </div>
           </div>
           <div class="decision-box has-help" id="decisionBox"
-               data-tooltip-title="El Cerebro del Bot (Decisión en Vivo)"
-               data-tooltip="Aquí el algoritmo explica por qué decide COMPRAR (si hay ganga o sobreventa), VENDER (si se alcanzó la meta de beneficio) o ESPERAR pacientemente a que el mercado ofrezca una oportunidad ventajosa.">
+               data-tooltip-title="🧠 Juicio y Razonamiento de Automaton"
+               data-tooltip="El dictamen y razonamiento que la IA emite en este preciso segundo tras analizar precios, soporte, sobreventa y riesgo de supervivencia.">
+            <div style="font-size: 10px; font-weight: 700; color: #c084fc; letter-spacing: 0.5px; margin-bottom: 3px;">🧠 DICTAMEN DE AUTOMATON:</div>
             <span class="decision-badge hold" id="decisionBadge">ESPERANDO</span>
             <span class="decision-desc" id="decisionDesc">Analizando el mercado...</span>
           </div>
@@ -493,9 +494,12 @@
 
         <section class="card terminal-card">
           <div class="card-header">
-            <h2 class="has-help"
-                data-tooltip-title="Terminal en Vivo (La Mente del Bot)"
-                data-tooltip="Registro segundo a segundo de lo que el bot está analizando, los precios que recibe y las decisiones automáticas que toma.">Terminal en Vivo del Bot <span class="help-icon">?</span></h2>
+            <div>
+              <h2 class="has-help"
+                  data-tooltip-title="⚡ Terminal de Consciencia de Automaton"
+                  data-tooltip="Registro segundo a segundo de lo que la IA analiza, sus inferencias, ciclos de gasto de cómputo y órdenes ejecutadas.">⚡ Terminal de Consciencia de Automaton <span class="help-icon">?</span></h2>
+              <p style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Ciclo continuo: Think → Act → Observe • Consumo de cómputo y telemetría en vivo</p>
+            </div>
             <span class="mono text-muted" id="lastTickTime">--:--:--</span>
           </div>
           <div class="terminal-body" id="terminalLogs">
@@ -510,12 +514,12 @@
     </footer>
   </div>
 
-  <script src="/static/app.js?v=13"></script>
+  <script src="/static/app.js?v=14"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=13').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=14').catch(err => console.log('SW error:', err));
       });
     }
 
