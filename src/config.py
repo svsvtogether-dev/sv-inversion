@@ -7,7 +7,7 @@ DATA_DIR.mkdir(exist_ok=True)
 PORTFOLIO_FILE = DATA_DIR / "portfolio.json"
 
 # Configuración del Paper Trading / Prueba con fondos iniciales
-INITIAL_CAPITAL_EUR = 15.00  # Saldo inicial: 15,00 € (ajustado a la primera inversión)
+INITIAL_CAPITAL_EUR = 50.00  # Saldo inicial: 50,00 € (ajustado para la simulación de Automaton)
 TRADING_FEE_RATE = 0.001     # Comisión Binance Spot estándar (0.10%)
 
 # Catálogo Exclusivo de Mercados de Binance Spot (29 Pares EUR Oficiales - 24/7)

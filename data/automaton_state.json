@@ -1,25 +1,23 @@
 {
   "agent_name": "Automaton-Alpha",
   "wallet_address": "0x23A2Eada6209437ad501361c26Ea57497484E902",
-  "treasury_usd": 4.996,
-  "total_burned_usd": 0.004,
-  "total_earned_usd": 0.12,
+  "treasury_usd": 5.0,
+  "total_burned_usd": 0.0,
+  "total_earned_usd": 0.0,
   "tier": "NORMAL",
   "is_alive": true,
-  "cycle_count": 2,
-  "birth_time": "2026-11-06T12:00:00.000Z",
+  "cycle_count": 0,
+  "birth_time": "2026-11-06T13:00:00.000Z",
   "burn_rate_per_cycle": 0.002,
-  "last_thought": "Vigilando posición BTC: RSI 51.7 | Meta Take-Profit: +3.5% (€71,721) | Preservando capital.",
+  "last_thought": "Simulación reiniciada a cero con 50,00 € de capital inicial. Automaton asume la gestión soberana 100% autónoma. Analizando el mercado.",
   "thought_history": [
     {
-      "time": "12:30:00",
-      "thought": "Automaton iniciado. Analizando mercados para asegurar la supervivencia.",
-      "tier": "NORMAL"
-    },
-    {
-      "time": "12:33:00",
-      "thought": "Vigilando posición BTC: RSI 51.7 | Meta Take-Profit: +3.5% (€71,721) | Preservando capital.",
+      "time": "13:00:00",
+      "thought": "Simulación reiniciada a cero con 50,00 € de capital inicial. Automaton asume la gestión soberana 100% autónoma. Analizando el mercado.",
       "tier": "NORMAL"
     }
-  ]
+  ],
+  "today_date": "2026-11-06",
+  "daily_realized_pnl_eur": 0.0,
+  "circuit_breaker_active": false
 }

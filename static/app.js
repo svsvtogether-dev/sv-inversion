@@ -99,7 +99,7 @@ function updateDcaMarginHint() {
   const p = (activeEnvironment === "live" && lastStateData && lastStateData.live) 
     ? lastStateData.live 
     : (lastStateData ? (lastStateData.simulation || lastStateData.portfolio) : null);
-  const cash = p ? (p.cash_eur ?? 15.0) : 15.0;
+  const cash = p ? (p.cash_eur ?? 50.0) : 50.0;
   const steps = Math.floor(cash / orderAmt);
   if (dcaMarginHint) {
     if (cash < 5.0) {
@@ -149,7 +149,7 @@ function updateEnvironmentUI(env) {
     tabLiveBtn.className = "env-tab-btn";
     if (liveWarningBanner) liveWarningBanner.style.display = "none";
     if (headerEnvBadge) {
-      headerEnvBadge.textContent = "🧪 SIMULACIÓN 15 €";
+      headerEnvBadge.textContent = "🧪 SIMULACIÓN 50 €";
       headerEnvBadge.className = "badge paper";
     }
     if (headerSubtitle) {
@@ -301,7 +301,7 @@ function renderState(data) {
       tabLiveBtn.className = "env-tab-btn";
       if (liveWarningBanner) liveWarningBanner.style.display = "none";
       if (headerEnvBadge) {
-        headerEnvBadge.textContent = "🧪 SIMULACIÓN 15 €";
+        headerEnvBadge.textContent = "🧪 SIMULACIÓN 50 €";
         headerEnvBadge.className = "badge paper";
       }
       if (headerSubtitle) {
@@ -605,11 +605,11 @@ emergencyBtn.addEventListener("click", async () => {
 });
 
 resetBtn.addEventListener("click", async () => {
-  if (confirm("¿Deseas reiniciar la cartera virtual a los 15 € iniciales?")) {
+  if (confirm("¿Deseas reiniciar la cartera virtual a los 50 € iniciales?")) {
     await fetch("/static/api/reset", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ capital: 15.0 })
+      body: JSON.stringify({ capital: 50.0 })
     });
     fetchState();
   }
