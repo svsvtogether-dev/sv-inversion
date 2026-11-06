@@ -867,6 +867,24 @@ function renderAutomaton(auto) {
     }
   }
 
+  const autoCircuitBreaker = document.getElementById("autoCircuitBreaker");
+  const autoCircuitHint = document.getElementById("autoCircuitHint");
+  const cb = auto.circuit_breaker || {};
+  if (autoCircuitBreaker) {
+    if (cb.active) {
+      autoCircuitBreaker.textContent = "🛑 DISPARADO (Compras Pausadas)";
+      autoCircuitBreaker.style.color = "#ef4444";
+      if (autoCircuitHint) autoCircuitHint.textContent = `Límite diario alcanzado (-€${Math.abs(cb.daily_realized_pnl_eur || 0).toFixed(2)}). Preservando capital.`;
+    } else {
+      const dailyLoss = cb.daily_realized_pnl_eur || 0;
+      autoCircuitBreaker.textContent = `ARMADO (-${(cb.max_daily_loss_eur || 1.5).toFixed(2)} € máx)`;
+      autoCircuitBreaker.style.color = "#4ade80";
+      if (autoCircuitHint) {
+        autoCircuitHint.textContent = `P&L hoy: ${dailyLoss >= 0 ? '+' : ''}€${dailyLoss.toFixed(2)}. Operativa autorizada.`;
+      }
+    }
+  }
+
   if (reviveBtn) {
     reviveBtn.style.display = auto.is_alive ? "none" : "inline-flex";
   }

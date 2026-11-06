@@ -49,6 +49,12 @@ class AutomatonBrain:
         self.best_candidate: Optional[str] = None
         self.best_candidate_score: float = 0.0
         self.min_score_required: float = 60.0
+
+        # Circuit Breaker (Freno diario de seguridad para proteger el capital)
+        self.today_date = datetime.now().strftime("%Y-%m-%d")
+        self.daily_realized_pnl_eur = 0.0
+        self.max_daily_loss_eur = 1.50
+        self.circuit_breaker_active = False
         
         # Cargar estado previo si existe
         self._load_state()
@@ -89,9 +95,21 @@ class AutomatonBrain:
                     self.thought_history = s.get("thought_history", [])[-30:]
                     if self.thought_history:
                         self.last_thought = self.thought_history[-1].get("thought", self.last_thought)
+                    self.today_date = s.get("today_date", self.today_date)
+                    self.daily_realized_pnl_eur = float(s.get("daily_realized_pnl_eur", 0.0))
+                    self.circuit_breaker_active = bool(s.get("circuit_breaker_active", False))
+                    self._check_day_reset()
                     self._update_tier()
             except Exception as e:
                 print(f"[AutomatonBrain] Error cargando estado previo: {e}")
+
+    def _check_day_reset(self):
+        """Reinicia el balance diario de pérdidas si ha cambiado el día UTC/Local."""
+        cur_day = datetime.now().strftime("%Y-%m-%d")
+        if cur_day != self.today_date:
+            self.today_date = cur_day
+            self.daily_realized_pnl_eur = 0.0
+            self.circuit_breaker_active = False
 
     def save_state(self):
         """Guarda el estado del autómata de forma atómica."""
@@ -110,6 +128,9 @@ class AutomatonBrain:
                 "burn_rate_per_cycle": self.burn_rate_per_cycle,
                 "last_thought": self.last_thought,
                 "thought_history": self.thought_history[-30:],
+                "today_date": self.today_date,
+                "daily_realized_pnl_eur": round(self.daily_realized_pnl_eur, 4),
+                "circuit_breaker_active": self.circuit_breaker_active,
                 "updated_at": datetime.now().isoformat()
             }
             with open(self.state_file, "w", encoding="utf-8") as f:
@@ -177,7 +198,16 @@ class AutomatonBrain:
         """
         Inyecta beneficios generados por el bot directamente a la tesorería de Automaton.
         ¡Esto le da piel en el juego a la IA! Si gana dinero, asegura su vida.
+        También monitoriza el límite diario de pérdidas (Circuit Breaker).
         """
+        self._check_day_reset()
+        self.daily_realized_pnl_eur += realized_pnl_eur
+
+        if self.daily_realized_pnl_eur <= -self.max_daily_loss_eur:
+            if not self.circuit_breaker_active:
+                self.circuit_breaker_active = True
+                self.add_thought(f"🛑 [CIRCUIT BREAKER] Límite de pérdida diaria superado (-€{abs(self.daily_realized_pnl_eur):.2f} <= -€{self.max_daily_loss_eur:.2f}). Pausando compras para proteger el capital.")
+
         if realized_pnl_eur > 0:
             eur_to_usd = 1.08  # Tasa representativa EUR/USD
             credit_usd = round(realized_pnl_eur * eur_to_usd, 4)
@@ -188,6 +218,9 @@ class AutomatonBrain:
             
             praise = "¡He sido reanimado por ganancias de trading!" if was_dead else "He financiado mi ciclo de cómputo."
             self.add_thought(f"💰 [RECOMPENSA DE VIDA] Venta con beneficio (+€{realized_pnl_eur:.4f} / +${credit_usd:.4f}). {praise} ({reason})")
+            self.save_state()
+        elif realized_pnl_eur < 0:
+            self.add_thought(f"🛡️ [DEFENSA] Posición cerrada con pérdida controlada (€{realized_pnl_eur:.4f}). Preservando liquidez.")
             self.save_state()
 
     def fund(self, amount_usd: float = 5.0) -> Dict:
@@ -314,6 +347,13 @@ class AutomatonBrain:
         if not self.is_alive:
             return None, None, 0.0, "💀 Automaton está DEAD. No se abren operaciones hasta recargar cómputo."
 
+        # Circuit Breaker: si la pérdida acumulada hoy excede el límite de seguridad, pausar compras
+        self._check_day_reset()
+        if self.circuit_breaker_active:
+            reason = f"🛑 [Circuit Breaker Activo] Límite de pérdida diaria alcanzado (-€{abs(self.daily_realized_pnl_eur):.2f} / -€{self.max_daily_loss_eur:.2f}). Compras pausadas por seguridad."
+            self.add_thought(reason)
+            return None, None, 0.0, reason
+
         min_order = config.get("min_order_eur", 5.0)
         order_amount = config.get("order_amount_eur", 5.0)
         if cash < min_order:
@@ -422,5 +462,10 @@ class AutomatonBrain:
             "risk_level": "MODERADO" if self.tier == "NORMAL" else ("ALTO" if self.tier == "LOW_COMPUTE" else ("EXTREMO" if self.tier == "CRITICAL" else "APAGADO")),
             "target_tp_pct": 3.5 if self.tier == "NORMAL" else (2.2 if self.tier == "LOW_COMPUTE" else 1.5),
             "stop_loss_pct": -3.0 if self.tier != "CRITICAL" else -2.0,
-            "dca_enabled": self.tier != "CRITICAL" and self.tier != "DEAD"
+            "dca_enabled": self.tier != "CRITICAL" and self.tier != "DEAD",
+            "circuit_breaker": {
+                "active": self.circuit_breaker_active,
+                "daily_realized_pnl_eur": round(self.daily_realized_pnl_eur, 4),
+                "max_daily_loss_eur": self.max_daily_loss_eur
+            }
         }

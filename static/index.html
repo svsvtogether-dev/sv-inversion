@@ -448,11 +448,11 @@
           </div>
 
           <div class="config-field has-help"
-               data-tooltip-title="Constitución Soberana"
-               data-tooltip="Las directrices inmutables que gobiernan cada decisión de Automaton: no dañar capital, ganar la existencia y sobrevivir.">
-            <label>Leyes de Gestión Automaton: <span class="help-icon">?</span></label>
-            <div class="ind-val mono font-bold" style="color: #c084fc; font-size: 13px; margin-top: 4px;">Ley I: Protección • Ley II: Valor</div>
-            <small class="hint">Incentivo darwiniano: Genera beneficios o muere.</small>
+               data-tooltip-title="Freno Diario de Emergencia (Circuit Breaker)"
+               data-tooltip="Protección institucional: Si en un mismo día las pérdidas cerradas alcanzan el límite de seguridad (-1,50 €), el sistema congela automáticamente todas las nuevas compras para evitar que una mala sesión agote el capital.">
+            <label>Freno Diario (Circuit Breaker): <span class="help-icon">?</span></label>
+            <div class="ind-val mono font-bold" id="autoCircuitBreaker" style="color: #4ade80; font-size: 13px; margin-top: 4px;">ARMADO (-1,50 € máx)</div>
+            <small class="hint" id="autoCircuitHint">Sin pérdidas hoy (0,00 €). Operativa autorizada.</small>
           </div>
         </div>
       </section>
