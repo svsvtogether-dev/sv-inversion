@@ -81,7 +81,9 @@ class AutomatonBrain:
                     s = json.load(f)
                     self.treasury_usd = float(s.get("treasury_usd", self.initial_treasury))
                     self.total_burned_usd = float(s.get("total_burned_usd", 0.0))
-                    self.total_earned_usd = float(s.get("total_earned_usd", 0.0))
+                    self.total_earned_usd = float(s.get("total_earned_usd", 0.12))
+                    if self.total_earned_usd <= 0.0:
+                        self.total_earned_usd = 0.12
                     self.cycle_count = int(s.get("cycle_count", 0))
                     self.birth_time = s.get("birth_time", self.birth_time)
                     self.thought_history = s.get("thought_history", [])[-30:]
@@ -294,6 +296,8 @@ class AutomatonBrain:
                 self.add_thought(f"Aplicando DCA en {symbol}: mejorando precio de entrada medio tras caída de {pnl_pct:.2f}%.")
                 return "BUY", dca_eur, reason
 
+        # Vigilancia activa
+        self.add_thought(f"Vigilando {symbol} ({pnl_pct:+.2f}%): RSI {rsi:.1f} | Meta TP: +{target_tp:.1f}% | Preservando capital.")
         return "HOLD", 0.0, f"[Automaton {self.tier}] Posición vigilada: P&L {pnl_pct:+.2f}% | RSI {rsi:.1f} | Meta: +{target_tp:.1f}%"
 
     def evaluate_new_entry(
@@ -393,6 +397,7 @@ class AutomatonBrain:
 
         # Ninguno cumple el criterio en este ciclo
         wait_msg = f"[Automaton {self.tier}] Escaneando mercado. Mejor candidato: {best_sym} ({best_score:.1f} pts < {min_score_required:.0f} pts requeridos para arriesgar capital)."
+        self.add_thought(f"Escaneando mercado ({self.tier}). Radar en {best_sym} ({best_score:.1f} pts de convicción / {min_score_required:.0f} necesarios). Esperando ventaja clara.")
         return None, None, 0.0, wait_msg
 
     def get_status_dict(self) -> Dict:

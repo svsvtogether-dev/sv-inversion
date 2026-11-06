@@ -484,16 +484,26 @@ function renderState(data) {
       const pnlClass = pos.unrealized_pnl_eur > 0 ? "text-green" : (pos.unrealized_pnl_eur < 0 ? "text-red" : "");
       const posMeta = marketsCatalog[pos.symbol] || {};
       const posName = posMeta.name || pos.symbol;
+      const tpTarget = (pos.avg_entry_price * (1 + (auto.target_tp_pct || 3.5) / 100));
       return `
         <tr>
-          <td><strong>${posName}</strong></td>
+          <td>
+            <strong>${posName}</strong><br/>
+            <span class="sovereign-tag" style="font-size: 9px; padding: 1px 5px;">🤖 Gestionado por Automaton</span>
+          </td>
           <td>${formatCrypto(pos.amount)}</td>
           <td>${formatEur(pos.avg_entry_price)}</td>
           <td>${formatEur(pos.current_price)}</td>
           <td>${formatEur(pos.total_cost_eur)}</td>
           <td>${formatEur(pos.current_value_eur)}</td>
-          <td class="${pnlClass}">${pnlSign}${formatEur(pos.unrealized_pnl_eur)} (${pnlSign}${pos.unrealized_pnl_pct}%)</td>
-          <td><span class="dca-badge">Nivel ${pos.dca_count}</span></td>
+          <td class="${pnlClass}">
+            ${pnlSign}${formatEur(pos.unrealized_pnl_eur)} (${pnlSign}${pos.unrealized_pnl_pct}%)<br/>
+            <small style="color: #38bdf8;">Meta TP: +${(auto.target_tp_pct || 3.5)}% (${formatEur(tpTarget)})</small>
+          </td>
+          <td>
+            <span class="dca-badge">DCA ${pos.dca_count}/3</span><br/>
+            <small style="color: #34d399;">Riesgo Protegido</small>
+          </td>
         </tr>
       `;
     }).join("");

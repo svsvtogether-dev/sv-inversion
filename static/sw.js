@@ -1,5 +1,5 @@
 // Service Worker para PWA SV Inversión - Estrategia Network First (Actualizaciones Inmediatas)
-const CACHE_NAME = 'sv-inversion-v14';
+const CACHE_NAME = 'sv-inversion-v15';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
