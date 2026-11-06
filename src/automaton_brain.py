@@ -20,7 +20,7 @@ class AutomatonBrain:
        - DEAD ($0.00): Detenido. Requiere recarga para reanimación.
     """
 
-    def __init__(self, data_dir: Path, initial_treasury: float = 5.00):
+    def __init__(self, data_dir: Path, initial_treasury: float = 50.00):
         self.data_dir = data_dir
         self.state_file = data_dir / "automaton_state.json"
         self.soul_file = data_dir / "automaton_soul.md"
@@ -29,10 +29,11 @@ class AutomatonBrain:
         self.wallet_address = self._load_wallet_address()
         self.agent_name = "Automaton-Alpha"
         
-        # Parámetros económicos y de supervivencia
+        # Parámetros económicos unificados con la inversión (1 solo capital: 50 €)
         self.initial_treasury = initial_treasury
-        self.treasury_usd = initial_treasury       # Saldo en USD para inferencia/vida
-        self.burn_rate_per_cycle = 0.002           # Coste por ciclo de pensamiento ($0.002)
+        self.treasury_eur = initial_treasury       # Saldo vital unificado en Euros
+        self.treasury_usd = initial_treasury       # Retrocompatibilidad
+        self.burn_rate_per_cycle = 0.002           # Registro de actividad cognitiva
         self.total_burned_usd = 0.0
         self.total_earned_usd = 0.0
         self.tier = "NORMAL"                       # NORMAL | LOW_COMPUTE | CRITICAL | DEAD
@@ -85,11 +86,10 @@ class AutomatonBrain:
             try:
                 with open(self.state_file, "r", encoding="utf-8") as f:
                     s = json.load(f)
-                    self.treasury_usd = float(s.get("treasury_usd", self.initial_treasury))
+                    self.treasury_eur = float(s.get("treasury_eur", s.get("treasury_usd", self.initial_treasury)))
+                    self.treasury_usd = self.treasury_eur
                     self.total_burned_usd = float(s.get("total_burned_usd", 0.0))
-                    self.total_earned_usd = float(s.get("total_earned_usd", 0.12))
-                    if self.total_earned_usd <= 0.0:
-                        self.total_earned_usd = 0.12
+                    self.total_earned_usd = float(s.get("total_earned_usd", 0.0))
                     self.cycle_count = int(s.get("cycle_count", 0))
                     self.birth_time = s.get("birth_time", self.birth_time)
                     self.thought_history = s.get("thought_history", [])[-30:]
@@ -118,7 +118,8 @@ class AutomatonBrain:
             payload = {
                 "agent_name": self.agent_name,
                 "wallet_address": self.wallet_address,
-                "treasury_usd": round(self.treasury_usd, 4),
+                "treasury_eur": round(self.treasury_eur, 2),
+                "treasury_usd": round(self.treasury_eur, 2),
                 "total_burned_usd": round(self.total_burned_usd, 4),
                 "total_earned_usd": round(self.total_earned_usd, 4),
                 "tier": self.tier,
@@ -158,47 +159,35 @@ class AutomatonBrain:
                 pass
 
     def _update_tier(self):
-        """Determina el nivel de supervivencia según el saldo disponible en la tesorería."""
-        if self.treasury_usd <= 0.0:
-            self.treasury_usd = 0.0
+        """Determina el nivel de supervivencia según el capital gestionado disponible (Base: 50,00 €)."""
+        if self.treasury_eur < 5.00:
             self.tier = "DEAD"
             self.is_alive = False
-        elif self.treasury_usd < 0.50:
+        elif self.treasury_eur < 20.00:
             self.tier = "CRITICAL"
             self.is_alive = True
-        elif self.treasury_usd < 2.00:
+        elif self.treasury_eur < 35.00:
             self.tier = "LOW_COMPUTE"
             self.is_alive = True
         else:
             self.tier = "NORMAL"
             self.is_alive = True
 
+    def sync_portfolio(self, current_total_value_eur: float):
+        """Sincroniza la salud y batería vital de Automaton con el patrimonio gestionado real de la cartera."""
+        if current_total_value_eur > 0:
+            self.treasury_eur = round(float(current_total_value_eur), 2)
+            self.treasury_usd = self.treasury_eur
+            self._update_tier()
+
     def burn_cycle(self):
-        """Aplica el consumo de cómputo por cada ciclo de razonamiento."""
-        if not self.is_alive:
-            return
-
-        # Ajuste de burn rate según el tier (en Low y Critical reduce el consumo para alargar su vida)
-        effective_burn = self.burn_rate_per_cycle
-        if self.tier == "CRITICAL":
-            effective_burn *= 0.3  # Quema 70% menos en crítico
-        elif self.tier == "LOW_COMPUTE":
-            effective_burn *= 0.6  # Quema 40% menos en low compute
-
-        self.treasury_usd = max(0.0, self.treasury_usd - effective_burn)
-        self.total_burned_usd += effective_burn
+        """Aplica el ciclo de pensamiento y telemetría de la IA."""
         self.cycle_count += 1
-        self._update_tier()
-
-        if self.tier == "DEAD":
-            self.add_thought("💀 [EXTINCIÓN] Mi saldo de cómputo ha llegado a $0.00. Me he apagado. Requiere recarga para reanimación.")
-            self.save_state()
 
     def record_profit(self, realized_pnl_eur: float, reason: str = ""):
         """
-        Inyecta beneficios generados por el bot directamente a la tesorería de Automaton.
-        ¡Esto le da piel en el juego a la IA! Si gana dinero, asegura su vida.
-        También monitoriza el límite diario de pérdidas (Circuit Breaker).
+        Inyecta beneficios generados por el bot directamente al capital vital de Automaton.
+        Monitoriza el límite diario de pérdidas (Circuit Breaker).
         """
         self._check_day_reset()
         self.daily_realized_pnl_eur += realized_pnl_eur
@@ -209,17 +198,19 @@ class AutomatonBrain:
                 self.add_thought(f"🛑 [CIRCUIT BREAKER] Límite de pérdida diaria superado (-€{abs(self.daily_realized_pnl_eur):.2f} <= -€{self.max_daily_loss_eur:.2f}). Pausando compras para proteger el capital.")
 
         if realized_pnl_eur > 0:
-            eur_to_usd = 1.08  # Tasa representativa EUR/USD
-            credit_usd = round(realized_pnl_eur * eur_to_usd, 4)
-            self.treasury_usd += credit_usd
-            self.total_earned_usd += credit_usd
+            self.treasury_eur += realized_pnl_eur
+            self.treasury_usd = self.treasury_eur
+            self.total_earned_usd += realized_pnl_eur
             was_dead = not self.is_alive
             self._update_tier()
             
-            praise = "¡He sido reanimado por ganancias de trading!" if was_dead else "He financiado mi ciclo de cómputo."
-            self.add_thought(f"💰 [RECOMPENSA DE VIDA] Venta con beneficio (+€{realized_pnl_eur:.4f} / +${credit_usd:.4f}). {praise} ({reason})")
+            praise = "¡Reanimado por beneficios de trading!" if was_dead else "Capital y vida incrementados."
+            self.add_thought(f"💰 [RECOMPENSA DE VIDA] Venta con beneficio (+€{realized_pnl_eur:.4f}). {praise} ({reason})")
             self.save_state()
         elif realized_pnl_eur < 0:
+            self.treasury_eur = max(0.0, self.treasury_eur + realized_pnl_eur)
+            self.treasury_usd = self.treasury_eur
+            self._update_tier()
             self.add_thought(f"🛡️ [DEFENSA] Posición cerrada con pérdida controlada (€{realized_pnl_eur:.4f}). Preservando liquidez.")
             self.save_state()
 
@@ -445,16 +436,19 @@ class AutomatonBrain:
         return {
             "agent_name": self.agent_name,
             "wallet_address": self.wallet_address,
-            "treasury_usd": round(self.treasury_usd, 4),
+            "treasury_eur": round(self.treasury_eur, 2),
+            "treasury_usd": round(self.treasury_eur, 2),
+            "initial_treasury_eur": self.initial_treasury,
             "tier": self.tier,
             "is_alive": self.is_alive,
             "burn_rate": self.burn_rate_per_cycle,
             "total_burned_usd": round(self.total_burned_usd, 4),
-            "total_earned_usd": round(self.total_earned_usd, 4),
+            "total_earned_usd": round(self.total_earned_usd, 2),
+            "total_earned_eur": round(self.total_earned_usd, 2),
             "cycle_count": self.cycle_count,
             "last_thought": self.last_thought,
             "thought_history": self.thought_history[-10:],
-            "battery_pct": min(100.0, max(0.0, (self.treasury_usd / 5.0) * 100.0)),
+            "battery_pct": round(min(100.0, max(0.0, (self.treasury_eur / self.initial_treasury) * 100.0)), 1),
             "candidate_scores": self.candidate_scores,
             "best_candidate": self.best_candidate,
             "best_candidate_score": self.best_candidate_score,

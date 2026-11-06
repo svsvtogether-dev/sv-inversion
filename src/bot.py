@@ -239,6 +239,12 @@ class TradingBot:
 
         active_port = self.portfolio
 
+        # Sincronizar salud y batería vital de Automaton con el capital gestionado (Automaton y Cartera son 1 solo sistema)
+        with self._lock:
+            curr_prices = {self.current_symbol: self.last_analysis.get("price", 0.0)}
+            port_summary = active_port.get_summary(curr_prices)
+            self.automaton.sync_portfolio(port_summary.get("total_value_eur", 50.0))
+
         # 1. Prioridad: Gestionar posiciones abiertas del entorno activo (TP, SL, DCA)
         open_symbols = list(active_port.positions.keys())
         for sym in open_symbols:

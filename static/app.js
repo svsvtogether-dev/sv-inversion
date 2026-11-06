@@ -398,7 +398,7 @@ function renderState(data) {
   
   const lifeContributed = document.getElementById("kpiLifeContributed");
   if (lifeContributed) {
-    lifeContributed.textContent = `+$${(auto.total_earned_usd || 0).toFixed(2)} USD`;
+    lifeContributed.textContent = `+${formatEur(auto.total_earned_eur || auto.total_earned_usd || 0)}`;
   } else {
     kpiFees.textContent = `Comisiones (0.1%): ${formatEur(p.total_fees_paid_eur)}`;
   }
@@ -406,10 +406,10 @@ function renderState(data) {
   kpiWinRate.textContent = `${p.win_rate_pct}%`;
   kpiTradesCount.textContent = `${p.closed_trades_count} cerradas (${p.total_trades_count} totales)`;
 
-  // Saldo Vital Automaton & Bóveda
+  // Saldo Vital Automaton & Bóveda (Unificado al 100% con los 50 € de inversión)
   const kpiVitalTreasury = document.getElementById("kpiVitalTreasury");
   if (kpiVitalTreasury) {
-    kpiVitalTreasury.textContent = `$${(auto.treasury_usd || 0).toFixed(3)} USD`;
+    kpiVitalTreasury.textContent = formatEur(auto.treasury_eur || p.total_value_eur || 50.0);
     kpiVitalTreasury.style.color = auto.tier === "DEAD" ? "#ef4444" : (auto.tier === "CRITICAL" ? "#f87171" : "#4ade80");
   }
   if (kpiMsciSub) {
@@ -769,12 +769,12 @@ function renderAutomaton(auto) {
   }
 
   if (treasuryVal) {
-    treasuryVal.textContent = `$${(auto.treasury_usd || 0).toFixed(4)} USD`;
+    treasuryVal.textContent = formatEur(auto.treasury_eur || auto.treasury_usd || 50.0);
     treasuryVal.style.color = tier === "DEAD" ? "#ef4444" : (tier === "CRITICAL" ? "#f87171" : (tier === "LOW_COMPUTE" ? "#fbbf24" : "#4ade80"));
   }
 
   if (burnRateVal) {
-    burnRateVal.textContent = `Burn: -$${(auto.burn_rate || 0.002).toFixed(4)}/ciclo`;
+    burnRateVal.textContent = `Salud: ${Math.round(auto.battery_pct != null ? auto.battery_pct : 100)}% (${tier})`;
   }
 
   if (walletAddr && auto.wallet_address) {
@@ -784,7 +784,7 @@ function renderAutomaton(auto) {
   }
 
   if (earnedVal) {
-    earnedVal.textContent = `Ganancias vida: +$${(auto.total_earned_usd || 0).toFixed(2)}`;
+    earnedVal.textContent = `Ganancias vida: +${formatEur(auto.total_earned_eur || auto.total_earned_usd || 0)}`;
   }
 
   if (cyclesVal) {
