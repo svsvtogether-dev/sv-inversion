@@ -451,13 +451,18 @@ class AutomatonBrain:
             if ema_fast > 0 and ema_slow > 0 and ema_fast >= ema_slow:
                 score += 10.0
 
+            # 7. Oráculo IA Kronos (Distribución Monte Carlo y Sesgo K-line)
+            kronos = analysis.get("kronos", {})
+            score += float(kronos.get("conviction_bonus", 0.0))
+
             current_scores[sym] = round(score, 1)
 
             if score > best_score:
                 best_score = score
                 best_sym = sym
                 best_analysis = analysis
-                best_reason = f"Sobreventa cuantitativa (RSI {rsi:.1f} <= {rsi_threshold:.1f}) con HMA 50 ({hma_slope}) y convicción {score:.1f}/100"
+                kronos_str = f" | {kronos.get('summary', '')}" if kronos.get('summary') else ""
+                best_reason = f"Sobreventa cuantitativa (RSI {rsi:.1f} <= {rsi_threshold:.1f}) con HMA 50 ({hma_slope}){kronos_str} y convicción {score:.1f}/100"
 
         # Guardar telemetría
         self.candidate_scores = current_scores

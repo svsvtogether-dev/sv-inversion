@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.market_data import MarketDataFeed
 from src.strategy import SmartDCAStrategy
 from src.automaton_brain import AutomatonBrain
+from src.kronos_oracle import KronosOracle
 from src.config import CONFIG
 
 def test_all():
@@ -134,6 +135,44 @@ def test_all():
     assert act_ab_be == "SELL", "AutomatonBrain should trigger Break-Even"
     assert "Break-Even" in rsn_ab_be
     print(f"AutomatonBrain Break-Even passed: {rsn_ab_be}")
+
+    # 8. Test Kronos Foundation Market Oracle
+    print("Testing Kronos Foundation Market Oracle...")
+    kronos_oracle = KronosOracle(pred_len=6, sample_count=50)
+    mock_series = [
+        {"time": i * 300, "open": 100.0 + i*0.2, "high": 101.0 + i*0.2, "low": 99.5 + i*0.2, "close": 100.5 + i*0.2, "volume": 1000 + i*10}
+        for i in range(25)
+    ]
+    pred_res = kronos_oracle.predict(mock_series, current_price=105.0)
+    assert "bullish_prob" in pred_res, "Kronos prediction must contain bullish_prob"
+    assert "expected_return_pct" in pred_res, "Kronos prediction must contain expected_return_pct"
+    assert "verdict" in pred_res, "Kronos prediction must contain verdict"
+    assert pred_res["verdict"] in ["BULLISH_BIAS", "BEARISH_BIAS", "NEUTRAL"], f"Invalid verdict: {pred_res['verdict']}"
+    print(f"Kronos standalone test passed: {pred_res['summary']}")
+
+    # Test live Kronos integration in feed
+    assert "kronos" in analysis, "Live analysis must contain kronos"
+    live_kronos = analysis["kronos"]
+    print(f"Live BTCEUR Kronos test passed: {live_kronos['summary']}")
+
+    # Test Strategy blocking on Kronos Bearish Bias
+    an_bearish_kronos = {
+        "symbol": "BTCEUR",
+        "price": 100.0,
+        "rsi": 30.0,
+        "rsi_prev": 29.0,
+        "hma_50": 100.0,
+        "hma_50_prev": 99.0,
+        "hma_50_slope": "UP",
+        "sma_50": 98.0,
+        "bb_lower": 100.0,
+        "session_info": {"is_institutional_window": True, "liquidity_tier": "INSTITUTIONAL"},
+        "kronos": {"verdict": "BEARISH_BIAS", "bullish_prob": 20.0, "expected_return_pct": -1.5}
+    }
+    act_kb, amt_kb, rsn_kb = strategy.evaluate(an_bearish_kronos, None, 20.0)
+    assert act_kb == "HOLD", "Should block entry when Kronos predicts severe bearish breakdown"
+    assert "Oráculo Kronos bloquea" in rsn_kb
+    print(f"Strategy Kronos protection passed: {act_kb} | {rsn_kb}")
 
     print(">>> 100% OF QUANTITATIVE UNIT TESTS PASSED SUCCESSFULLY! <<<")
 

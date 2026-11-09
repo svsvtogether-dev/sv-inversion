@@ -34,6 +34,7 @@ const emaSlow = document.getElementById("emaSlow");
 const sma50 = document.getElementById("sma50");
 const hma50 = document.getElementById("hma50");
 const sessionLiquidityBadge = document.getElementById("sessionLiquidityBadge");
+const kronosOracleBadge = document.getElementById("kronosOracleBadge");
 const bbUpper = document.getElementById("bbUpper");
 const bbLower = document.getElementById("bbLower");
 const atrVal = document.getElementById("atrVal");
@@ -506,6 +507,23 @@ function renderState(data) {
     } else {
       sessionLiquidityBadge.textContent = `🌐 Regular (${sInfo.utc_time || "--"})`;
       sessionLiquidityBadge.style.color = "#38bdf8";
+    }
+  }
+
+  if (kronosOracleBadge) {
+    const k = a.kronos || {};
+    const prob = k.bullish_prob !== undefined ? k.bullish_prob : 50;
+    const expRet = k.expected_return_pct !== undefined ? k.expected_return_pct : 0.0;
+    const sign = expRet >= 0 ? "+" : "";
+    if (k.verdict === "BULLISH_BIAS") {
+      kronosOracleBadge.textContent = `🔮 ${prob}% Alcista (${sign}${expRet}%)`;
+      kronosOracleBadge.style.color = "#4ade80";
+    } else if (k.verdict === "BEARISH_BIAS") {
+      kronosOracleBadge.textContent = `⚠️ ${Math.round(100 - prob)}% Bajista (${sign}${expRet}%)`;
+      kronosOracleBadge.style.color = "#f87171";
+    } else {
+      kronosOracleBadge.textContent = `⚖️ Neutral (${prob}%)`;
+      kronosOracleBadge.style.color = "#c084fc";
     }
   }
 

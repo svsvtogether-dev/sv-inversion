@@ -132,16 +132,23 @@ class SmartDCAStrategy:
         is_converging_sma = (price >= sma_val * 0.992 and (rsi >= rsi_prev or candle_bullish)) if sma_val > 0 else True
         trend_valid = is_reclaiming_hma or is_above_sma or is_converging_sma
 
+        # Filtro Protector Oráculo IA Kronos: Si la distribución Monte Carlo prevé desplome inminente, abortar compra
+        kronos = analysis.get("kronos", {})
+        if kronos.get("verdict") == "BEARISH_BIAS" and float(kronos.get("bullish_prob", 50.0)) <= 35.0:
+            return "HOLD", 0.0, f"🛑 Oráculo Kronos bloquea compra: proyección bajista severa ({kronos.get('bullish_prob')}%) a 6 velas"
+
+        kronos_tag = f" | 🔮 Kronos {kronos.get('bullish_prob', 50)}% Alcista" if kronos.get("verdict") == "BULLISH_BIAS" else ""
+
         # Setup 1: Sobreventa cuantitativa con rebote confirmado y filtro HMA / SMA
         if rsi <= effective_rsi_buy:
             if not trend_valid:
                 return "HOLD", 0.0, f"Filtro HMA/SMA bloquea entrada: RSI {rsi:.1f} pero precio (€{price:,.2f}) bajo HMA 50 (€{hma_50:,.2f}) en pendiente bajista"
             if rsi >= rsi_prev or candle_bullish or (bb_lower > 0 and price <= bb_lower * 1.002):
-                return "BUY", order_size, f"🟢 Señal de compra {session_tag}: Sobreventa ({rsi:.1f} <= {effective_rsi_buy}) con HMA 50 (€{hma_50:,.2f} | {hma_slope}) y rebote confirmado"
+                return "BUY", order_size, f"🟢 Señal de compra {session_tag}: Sobreventa ({rsi:.1f} <= {effective_rsi_buy}) con HMA 50 (€{hma_50:,.2f} | {hma_slope}) y rebote confirmado{kronos_tag}"
 
         # Setup 2: Rebote validado en Banda Bollinger Inferior en zona de sobreventa con filtro de tendencia HMA
         if bb_lower > 0 and price <= (bb_lower * 1.002) and rsi <= min(35.0, effective_rsi_buy + 3.0) and trend_valid:
             if candle_bullish or rsi >= rsi_prev:
-                return "BUY", order_size, f"🟢 Señal de compra {session_tag}: Soporte en Bollinger Inferior (€{bb_lower:,.2f}) y RSI {rsi:.1f} con HMA 50 validada"
+                return "BUY", order_size, f"🟢 Señal de compra {session_tag}: Soporte en Bollinger Inferior (€{bb_lower:,.2f}) y RSI {rsi:.1f} con HMA 50 validada{kronos_tag}"
 
         return "HOLD", 0.0, f"Mercado en espera (RSI: {rsi:.1f} | HMA50: €{hma_50:,.2f} [{hma_slope}] | {session_info.get('session_name', 'Mercado')}) | Esperando zona óptima (<= {effective_rsi_buy})"

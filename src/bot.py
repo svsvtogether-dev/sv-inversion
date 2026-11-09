@@ -215,6 +215,10 @@ class TradingBot:
         if ema_fast > ema_slow:
             score += 10.0
 
+        # 8. Oráculo IA Kronos (Sesgo direccional de trayectorias)
+        kronos = analysis.get("kronos", {})
+        score += float(kronos.get("conviction_bonus", 0.0))
+
         return score
 
     def get_candidate_symbols(self) -> List[str]:
