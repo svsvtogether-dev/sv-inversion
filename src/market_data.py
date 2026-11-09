@@ -1,4 +1,6 @@
 import time
+import math
+from datetime import datetime, timezone
 import requests
 from typing import Dict, List, Optional, Tuple
 from .config import MARKETS_CATALOG
@@ -206,6 +208,105 @@ class MarketDataFeed:
         return adaptive_round(sum(closes[-period:]) / period)
 
     @staticmethod
+    def calculate_wma(closes: List[float], period: int) -> float:
+        """Calcula la Media Móvil Ponderada (WMA) dando mayor peso a las velas más recientes."""
+        if not closes:
+            return 0.0
+        p = min(period, len(closes))
+        if p <= 0:
+            return 0.0
+        sub = closes[-p:]
+        denom = p * (p + 1) / 2.0
+        weighted_sum = sum((idx + 1) * val for idx, val in enumerate(sub))
+        return weighted_sum / denom
+
+    @classmethod
+    def calculate_hma(cls, closes: List[float], period: int = 50) -> Tuple[float, float, str]:
+        """
+        Calcula la Media Móvil de Hull (HMA) de respuesta inmediata sin retraso (zero-lag):
+        HMA = WMA(2 * WMA(n/2) - WMA(n), sqrt(n))
+        Retorna: (hma_actual, hma_previo, pendiente: 'UP' | 'DOWN' | 'FLAT')
+        """
+        if not closes:
+            return 0.0, 0.0, "FLAT"
+        if len(closes) < 5:
+            last = adaptive_round(closes[-1])
+            return last, last, "FLAT"
+
+        n = min(period, len(closes))
+        n2 = max(1, n // 2)
+        sq = max(1, int(math.isqrt(n)))
+
+        points_needed = sq + 3
+        diff_series = []
+        start_idx = max(n, len(closes) - points_needed + 1)
+        for end_idx in range(start_idx, len(closes) + 1):
+            sub = closes[:end_idx]
+            wma_half = cls.calculate_wma(sub, n2)
+            wma_full = cls.calculate_wma(sub, n)
+            diff = 2.0 * wma_half - wma_full
+            diff_series.append(diff)
+
+        if not diff_series:
+            wma_val = adaptive_round(cls.calculate_wma(closes, n))
+            return wma_val, wma_val, "FLAT"
+
+        hma_current = cls.calculate_wma(diff_series, sq)
+        if len(diff_series) >= sq + 1:
+            hma_prev = cls.calculate_wma(diff_series[:-1], sq)
+        else:
+            hma_prev = hma_current
+
+        hma_current_r = adaptive_round(hma_current)
+        hma_prev_r = adaptive_round(hma_prev)
+
+        if hma_current_r > hma_prev_r * 1.0001:
+            slope = "UP"
+        elif hma_current_r < hma_prev_r * 0.9999:
+            slope = "DOWN"
+        else:
+            slope = "FLAT"
+
+        return hma_current_r, hma_prev_r, slope
+
+    @staticmethod
+    def get_market_session_info() -> Dict:
+        """
+        Analiza la ventana de liquidez y volumen institucional global (13:00 a 17:00 UTC: Solapamiento NY y Londres).
+        """
+        now_utc = datetime.now(timezone.utc)
+        hour_utc = now_utc.hour
+        minute_utc = now_utc.minute
+
+        # Ventana dorada institucional: 13:00 - 17:00 UTC (8:00 - 12:00 AM NY)
+        is_institutional = (13 <= hour_utc < 17)
+        # Horas activas regulares: 07:00 - 20:00 UTC
+        is_active_hours = (7 <= hour_utc < 20)
+
+        if is_institutional:
+            session_name = "Sesión Institucional NY / Londres"
+            liquidity_tier = "INSTITUTIONAL"
+            desc = "Máximo volumen y dirección fiable"
+        elif is_active_hours:
+            session_name = "Sesión Europa / América"
+            liquidity_tier = "HIGH"
+            desc = "Volumen saludable y spreads óptimos"
+        else:
+            session_name = "Sesión Nocturna / Asiática"
+            liquidity_tier = "LOW"
+            desc = "Bajo volumen institucional - Mayor riesgo de mechas y trampas"
+
+        return {
+            "utc_time": f"{hour_utc:02d}:{minute_utc:02d} UTC",
+            "utc_hour": hour_utc,
+            "is_institutional_window": is_institutional,
+            "is_active_hours": is_active_hours,
+            "session_name": session_name,
+            "liquidity_tier": liquidity_tier,
+            "description": desc
+        }
+
+    @staticmethod
     def calculate_ema(closes: List[float], period: int) -> float:
         if not closes:
             return 0.0
@@ -312,6 +413,10 @@ class MarketDataFeed:
                 "ema_trend": rounded_eur,
                 "sma_50": rounded_eur,
                 "sma_200": rounded_eur,
+                "hma_50": rounded_eur,
+                "hma_50_prev": rounded_eur,
+                "hma_50_slope": "FLAT",
+                "session_info": self.get_market_session_info(),
                 "bb_upper": 0.0,
                 "bb_lower": 0.0,
                 "atr": 0.0,
@@ -329,9 +434,11 @@ class MarketDataFeed:
         ema_trend = self.calculate_ema(closes_eur, period=50)
         sma_50 = self.calculate_sma(closes_eur, period=50)
         sma_200 = self.calculate_sma(closes_eur, period=200) if len(closes_eur) >= 200 else sma_50
+        hma_50, hma_50_prev, hma_50_slope = self.calculate_hma(closes_eur, period=50)
         bb_upper, bb_mid, bb_lower = self.calculate_bollinger_bands(closes_eur, period=20, num_std=2.0)
         atr = self.calculate_atr(candles, period=14, conversion_factor=conversion_factor)
         atr_pct = round((atr / rounded_eur * 100), 2) if rounded_eur > 0 else 1.5
+        session_info = self.get_market_session_info()
 
         last_c = candles[-1] if candles else {}
         candle_bullish = float(last_c.get("close", 0)) >= float(last_c.get("open", 0))
@@ -352,6 +459,10 @@ class MarketDataFeed:
             "ema_trend": ema_trend,
             "sma_50": sma_50,
             "sma_200": sma_200,
+            "hma_50": hma_50,
+            "hma_50_prev": hma_50_prev,
+            "hma_50_slope": hma_50_slope,
+            "session_info": session_info,
             "bb_upper": bb_upper,
             "bb_middle": bb_mid,
             "bb_lower": bb_lower,

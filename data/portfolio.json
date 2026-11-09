@@ -1,47 +1,67 @@
 {
   "environment": "simulation",
-  "initial_capital": 50.0,
-  "fee_rate": 0.001,
-  "cash": 3.1541,
-  "positions": {
-    "SOLEUR": {
+  "initial_capital_eur": 50.0,
+  "cash_eur": 3.1541,
+  "positions_value_eur": 44.9483,
+  "msci_vault_eur": 0.0,
+  "msci_proj_5yr": 0.0,
+  "msci_proj_10yr": 0.0,
+  "total_value_eur": 48.1024,
+  "net_profit_eur": -1.8976,
+  "net_profit_pct": -3.8,
+  "realized_pnl_eur": -1.4815,
+  "total_fees_paid_eur": 0.1731,
+  "open_positions_count": 4,
+  "total_trades_count": 29,
+  "closed_trades_count": 7,
+  "win_rate_pct": 42.9,
+  "positions": [
+    {
+      "symbol": "SOLEUR",
       "amount": 0.12965539054794742,
       "avg_entry_price": 77.0504,
+      "current_price": 76.27,
       "total_cost_eur": 10.0,
-      "dca_count": 2,
-      "first_buy_time": "2026-11-01 13:20:03",
-      "last_buy_price": 77.0504,
-      "highest_price": 77.0504
+      "current_value_eur": 9.8888,
+      "unrealized_pnl_eur": -0.1112,
+      "unrealized_pnl_pct": -1.11,
+      "dca_count": 2
     },
-    "ETHEUR": {
+    {
+      "symbol": "ETHEUR",
       "amount": 0.005367644729795551,
       "avg_entry_price": 1861.1515,
+      "current_price": 1871.2,
       "total_cost_eur": 10.0,
-      "dca_count": 2,
-      "first_buy_time": "2026-11-01 13:20:03",
-      "last_buy_price": 1861.1515,
-      "highest_price": 1861.1515
+      "current_value_eur": 10.0439,
+      "unrealized_pnl_eur": 0.0439,
+      "unrealized_pnl_pct": 0.44,
+      "dca_count": 2
     },
-    "BNBEUR": {
+    {
+      "symbol": "BNBEUR",
       "amount": 0.03314891294442065,
       "avg_entry_price": 602.7347,
+      "current_price": 604.31,
       "total_cost_eur": 20.0,
-      "dca_count": 4,
-      "first_buy_time": "2026-11-01 13:20:03",
-      "last_buy_price": 602.7347,
-      "highest_price": 602.7347
+      "current_value_eur": 20.0322,
+      "unrealized_pnl_eur": 0.0322,
+      "unrealized_pnl_pct": 0.16,
+      "dca_count": 4
     },
-    "BTCEUR": {
+    {
+      "symbol": "BTCEUR",
       "amount": 7.577993022784802e-05,
       "avg_entry_price": 65914.55,
+      "current_price": 65759.92,
       "total_cost_eur": 5.0,
-      "dca_count": 1,
-      "first_buy_time": "2026-11-01 13:20:03",
-      "last_buy_price": 65914.55,
-      "highest_price": 65914.55
+      "current_value_eur": 4.9833,
+      "unrealized_pnl_eur": -0.0167,
+      "unrealized_pnl_pct": -0.33,
+      "dca_count": 1
     }
-  },
-  "trades": [
+  ],
+  "recent_trades": [
     {
       "id": 29,
       "environment": "simulation",
@@ -53,7 +73,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 18.8 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 102.9/100. Convicci\u00f3n: 102.9 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 18.8 <= 32.0) con puntuación de convicción 102.9/100. Convicción: 102.9 pts (Requerida: 60)."
     },
     {
       "id": 28,
@@ -66,7 +86,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en ETHEUR: Sobreventa cuantitativa (RSI 19.0 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 102.5/100. Convicci\u00f3n: 102.5 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en ETHEUR: Sobreventa cuantitativa (RSI 19.0 <= 32.0) con puntuación de convicción 102.5/100. Convicción: 102.5 pts (Requerida: 60)."
     },
     {
       "id": 27,
@@ -79,7 +99,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 20.4 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 99.0/100. Convicci\u00f3n: 99.0 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 20.4 <= 32.0) con puntuación de convicción 99.0/100. Convicción: 99.0 pts (Requerida: 60)."
     },
     {
       "id": 26,
@@ -92,7 +112,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 20.4 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 99.0/100. Convicci\u00f3n: 99.0 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 20.4 <= 32.0) con puntuación de convicción 99.0/100. Convicción: 99.0 pts (Requerida: 60)."
     },
     {
       "id": 25,
@@ -105,7 +125,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 26.9 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 82.7/100. Convicci\u00f3n: 82.7 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 26.9 <= 32.0) con puntuación de convicción 82.7/100. Convicción: 82.7 pts (Requerida: 60)."
     },
     {
       "id": 24,
@@ -118,7 +138,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 20.6 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 98.4/100. Convicci\u00f3n: 98.4 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 20.6 <= 32.0) con puntuación de convicción 98.4/100. Convicción: 98.4 pts (Requerida: 60)."
     },
     {
       "id": 23,
@@ -131,7 +151,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en ETHEUR: Sobreventa cuantitativa (RSI 20.9 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 97.8/100. Convicci\u00f3n: 97.8 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en ETHEUR: Sobreventa cuantitativa (RSI 20.9 <= 32.0) con puntuación de convicción 97.8/100. Convicción: 97.8 pts (Requerida: 60)."
     },
     {
       "id": 22,
@@ -146,7 +166,7 @@
       "realized_pnl_eur": -1.1562,
       "swept_to_msci_eur": 0.0,
       "pnl_pct": -3.33,
-      "reason": "\ud83d\uded1 [Automaton NORMAL] Stop Loss activado: -3.14% (L\u00edmite: -3.0%). Preservando capital para evitar la ruina."
+      "reason": "🛑 [Automaton NORMAL] Stop Loss activado: -3.14% (Límite: -3.0%). Preservando capital para evitar la ruina."
     },
     {
       "id": 21,
@@ -159,7 +179,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83d\udcc9 [Automaton NORMAL] Entrada DCA #2: Descuento de -2.21% con RSI 25.3. Promediando precio a la baja."
+      "reason": "📉 [Automaton NORMAL] Entrada DCA #2: Descuento de -2.21% con RSI 25.3. Promediando precio a la baja."
     },
     {
       "id": 20,
@@ -174,7 +194,7 @@
       "realized_pnl_eur": -0.1605,
       "swept_to_msci_eur": 0.0,
       "pnl_pct": -3.21,
-      "reason": "\ud83d\uded1 [Automaton NORMAL] Stop Loss activado: -3.02% (L\u00edmite: -3.0%). Preservando capital para evitar la ruina."
+      "reason": "🛑 [Automaton NORMAL] Stop Loss activado: -3.02% (Límite: -3.0%). Preservando capital para evitar la ruina."
     },
     {
       "id": 19,
@@ -187,7 +207,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en SOLEUR: Sobreventa cuantitativa (RSI 27.9 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 80.4/100. Convicci\u00f3n: 80.4 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en SOLEUR: Sobreventa cuantitativa (RSI 27.9 <= 32.0) con puntuación de convicción 80.4/100. Convicción: 80.4 pts (Requerida: 60)."
     },
     {
       "id": 18,
@@ -202,7 +222,7 @@
       "realized_pnl_eur": -0.16,
       "swept_to_msci_eur": 0.0,
       "pnl_pct": -3.2,
-      "reason": "\ud83d\uded1 [Automaton NORMAL] Stop Loss activado: -3.01% (L\u00edmite: -3.0%). Preservando capital para evitar la ruina."
+      "reason": "🛑 [Automaton NORMAL] Stop Loss activado: -3.01% (Límite: -3.0%). Preservando capital para evitar la ruina."
     },
     {
       "id": 17,
@@ -217,7 +237,7 @@
       "realized_pnl_eur": -0.1635,
       "swept_to_msci_eur": 0.0,
       "pnl_pct": -3.27,
-      "reason": "\ud83d\uded1 [Automaton NORMAL] Stop Loss activado: -3.08% (L\u00edmite: -3.0%). Preservando capital para evitar la ruina."
+      "reason": "🛑 [Automaton NORMAL] Stop Loss activado: -3.08% (Límite: -3.0%). Preservando capital para evitar la ruina."
     },
     {
       "id": 16,
@@ -230,7 +250,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton CRITICAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 18.5 <= 28.0) con puntuaci\u00f3n de convicci\u00f3n 93.8/100. Convicci\u00f3n: 93.8 pts (Requerida: 88)."
+      "reason": "🤖 [Automaton CRITICAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 18.5 <= 28.0) con puntuación de convicción 93.8/100. Convicción: 93.8 pts (Requerida: 88)."
     },
     {
       "id": 15,
@@ -245,7 +265,7 @@
       "realized_pnl_eur": 0.0508,
       "swept_to_msci_eur": 0.0,
       "pnl_pct": 1.02,
-      "reason": "\ud83d\udcc8 [Automaton NORMAL] Sobrecompra t\u00e9cnica detectada (RSI 99.8 >= 68) con P&L favorable (+1.22%). Asegurando beneficio."
+      "reason": "📈 [Automaton NORMAL] Sobrecompra técnica detectada (RSI 99.8 >= 68) con P&L favorable (+1.22%). Asegurando beneficio."
     },
     {
       "id": 14,
@@ -258,7 +278,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 25.7 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 85.7/100. Convicci\u00f3n: 85.7 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 25.7 <= 32.0) con puntuación de convicción 85.7/100. Convicción: 85.7 pts (Requerida: 60)."
     },
     {
       "id": 13,
@@ -271,7 +291,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 25.6 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 85.9/100. Convicci\u00f3n: 85.9 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 25.6 <= 32.0) con puntuación de convicción 85.9/100. Convicción: 85.9 pts (Requerida: 60)."
     },
     {
       "id": 12,
@@ -284,7 +304,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 25.6 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 85.9/100. Convicci\u00f3n: 85.9 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 25.6 <= 32.0) con puntuación de convicción 85.9/100. Convicción: 85.9 pts (Requerida: 60)."
     },
     {
       "id": 11,
@@ -297,7 +317,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 25.6 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 85.9/100. Convicci\u00f3n: 85.9 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 25.6 <= 32.0) con puntuación de convicción 85.9/100. Convicción: 85.9 pts (Requerida: 60)."
     },
     {
       "id": 10,
@@ -310,7 +330,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 25.6 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 85.9/100. Convicci\u00f3n: 85.9 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 25.6 <= 32.0) con puntuación de convicción 85.9/100. Convicción: 85.9 pts (Requerida: 60)."
     },
     {
       "id": 9,
@@ -323,7 +343,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 27.8 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 80.5/100. Convicci\u00f3n: 80.5 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 27.8 <= 32.0) con puntuación de convicción 80.5/100. Convicción: 80.5 pts (Requerida: 60)."
     },
     {
       "id": 8,
@@ -336,7 +356,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en ETHEUR: Sobreventa cuantitativa (RSI 31.9 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 70.3/100. Convicci\u00f3n: 70.3 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en ETHEUR: Sobreventa cuantitativa (RSI 31.9 <= 32.0) con puntuación de convicción 70.3/100. Convicción: 70.3 pts (Requerida: 60)."
     },
     {
       "id": 7,
@@ -349,7 +369,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 14.5 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 113.8/100. Convicci\u00f3n: 113.8 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 14.5 <= 32.0) con puntuación de convicción 113.8/100. Convicción: 113.8 pts (Requerida: 60)."
     },
     {
       "id": 6,
@@ -362,7 +382,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en SOLEUR: Sobreventa cuantitativa (RSI 30.9 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 72.8/100. Convicci\u00f3n: 72.8 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en SOLEUR: Sobreventa cuantitativa (RSI 30.9 <= 32.0) con puntuación de convicción 72.8/100. Convicción: 72.8 pts (Requerida: 60)."
     },
     {
       "id": 5,
@@ -377,7 +397,7 @@
       "realized_pnl_eur": 0.0503,
       "swept_to_msci_eur": 0.0,
       "pnl_pct": 1.01,
-      "reason": "\ud83d\udcc8 [Automaton NORMAL] Sobrecompra t\u00e9cnica detectada (RSI 87.3 >= 68) con P&L favorable (+1.21%). Asegurando beneficio."
+      "reason": "📈 [Automaton NORMAL] Sobrecompra técnica detectada (RSI 87.3 >= 68) con P&L favorable (+1.21%). Asegurando beneficio."
     },
     {
       "id": 4,
@@ -392,7 +412,7 @@
       "realized_pnl_eur": 0.0576,
       "swept_to_msci_eur": 0.0,
       "pnl_pct": 1.16,
-      "reason": "\ud83d\udcc8 [Automaton NORMAL] Sobrecompra t\u00e9cnica detectada (RSI 68.6 >= 68) con P&L favorable (+1.36%). Asegurando beneficio."
+      "reason": "📈 [Automaton NORMAL] Sobrecompra técnica detectada (RSI 68.6 >= 68) con P&L favorable (+1.36%). Asegurando beneficio."
     },
     {
       "id": 3,
@@ -405,7 +425,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 32.0 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 70.0/100. Convicci\u00f3n: 70.0 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BNBEUR: Sobreventa cuantitativa (RSI 32.0 <= 32.0) con puntuación de convicción 70.0/100. Convicción: 70.0 pts (Requerida: 60)."
     },
     {
       "id": 2,
@@ -418,7 +438,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en ETHEUR: Sobreventa cuantitativa (RSI 31.8 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 70.4/100. Convicci\u00f3n: 70.4 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en ETHEUR: Sobreventa cuantitativa (RSI 31.8 <= 32.0) con puntuación de convicción 70.4/100. Convicción: 70.4 pts (Requerida: 60)."
     },
     {
       "id": 1,
@@ -431,11 +451,7 @@
       "amount_eur": 5.0,
       "fee_eur": 0.005,
       "realized_pnl_eur": 0.0,
-      "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 31.9 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 70.2/100. Convicci\u00f3n: 70.2 pts (Requerida: 60)."
+      "reason": "🤖 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 31.9 <= 32.0) con puntuación de convicción 70.2/100. Convicción: 70.2 pts (Requerida: 60)."
     }
-  ],
-  "total_fees_paid": 0.1731,
-  "realized_pnl": -1.4815,
-  "msci_vault_eur": 0.0,
-  "last_updated": "2026-11-09T10:15:00"
+  ]
 }

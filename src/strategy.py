@@ -21,6 +21,12 @@ class SmartDCAStrategy:
         bb_lower = analysis.get("bb_lower", 0.0)
         bb_upper = analysis.get("bb_upper", 0.0)
         candle_bullish = analysis.get("candle_bullish", False)
+        hma_50 = analysis.get("hma_50", sma_val)
+        hma_50_prev = analysis.get("hma_50_prev", hma_50)
+        hma_slope = analysis.get("hma_50_slope", "FLAT")
+        session_info = analysis.get("session_info", {})
+        is_institutional = session_info.get("is_institutional_window", False)
+        liquidity_tier = session_info.get("liquidity_tier", "HIGH")
         min_order = self.config.get("min_order_eur", 5.0)
 
         if price <= 0:
@@ -103,24 +109,39 @@ class SmartDCAStrategy:
             return "HOLD", 0.0, f"Esperando cierre de posición (Saldo libre €{cash:.2f} < €{min_order:.2f} MIN_NOTIONAL)"
 
         order_size = min(self.config.get("order_amount_eur", 5.0), cash)
-        rsi_buy = self.config.get("rsi_buy_threshold", 32.0)
+        base_rsi_buy = self.config.get("rsi_buy_threshold", 32.0)
 
-        # Filtro de Tendencia Macro Obligatorio (SMA 50):
-        # Condición obligatoria: Precio por encima de SMA o convergiendo con ella (evita comprar cuchillos cayendo)
+        # Filtro de Sesión y Liquidez Institucional:
+        # En la ventana institucional (13-17 UTC) operamos con umbral estándar (32.0).
+        # En horas nocturnas / baja liquidez exigimos mayor descuento (<= 30.0) para no caer en trampas.
+        if liquidity_tier == "LOW":
+            effective_rsi_buy = min(base_rsi_buy, 30.0)
+            session_tag = "[Sesión Nocturna: Exigencia Estricta]"
+        elif is_institutional:
+            effective_rsi_buy = base_rsi_buy
+            session_tag = "[Sesión Institucional NY/Londres: Alta Liquidez]"
+        else:
+            effective_rsi_buy = base_rsi_buy
+            session_tag = "[Sesión Regular]"
+
+        # Filtro de Tendencia Dinámica de Hull (HMA 50 - Cero Retraso) y Macro SMA:
+        # Condición: Precio sobre HMA 50 o HMA 50 con pendiente alcista ('UP')
+        is_hma_bullish = (hma_50 >= hma_50_prev or hma_slope == "UP")
+        is_reclaiming_hma = (price >= hma_50 or (price >= hma_50 * 0.995 and is_hma_bullish)) if hma_50 > 0 else True
         is_above_sma = (price >= sma_val) if sma_val > 0 else True
         is_converging_sma = (price >= sma_val * 0.992 and (rsi >= rsi_prev or candle_bullish)) if sma_val > 0 else True
-        macro_trend_valid = is_above_sma or is_converging_sma
+        trend_valid = is_reclaiming_hma or is_above_sma or is_converging_sma
 
-        # Setup 1: Sobreventa profunda (RSI <= 32) con confirmación de rebote alcista Y filtro macro SMA
-        if rsi <= rsi_buy:
-            if not macro_trend_valid:
-                return "HOLD", 0.0, f"Filtro Macro SMA bloquea entrada: RSI {rsi:.1f} en sobreventa pero precio (€{price:,.2f}) en caída libre bajo SMA 50 (€{sma_val:,.2f})"
+        # Setup 1: Sobreventa cuantitativa con rebote confirmado y filtro HMA / SMA
+        if rsi <= effective_rsi_buy:
+            if not trend_valid:
+                return "HOLD", 0.0, f"Filtro HMA/SMA bloquea entrada: RSI {rsi:.1f} pero precio (€{price:,.2f}) bajo HMA 50 (€{hma_50:,.2f}) en pendiente bajista"
             if rsi >= rsi_prev or candle_bullish or (bb_lower > 0 and price <= bb_lower * 1.002):
-                return "BUY", order_size, f"🟢 Señal de compra: Sobreventa profunda ({rsi:.1f} <= {rsi_buy}) con SMA 50 (€{sma_val:,.2f}) y rebote confirmado"
+                return "BUY", order_size, f"🟢 Señal de compra {session_tag}: Sobreventa ({rsi:.1f} <= {effective_rsi_buy}) con HMA 50 (€{hma_50:,.2f} | {hma_slope}) y rebote confirmado"
 
-        # Setup 2: Rebote validado en Banda Bollinger Inferior en zona de sobreventa (RSI <= 35) con filtro SMA
-        if bb_lower > 0 and price <= (bb_lower * 1.002) and rsi <= min(35.0, rsi_buy + 3.0) and macro_trend_valid:
+        # Setup 2: Rebote validado en Banda Bollinger Inferior en zona de sobreventa con filtro de tendencia HMA
+        if bb_lower > 0 and price <= (bb_lower * 1.002) and rsi <= min(35.0, effective_rsi_buy + 3.0) and trend_valid:
             if candle_bullish or rsi >= rsi_prev:
-                return "BUY", order_size, f"🟢 Señal de compra: Soporte en Banda Bollinger Inferior (€{bb_lower:,.2f}) y RSI {rsi:.1f} sobre SMA 50"
+                return "BUY", order_size, f"🟢 Señal de compra {session_tag}: Soporte en Bollinger Inferior (€{bb_lower:,.2f}) y RSI {rsi:.1f} con HMA 50 validada"
 
-        return "HOLD", 0.0, f"Mercado en espera (RSI: {rsi:.1f} | SMA50: €{sma_val:,.2f}) | Esperando zona óptima de sobreventa (<= {rsi_buy}) con tendencia macro válida"
+        return "HOLD", 0.0, f"Mercado en espera (RSI: {rsi:.1f} | HMA50: €{hma_50:,.2f} [{hma_slope}] | {session_info.get('session_name', 'Mercado')}) | Esperando zona óptima (<= {effective_rsi_buy})"

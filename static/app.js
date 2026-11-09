@@ -32,6 +32,8 @@ const rsiNeedle = document.getElementById("rsiNeedle");
 const emaFast = document.getElementById("emaFast");
 const emaSlow = document.getElementById("emaSlow");
 const sma50 = document.getElementById("sma50");
+const hma50 = document.getElementById("hma50");
+const sessionLiquidityBadge = document.getElementById("sessionLiquidityBadge");
 const bbUpper = document.getElementById("bbUpper");
 const bbLower = document.getElementById("bbLower");
 const atrVal = document.getElementById("atrVal");
@@ -476,6 +478,34 @@ function renderState(data) {
       sma50.style.color = "#38bdf8"; // Convergiendo
     } else {
       sma50.style.color = "#f87171"; // Caída libre bajo SMA
+    }
+  }
+
+  if (hma50) {
+    const hmaVal = a.hma_50 || a.price || 0;
+    const slope = a.hma_50_slope || "FLAT";
+    const slopeIcon = slope === "UP" ? "🟢" : (slope === "DOWN" ? "🔴" : "⚪");
+    hma50.textContent = `${formatEur(hmaVal)} ${slopeIcon}`;
+    if (slope === "UP") {
+      hma50.style.color = "#4ade80";
+    } else if (slope === "DOWN") {
+      hma50.style.color = "#f87171";
+    } else {
+      hma50.style.color = "#94a3b8";
+    }
+  }
+
+  if (sessionLiquidityBadge) {
+    const sInfo = a.session_info || {};
+    if (sInfo.is_institutional_window) {
+      sessionLiquidityBadge.textContent = `🏛️ NY/Londres (${sInfo.utc_time})`;
+      sessionLiquidityBadge.style.color = "#4ade80";
+    } else if (sInfo.liquidity_tier === "LOW") {
+      sessionLiquidityBadge.textContent = `🌙 Nocturna (${sInfo.utc_time || "--"})`;
+      sessionLiquidityBadge.style.color = "#fbbf24";
+    } else {
+      sessionLiquidityBadge.textContent = `🌐 Regular (${sInfo.utc_time || "--"})`;
+      sessionLiquidityBadge.style.color = "#38bdf8";
     }
   }
 

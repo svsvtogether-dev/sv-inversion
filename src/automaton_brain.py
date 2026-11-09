@@ -270,6 +270,31 @@ class AutomatonBrain:
         pnl_pct = ((price - avg_price) / avg_price) * 100.0
         dca_count = position.get("dca_count", 1)
 
+        # Seguimiento de máxima ganancia alcanzada para Trailing y Break-Even
+        highest_price = position.get("highest_price", avg_price)
+        if price > highest_price:
+            position["highest_price"] = price
+            highest_price = price
+        max_gain_pct = ((highest_price - avg_price) / avg_price) * 100.0
+
+        # JERARQUÍA 1: BREAK-EVEN PROTECTOR (+1.6% trigger -> asegura +0.25%)
+        breakeven_trigger = config.get("breakeven_trigger_pct", 1.6)
+        if max_gain_pct >= breakeven_trigger:
+            if pnl_pct <= 0.25:
+                reason = f"🛡️ [Automaton {self.tier}] Break-Even Protector ejecutado: asegurado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}%)"
+                self.add_thought(f"Break-Even ejecutado en {symbol}: beneficio asegurado de +{pnl_pct:.2f}%.")
+                return "SELL", 0.0, reason
+
+        # JERARQUÍA 2: TRAILING STOP DINÁMICO POR ATR
+        atr_pct = analysis.get("atr_pct", 1.5)
+        if max_gain_pct >= 2.0:
+            trailing_distance = max(0.8, atr_pct * 1.0)
+            trailing_floor = max_gain_pct - trailing_distance
+            if trailing_floor >= 0.5 and pnl_pct <= trailing_floor:
+                reason = f"🚀 [Automaton {self.tier}] Trailing Stop ATR ejecutado: capturado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}% | Margen ATR: {trailing_distance:.2f}%)"
+                self.add_thought(f"Trailing Stop ejecutado en {symbol}: capturado +{pnl_pct:.2f}%.")
+                return "SELL", 0.0, reason
+
         # Objetivos dinámicos según el estado vital de Automaton
         base_tp = config.get("take_profit_pct", 3.5)
         base_sl = config.get("stop_loss_pct", -3.0)
@@ -377,6 +402,10 @@ class AutomatonBrain:
 
             rsi = analysis.get("rsi", 50.0)
             sma = analysis.get("sma_50", 0.0)
+            hma = analysis.get("hma_50", sma)
+            hma_prev = analysis.get("hma_50_prev", hma)
+            hma_slope = analysis.get("hma_50_slope", "FLAT")
+            session_info = analysis.get("session_info", {})
             bb_lower = analysis.get("bb_lower", 0.0)
             ema_fast = analysis.get("ema_fast", 0.0)
             ema_slow = analysis.get("ema_slow", 0.0)
@@ -394,14 +423,31 @@ class AutomatonBrain:
             if bb_lower > 0 and price <= bb_lower * 1.01:
                 score += 25.0
 
-            # 3. Puntuación por tendencia y estructura macro (precio sobre SMA 50)
-            if sma > 0:
-                if price >= sma:
-                    score += 15.0  # Tendencia alcista sana
-                elif price >= sma * 0.97:
-                    score += 5.0   # Corrección cerca de la media
+            # 3. Tendencia Dinámica HMA 50 (Hull Moving Average - Cero Retraso)
+            if hma_slope == "UP":
+                score += 20.0  # Giro alcista detectado en tiempo real sin lag
+            elif hma >= hma_prev:
+                score += 10.0
 
-            # 4. Cruce de EMAs favorable
+            if hma > 0:
+                if price >= hma:
+                    score += 15.0  # Cotizando sobre la HMA rápida
+                elif price >= hma * 0.985:
+                    score += 5.0
+                else:
+                    score -= 15.0  # Bajo HMA en caída
+
+            # 4. Puntuación macro complementaria (precio sobre SMA 50)
+            if sma > 0 and price >= sma:
+                score += 10.0
+
+            # 5. Ventana de Liquidez Institucional (13:00 - 17:00 UTC)
+            if session_info.get("is_institutional_window"):
+                score += 15.0  # Solapamiento NY/Londres: volumen real y menor deslizamiento
+            elif session_info.get("liquidity_tier") == "LOW":
+                score -= 10.0  # Sesión nocturna: riesgo de mechas y trampas
+
+            # 6. Cruce de EMAs favorable
             if ema_fast > 0 and ema_slow > 0 and ema_fast >= ema_slow:
                 score += 10.0
 
@@ -411,7 +457,7 @@ class AutomatonBrain:
                 best_score = score
                 best_sym = sym
                 best_analysis = analysis
-                best_reason = f"Sobreventa cuantitativa (RSI {rsi:.1f} <= {rsi_threshold:.1f}) con puntuación de convicción {score:.1f}/100"
+                best_reason = f"Sobreventa cuantitativa (RSI {rsi:.1f} <= {rsi_threshold:.1f}) con HMA 50 ({hma_slope}) y convicción {score:.1f}/100"
 
         # Guardar telemetría
         self.candidate_scores = current_scores

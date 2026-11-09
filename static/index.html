@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SV Inversión">
   <link rel="apple-touch-icon" href="/static/logo-thumb.png">
-  <link rel="stylesheet" href="/static/style.css?v=19">
+  <link rel="stylesheet" href="/static/style.css?v=20">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -327,6 +327,18 @@
           <!-- EMAs, Bollinger y SMA Macro -->
           <div class="indicators-summary">
             <div class="indicator-item has-help"
+                 data-tooltip-title="HMA 50 (Media Móvil de Hull - Cero Lag)"
+                 data-tooltip="Media Móvil de Hull (HMA) de 50 períodos ponderada por WMA. Elimina el retraso de la SMA y detecta cambios de dirección anticipados. Verde: Pendiente Alcista | Rojo: Pendiente Bajista.">
+              <span class="ind-name">HMA 50 (Hull MA): <span class="help-icon">?</span></span>
+              <span class="ind-val mono font-bold" id="hma50" style="color: #4ade80;">€--</span>
+            </div>
+            <div class="indicator-item has-help"
+                 data-tooltip-title="Sesión de Mercado y Liquidez Institucional"
+                 data-tooltip="Indica el volumen y flujo institucional global. Ventana Dorada: 13:00 - 17:00 UTC (Solapamiento Wall Street y Londres). Fuera de esta ventana, el bot exige mayores descuentos para evitar trampas.">
+              <span class="ind-name">Sesión / Liquidez: <span class="help-icon">?</span></span>
+              <span class="ind-val mono font-bold" id="sessionLiquidityBadge" style="color: #38bdf8; font-size: 11px;">--</span>
+            </div>
+            <div class="indicator-item has-help"
                  data-tooltip-title="SMA 50 (Filtro Macro de Tendencia)"
                  data-tooltip="Media Móvil Simple de 50 velas. Regla obligatoria: solo se permiten compras si el precio está por encima o convergiendo con esta media para no comprar activos en caída libre.">
               <span class="ind-name">SMA 50 (Macro): <span class="help-icon">?</span></span>
@@ -520,12 +532,12 @@
     </footer>
   </div>
 
-  <script src="/static/app.js?v=19"></script>
+  <script src="/static/app.js?v=20"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=19').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=20').catch(err => console.log('SW error:', err));
       });
     }
 

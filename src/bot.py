@@ -149,6 +149,10 @@ class TradingBot:
         ema_trend = analysis.get("ema_trend", price)
         bb_lower = analysis.get("bb_lower", 0.0)
         sub_cat = analysis.get("sub_category", "")
+        hma_50 = analysis.get("hma_50", 0.0)
+        hma_50_prev = analysis.get("hma_50_prev", hma_50)
+        hma_slope = analysis.get("hma_50_slope", "FLAT")
+        session_info = analysis.get("session_info", {})
         candle_bullish = analysis.get("candle_bullish", False)
 
         score = 0.0
@@ -183,18 +187,33 @@ class TradingBot:
         if bb_lower > 0 and price <= (bb_lower * 1.002):
             score += 20.0
 
-        # 4. Filtro de tendencia macro (Precio vs EMA 50)
+        # 4. Tendencia Dinámica de Hull (HMA 50 - Zero Lag)
+        if hma_slope == "UP":
+            score += 20.0  # Giro alcista limpio en formación
+        elif hma_50 >= hma_50_prev and hma_50 > 0:
+            score += 10.0
+
+        if hma_50 > 0 and price >= hma_50:
+            score += 15.0  # Fortaleza por encima de la media de Hull
+
+        # 5. Ventana de Liquidez Institucional (13:00 - 17:00 UTC)
+        if session_info.get("is_institutional_window"):
+            score += 15.0  # Horas de volumen y dirección fiable
+        elif session_info.get("liquidity_tier") == "LOW":
+            score -= 10.0  # Horas muertas / manipulación
+
+        # 6. Filtro de tendencia macro complementario (Precio vs EMA 50)
         if ema_trend > 0:
             if price >= ema_trend:
-                score += 20.0
+                score += 15.0
             elif price >= (ema_trend * 0.97):
-                score += 10.0
+                score += 5.0
             else:
-                score -= 25.0  # Tendencia bajista profunda
+                score -= 20.0  # Tendencia bajista profunda
 
-        # 5. Estructura alcista de medias móviles (EMA 9 > EMA 21)
+        # 7. Estructura alcista de medias móviles (EMA 9 > EMA 21)
         if ema_fast > ema_slow:
-            score += 15.0
+            score += 10.0
 
         return score
 

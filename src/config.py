@@ -60,6 +60,8 @@ CONFIG = {
     "rsi_buy_threshold": 32.0,      # Comprar cuando RSI entra en sobreventa profunda (<= 32)
     "rsi_sell_threshold": 68.0,     # Sugerir toma de beneficios si RSI >= 68 con ganancia positiva
     "sma_period": 50,               # Período de la Media Móvil Simple (SMA) para filtro de tendencia macro
+    "hma_period": 50,               # Período de la Media Móvil de Hull (HMA) de respuesta rápida sin retraso
+    "session_filter_enabled": True, # Filtro de liquidez horaria institucional (Sesión NY / Londres 13-17 UTC)
     "price_drop_trigger_pct": 2.0,  # Si el precio cae >= 2.0% respecto a la última compra, promediar
     "candle_interval": "5m",        # Intervalo de velas de 5 minutos (filtra el ruido aleatorio de 1m)
     "candle_limit": 100,            # 100 velas históricas (contexto cuantitativo para SMA 50)
