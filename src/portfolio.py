@@ -79,13 +79,19 @@ class Portfolio:
 
         if data:
             self.environment = data.get("environment", self.environment)
-            self.initial_capital = data.get("initial_capital", self.initial_capital)
-            self.fee_rate = data.get("fee_rate", TRADING_FEE_RATE)
-            self.cash = float(data.get("cash", self.initial_capital))
-            self.positions = data.get("positions", {})
-            self.trades = data.get("trades", [])
-            self.total_fees_paid = float(data.get("total_fees_paid", 0.0))
-            self.realized_pnl = float(data.get("realized_pnl", 0.0))
+            self.initial_capital = float(data.get("initial_capital", data.get("initial_capital_eur", self.initial_capital)))
+            self.fee_rate = float(data.get("fee_rate", TRADING_FEE_RATE))
+            self.cash = float(data.get("cash", data.get("cash_eur", self.initial_capital)))
+            raw_pos = data.get("positions", {})
+            if isinstance(raw_pos, list):
+                self.positions = {p["symbol"]: p for p in raw_pos if isinstance(p, dict) and "symbol" in p}
+            elif isinstance(raw_pos, dict):
+                self.positions = raw_pos
+            else:
+                self.positions = {}
+            self.trades = data.get("trades", data.get("recent_trades", []))
+            self.total_fees_paid = float(data.get("total_fees_paid", data.get("total_fees_paid_eur", 0.0)))
+            self.realized_pnl = float(data.get("realized_pnl", data.get("realized_pnl_eur", 0.0)))
             self.msci_vault_eur = float(data.get("msci_vault_eur", 0.0))
             return
 
