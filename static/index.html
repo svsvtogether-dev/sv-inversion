@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SV Inversión">
   <link rel="apple-touch-icon" href="/static/logo-thumb.png">
-  <link rel="stylesheet" href="/static/style.css?v=16">
+  <link rel="stylesheet" href="/static/style.css?v=19">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -356,6 +356,12 @@
               <span class="ind-name">Bollinger Inferior: <span class="help-icon">?</span></span>
               <span class="ind-val mono" id="bbLower">€--</span>
             </div>
+            <div class="indicator-item has-help"
+                 data-tooltip-title="ATR 14 (Volatilidad Real y Trailing Stop)"
+                 data-tooltip="Average True Range de 14 períodos. Calibra dinámicamente el margen del Trailing Stop y la distancia de seguridad para no ser expulsado por ruido del mercado.">
+              <span class="ind-name">ATR 14 (Volatilidad): <span class="help-icon">?</span></span>
+              <span class="ind-val mono font-bold" id="atrVal" style="color: #a855f7;">--</span>
+            </div>
           </div>
         </div>
       </section>
@@ -514,12 +520,12 @@
     </footer>
   </div>
 
-  <script src="/static/app.js?v=18"></script>
+  <script src="/static/app.js?v=19"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=16').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=19').catch(err => console.log('SW error:', err));
       });
     }
 

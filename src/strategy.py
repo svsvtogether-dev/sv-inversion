@@ -51,12 +51,20 @@ class SmartDCAStrategy:
             if gain_pct <= stop_loss_target:
                 return "SELL", 0.0, f"🛑 Stop-Loss de protección ejecutado: {gain_pct:.2f}% (Límite: {stop_loss_target}%)"
 
-            # JERARQUÍA 3: TAKE-PROFIT OBJETIVO (+3.5%)
+            # JERARQUÍA 3: TRAILING STOP DINÁMICO POR ATR (Acompaña impulsos alcistas y asegura ganancias ante giros bruscos)
+            atr_pct = analysis.get("atr_pct", 1.5)
+            if max_gain_pct >= 2.0:
+                trailing_distance = max(0.8, atr_pct * 1.0)
+                trailing_floor = max_gain_pct - trailing_distance
+                if trailing_floor >= 0.5 and gain_pct <= trailing_floor:
+                    return "SELL", 0.0, f"🚀 Trailing Stop ATR ejecutado: capturado +{gain_pct:.2f}% (Pico máximo: +{max_gain_pct:.2f}% | Margen ATR: {trailing_distance:.2f}%)"
+
+            # JERARQUÍA 4: TAKE-PROFIT OBJETIVO (+3.5%)
             take_profit_target = self.config.get("take_profit_pct", 3.5)
             if gain_pct >= take_profit_target:
                 return "SELL", 0.0, f"🎯 Take-Profit alcanzado: +{gain_pct:.2f}% (Objetivo: +{take_profit_target}%)"
 
-            # JERARQUÍA 4: TOMA DE GANANCIAS TÉCNICA DINÁMICA (Solo con ganancia asegurada >= early_take_profit_pct)
+            # JERARQUÍA 5: TOMA DE GANANCIAS TÉCNICA DINÁMICA (Solo con ganancia asegurada >= early_take_profit_pct)
             early_tp_min = self.config.get("early_take_profit_pct", 2.4)
             rsi_sell = self.config.get("rsi_sell_threshold", 68.0)
             if rsi >= rsi_sell and gain_pct >= early_tp_min:

@@ -34,6 +34,7 @@ const emaSlow = document.getElementById("emaSlow");
 const sma50 = document.getElementById("sma50");
 const bbUpper = document.getElementById("bbUpper");
 const bbLower = document.getElementById("bbLower");
+const atrVal = document.getElementById("atrVal");
 
 const positionsBadge = document.getElementById("positionsBadge");
 const positionsTableBody = document.getElementById("positionsTableBody");
@@ -459,6 +460,12 @@ function renderState(data) {
   emaSlow.textContent = formatEur(a.ema_slow || 0);
   bbUpper.textContent = formatEur(a.bb_upper || 0);
   bbLower.textContent = formatEur(a.bb_lower || 0);
+
+  if (atrVal) {
+    const atr = a.atr || 0;
+    const atrPct = a.atr_pct || 0;
+    atrVal.textContent = `${formatEur(atr)} (±${atrPct}%)`;
+  }
 
   if (sma50) {
     const smaVal = a.sma_50 || a.ema_trend || 0;

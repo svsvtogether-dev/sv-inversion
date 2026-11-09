@@ -233,6 +233,31 @@ class MarketDataFeed:
         lower = adaptive_round(sma - (num_std * std_dev))
         return upper, middle, lower
 
+    @staticmethod
+    def calculate_atr(candles: List[Dict], period: int = 14, conversion_factor: float = 1.0) -> float:
+        """Calcula el Average True Range (ATR) para calibrar el stop y el trailing dinámico según volatilidad."""
+        if len(candles) < 2:
+            return 0.0
+
+        tr_list = []
+        for i in range(1, len(candles)):
+            high = candles[i]["high"] * conversion_factor
+            low = candles[i]["low"] * conversion_factor
+            prev_close = candles[i - 1]["close"] * conversion_factor
+            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+            tr_list.append(tr)
+
+        if not tr_list:
+            return 0.0
+
+        if len(tr_list) < period:
+            return adaptive_round(sum(tr_list) / len(tr_list))
+
+        atr = sum(tr_list[:period]) / period
+        for tr in tr_list[period:]:
+            atr = (atr * (period - 1) + tr) / period
+        return adaptive_round(atr)
+
     # ----------------------------------------------------
     # ANÁLISIS UNIVERSAL CON ADAPTATIVE ROUNDING
     # ----------------------------------------------------
@@ -289,6 +314,8 @@ class MarketDataFeed:
                 "sma_200": rounded_eur,
                 "bb_upper": 0.0,
                 "bb_lower": 0.0,
+                "atr": 0.0,
+                "atr_pct": 1.5,
                 "candle_bullish": False,
                 "stats_24h": stats_24h,
                 "candles": []
@@ -303,6 +330,8 @@ class MarketDataFeed:
         sma_50 = self.calculate_sma(closes_eur, period=50)
         sma_200 = self.calculate_sma(closes_eur, period=200) if len(closes_eur) >= 200 else sma_50
         bb_upper, bb_mid, bb_lower = self.calculate_bollinger_bands(closes_eur, period=20, num_std=2.0)
+        atr = self.calculate_atr(candles, period=14, conversion_factor=conversion_factor)
+        atr_pct = round((atr / rounded_eur * 100), 2) if rounded_eur > 0 else 1.5
 
         last_c = candles[-1] if candles else {}
         candle_bullish = float(last_c.get("close", 0)) >= float(last_c.get("open", 0))
@@ -326,6 +355,8 @@ class MarketDataFeed:
             "bb_upper": bb_upper,
             "bb_middle": bb_mid,
             "bb_lower": bb_lower,
+            "atr": atr,
+            "atr_pct": atr_pct,
             "candle_bullish": candle_bullish,
             "stats_24h": stats_24h,
             "candles": candles[-20:]
