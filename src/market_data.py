@@ -43,8 +43,29 @@ class MarketDataFeed:
         self.last_analysis_cache: Dict[str, Dict] = {}
         self.eur_usd_rate = 1.08  # Tasa base por defecto
         self.last_rate_update = 0.0
+        self._btc_macro_cache: Dict = {"btc_bullish": True, "ts": 0.0}
         self.kronos = KronosOracle(pred_len=6, sample_count=50)
         self.news_filter = EconomicNewsFilter()
+
+    def get_btc_macro_health(self, interval: str = "4h") -> Dict:
+        """
+        Informative Pair Guard (inspirado en Freqtrade):
+        Verifica la salud macro de BTCEUR antes de aprobar entradas en altcoins.
+        """
+        now = time.time()
+        if now - self._btc_macro_cache.get("ts", 0.0) < 60.0 and "price" in self._btc_macro_cache:
+            return self._btc_macro_cache
+
+        an = self.last_analysis_cache.get("BTCEUR")
+        if not an or an.get("price", 0) <= 0:
+            an = self.analyze_symbol("BTCEUR", interval=interval, limit=100)
+
+        price = float(an.get("price", 0.0))
+        ema_50 = float(an.get("ema_trend", price))
+        btc_bullish = True if price <= 0 or ema_50 <= 0 else (price >= ema_50 * 0.992)
+        res = {"btc_bullish": btc_bullish, "price": price, "ema_50": ema_50, "ts": now}
+        self._btc_macro_cache = res
+        return res
 
     def update_eur_usd_rate(self) -> float:
         """Obtiene la tasa de cambio en vivo EUR/USD (con caché de 60s) para convertir cotizaciones USD a Euros."""

@@ -380,17 +380,37 @@ class TradingCouncil:
         cash: float,
         config: Dict,
         tier: str = "NORMAL",
-        open_positions_count: int = 0
+        open_positions_count: int = 0,
+        btc_healthy: bool = True,
+        pair_cooldown_active: bool = False
     ) -> Dict:
         """
-        Cartera Multi-Estrategia Descorrelacionada con Detector de Régimen (ADX + Vol Z-Score):
+        Cartera Multi-Estrategia Descorrelacionada + Protecciones Freqtrade:
+        - StoplossGuard / CooldownPeriod por par.
         - HIGH_VOLATILITY_SHOCK: Risk Manager veta nuevas entradas preventivamente.
+        - BTC Macro Guard: penaliza entradas en altcoins si BTCEUR cae bajo EMA 50.
         - TRENDING: prioriza TREND_BREAKOUT.
         - RANGING: prioriza DCA_REVERSION.
         """
         regime_info = analysis.get("regime", {})
         regime_name = regime_info.get("regime", "RANGING")
         vol_z = float(regime_info.get("vol_zscore", 0.0))
+
+        if pair_cooldown_active:
+            return {
+                "approved": False,
+                "decision": "VETO",
+                "strategy_tag": "COOLDOWN_GUARD",
+                "regime": regime_name,
+                "bull_score": 0.0,
+                "bear_score": 100.0,
+                "net_score": -100.0,
+                "min_required": 58.0,
+                "bull_arguments": [],
+                "bear_objections": [f"VETO StoplossGuard/Cooldown activo en {symbol}: evitando revenge trading"],
+                "risk_verdict": f"COOLDOWN ACTIVO ({symbol})",
+                "summary": f"❄️ StoplossGuard/Cooldown bloquea re-entrada en {symbol}"
+            }
 
         if regime_name == "HIGH_VOLATILITY_SHOCK":
             return {
@@ -414,6 +434,17 @@ class TradingCouncil:
             return dca_res
 
         brk_res = self.debate_breakout_entry(symbol, analysis, cash, config, tier=tier, open_positions_count=open_positions_count)
+
+        # BTC Informative Market Filter: si BTC está bajista y vamos a entrar en una altcoin, penalizar
+        if not btc_healthy and symbol != "BTCEUR":
+            for r in (dca_res, brk_res):
+                r["bear_score"] = round(r["bear_score"] + 35.0, 1)
+                r["net_score"] = round(r["bull_score"] - r["bear_score"], 1)
+                r["bear_objections"].append("BTC Macro Guard: BTCEUR bajo EMA 50 arrastra altcoins (-35)")
+                r["approved"] = (r["net_score"] >= r["min_required"]) and (r["bull_score"] > r["bear_score"])
+                r["decision"] = "BUY" if r["approved"] else "HOLD"
+                r["risk_verdict"] = "APROBADO" if r["approved"] else "BLOQUEADO POR BTC GUARD"
+
         dca_res["regime"] = regime_name
         brk_res["regime"] = regime_name
 

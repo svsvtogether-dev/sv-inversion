@@ -373,6 +373,19 @@ def test_all():
     assert bid > 0 and ask >= bid, f"Expected valid BTCEUR book ticker, got bid={bid}, ask={ask}"
     print(f"Binance BookTicker Maker-First test passed: BTCEUR Bid={bid} | Ask={ask}")
 
+    # 14. Test Freqtrade-style Protections (CooldownPeriod / StoplossGuard & BTC Macro Guard)
+    res_cd = council.debate_multi_strategy("SOLEUR", favorable_dip, 50.0, CONFIG, pair_cooldown_active=True)
+    assert res_cd["decision"] == "VETO" and res_cd["strategy_tag"] == "COOLDOWN_GUARD"
+
+    res_btc_guard = council.debate_multi_strategy("ETHEUR", favorable_dip, 50.0, CONFIG, btc_healthy=False)
+    assert any("BTC Macro Guard" in obj for obj in res_btc_guard["bear_objections"])
+
+    brain.record_trade_exit("SOLEUR", -1.5, was_stoploss=True)
+    assert brain.is_pair_in_cooldown("SOLEUR") is True
+    btc_health = feed.get_btc_macro_health(interval="4h")
+    assert "btc_bullish" in btc_health and btc_health["price"] > 0
+    print(f"Freqtrade Protections test passed: Cooldown=VETO | BTC Guard active | BTC={btc_health['price']}")
+
     print(">>> 100% OF QUANTITATIVE UNIT TESTS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":

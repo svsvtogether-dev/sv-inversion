@@ -294,7 +294,9 @@ class TradingBot:
                             if placed:
                                 trade = active_port.sell(sym, price, f"[Binance Real] {reason}", sell_pct=1.0)
                                 if trade:
-                                    self.automaton.record_profit(trade.get('realized_pnl_eur', 0.0), reason)
+                                    pnl_val = trade.get('realized_pnl_eur', 0.0)
+                                    self.automaton.record_profit(pnl_val, reason)
+                                    self.automaton.record_trade_exit(sym, pnl_val, was_stoploss=("Stop" in reason or pnl_val < 0))
                                 self.log(f"🔴 VENTA REAL EN BINANCE: {adj_qty} {sym} a {self.format_price(price)} | {reason}")
                             else:
                                 self.log(f"⚠️ Error orden venta Binance: {order_msg}")
@@ -302,9 +304,11 @@ class TradingBot:
                         sweep_pct = self.config.get("msci_sweep_pct", 0.0)
                         trade = active_port.sell(sym, price, reason, sell_pct=1.0, sweep_pct=sweep_pct)
                         if trade:
-                            pnl_sign = "+" if trade['realized_pnl_eur'] >= 0 else ""
+                            pnl_val = trade.get('realized_pnl_eur', 0.0)
+                            pnl_sign = "+" if pnl_val >= 0 else ""
                             # Alimentar a Automaton con los beneficios generados
-                            self.automaton.record_profit(trade.get('realized_pnl_eur', 0.0), reason)
+                            self.automaton.record_profit(pnl_val, reason)
+                            self.automaton.record_trade_exit(sym, pnl_val, was_stoploss=("Stop" in reason or pnl_val < 0))
                             self.log(f"💰 VENTA ({trade['environment'].upper()}): €{trade['amount_eur']:.2f} {sym} a {self.format_price(price)} | P&L: {pnl_sign}€{trade['realized_pnl_eur']:.4f} ({trade.get('pnl_pct', 0):+.2f}%) | {reason}")
                             self.status_message = f"Venta de {sym} con beneficio {pnl_sign}€{trade['realized_pnl_eur']:.4f}"
                             self.last_action = {"action": action, "reason": reason, "time": now_str}
@@ -367,11 +371,16 @@ class TradingBot:
         if not analyses:
             return
 
-        # 3. Evaluación Autónoma de Inversión por Conway Automaton
+        # 3. Evaluación Autónoma de Inversión por Conway Automaton + BTC Macro Guard
+        btc_health = self.feed.get_btc_macro_health(interval=self.config.get("candle_interval", "4h"))
         with self._lock:
             cash = active_port.cash
             best_buy_sym, best_buy_analysis, best_buy_amount, best_buy_reason = self.automaton.evaluate_new_entry(
-                analyses, cash, self.config, open_positions_count=len(active_port.positions)
+                analyses,
+                cash,
+                self.config,
+                open_positions_count=len(active_port.positions),
+                btc_healthy=btc_health.get("btc_bullish", True),
             )
             now_str = datetime.now().strftime("%H:%M:%S")
             env_prefix = "[REAL] " if self.active_environment == "live" else ""
@@ -390,18 +399,24 @@ class TradingBot:
                     elif cash < amount_eur:
                         self.status_message = f"Modo Real: Saldo insuficiente en Binance (€{cash:.2f} < €{amount_eur:.2f})"
                     else:
-                        ok, adj_qty, msg = BinanceRulesEngine.validate_buy_order(target_symbol, amount_eur, price)
-                        if ok:
-                            placed, res, order_msg = self.binance_client.place_smart_order(target_symbol, "BUY", adj_qty)
-                            if placed:
-                                trade = active_port.buy(target_symbol, amount_eur, price, f"[Binance Real] {best_buy_reason}", strategy_tag=strat_tag)
-                                self.current_symbol = target_symbol
-                                self.last_analysis = target_analysis
-                                self.last_action = {"action": "BUY", "reason": best_buy_reason, "time": now_str}
-                                self.log(f"🔴 COMPRA REAL EN BINANCE ({target_name}): {adj_qty} a {self.format_price(price)}")
-                                self.status_message = f"Compra Real ejecutada en {target_name}"
-                            else:
-                                self.log(f"⚠️ Error orden Binance: {order_msg}")
+                        bid_p, ask_p = self.binance_client.get_book_ticker(target_symbol)
+                        spread_pct = ((ask_p - bid_p) / bid_p * 100.0) if (bid_p > 0 and ask_p >= bid_p) else 0.0
+                        if spread_pct > 0.35:
+                            self.status_message = f"SpreadFilter bloquea {target_name}: spread {spread_pct:.2f}% > 0.35%"
+                            self.log(f"⚠️ SpreadFilter bloqueó entrada en {target_symbol} (spread {spread_pct:.2f}%)")
+                        else:
+                            ok, adj_qty, msg = BinanceRulesEngine.validate_buy_order(target_symbol, amount_eur, price)
+                            if ok:
+                                placed, res, order_msg = self.binance_client.place_smart_order(target_symbol, "BUY", adj_qty)
+                                if placed:
+                                    trade = active_port.buy(target_symbol, amount_eur, price, f"[Binance Real] {best_buy_reason}", strategy_tag=strat_tag)
+                                    self.current_symbol = target_symbol
+                                    self.last_analysis = target_analysis
+                                    self.last_action = {"action": "BUY", "reason": best_buy_reason, "time": now_str}
+                                    self.log(f"🔴 COMPRA REAL EN BINANCE ({target_name}): {adj_qty} a {self.format_price(price)}")
+                                    self.status_message = f"Compra Real ejecutada en {target_name}"
+                                else:
+                                    self.log(f"⚠️ Error orden Binance: {order_msg}")
                 else:
                     trade = active_port.buy(target_symbol, amount_eur, price, best_buy_reason, strategy_tag=strat_tag)
                     if trade:

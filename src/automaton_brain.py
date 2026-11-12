@@ -41,6 +41,8 @@ class AutomatonBrain:
         self.is_alive = True
         self.cycle_count = 0
         self.birth_time = datetime.now().isoformat()
+        self.pair_cooldowns: Dict[str, float] = {}
+        self.recent_sl_times: Dict[str, List[float]] = {}
         
         # Flujo de pensamiento y consciencia
         self.last_thought = "Automaton iniciado. Analizando mercados para asegurar la supervivencia."
@@ -367,12 +369,33 @@ class AutomatonBrain:
         self.add_thought(f"Vigilando {symbol} ({pnl_pct:+.2f}%): RSI {rsi:.1f} | Meta TP: +{target_tp:.1f}% | Preservando capital.")
         return "HOLD", 0.0, f"[Automaton {self.tier}] Posición vigilada: P&L {pnl_pct:+.2f}% | RSI {rsi:.1f} | Meta: +{target_tp:.1f}%"
 
+    def record_trade_exit(self, symbol: str, realized_pnl_eur: float, was_stoploss: bool = False):
+        """
+        Protecciones estilo Freqtrade (CooldownPeriod & StoplossGuard):
+        - Tras cualquier cierre: 5 min de cooldown en ese par.
+        - Tras Stop-Loss: 30 min de cooldown; si hay >= 2 SLs en 24h, StoplossGuard de 2 horas.
+        """
+        now = time.time()
+        if was_stoploss or realized_pnl_eur < 0:
+            hist = [t for t in self.recent_sl_times.get(symbol, []) if now - t < 86400.0]
+            hist.append(now)
+            self.recent_sl_times[symbol] = hist
+            lock_secs = 7200.0 if len(hist) >= 2 else 1800.0
+            self.pair_cooldowns[symbol] = now + lock_secs
+            self.add_thought(f"❄️ [StoplossGuard] {symbol} bloqueado {int(lock_secs // 60)} min tras pérdida.")
+        else:
+            self.pair_cooldowns[symbol] = now + 300.0
+
+    def is_pair_in_cooldown(self, symbol: str) -> bool:
+        return time.time() < self.pair_cooldowns.get(symbol, 0.0)
+
     def evaluate_new_entry(
         self,
         analyses: Dict[str, Dict],
         cash: float,
         config: Dict,
-        open_positions_count: int = 0
+        open_positions_count: int = 0,
+        btc_healthy: bool = True
     ) -> Tuple[Optional[str], Optional[Dict], float, str]:
         """
         Automaton escanea el mercado y selecciona el activo más prometedor para iniciar una inversión.
@@ -417,7 +440,14 @@ class AutomatonBrain:
                 continue
 
             debate = self.council.debate_multi_strategy(
-                sym, analysis, cash, config, tier=self.tier, open_positions_count=open_positions_count
+                sym,
+                analysis,
+                cash,
+                config,
+                tier=self.tier,
+                open_positions_count=open_positions_count,
+                btc_healthy=btc_healthy,
+                pair_cooldown_active=self.is_pair_in_cooldown(sym),
             )
             net_score = debate["net_score"]
             current_scores[sym] = net_score

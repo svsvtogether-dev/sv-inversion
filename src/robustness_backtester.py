@@ -102,6 +102,8 @@ class RobustnessBacktester:
         position: Optional[Dict] = None
         trade_returns: List[float] = []
         breakdown: Dict[str, int] = {"DCA_REVERSION": 0, "TREND_BREAKOUT": 0}
+        cooldown_until = -1
+        consecutive_losses = 0
 
         tp_base = float(self.config.get("take_profit_pct", 3.5))
         sl_base = float(self.config.get("stop_loss_pct", -3.0))
@@ -151,6 +153,12 @@ class RobustnessBacktester:
                     trade_returns.append(round(net_ret_pct, 4))
                     breakdown[tag] = breakdown.get(tag, 0) + 1
                     position = None
+                    if net_ret_pct < 0:
+                        consecutive_losses += 1
+                        cooldown_until = i + (6 if consecutive_losses >= 2 else 2)
+                    else:
+                        consecutive_losses = 0
+                        cooldown_until = i + 1
 
                     if equity > peak_equity:
                         peak_equity = equity
@@ -163,7 +171,9 @@ class RobustnessBacktester:
                 elif strategy_mode == "TREND_BREAKOUT":
                     debate = self.council.debate_breakout_entry(symbol, analysis, equity, self.config)
                 else:
-                    debate = self.council.debate_multi_strategy(symbol, analysis, equity, self.config)
+                    debate = self.council.debate_multi_strategy(
+                        symbol, analysis, equity, self.config, pair_cooldown_active=(i <= cooldown_until)
+                    )
 
                 if debate.get("approved"):
                     position = {
