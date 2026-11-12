@@ -374,6 +374,7 @@ class TradingBot:
         # 3. Evaluación Autónoma de Inversión por Conway Automaton + BTC Macro Guard
         btc_health = self.feed.get_btc_macro_health(interval=self.config.get("candle_interval", "4h"))
         with self._lock:
+            self.automaton.shadow_tracker.update_with_analyses(analyses)
             cash = active_port.cash
             best_buy_sym, best_buy_analysis, best_buy_amount, best_buy_reason = self.automaton.evaluate_new_entry(
                 analyses,

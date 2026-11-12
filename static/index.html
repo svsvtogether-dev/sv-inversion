@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SV Inversión">
   <link rel="apple-touch-icon" href="/static/logo-thumb.png">
-  <link rel="stylesheet" href="/static/style.css?v=25">
+  <link rel="stylesheet" href="/static/style.css?v=26">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -357,6 +357,12 @@
               <span class="ind-val mono font-bold" id="councilDebateBadge" style="color: #94a3b8; font-size: 11px;">--</span>
             </div>
             <div class="indicator-item has-help"
+                 data-tooltip-title="Auditoría Contrafactual (Shadow Tracker)"
+                 data-tooltip="Registra virtualmente las señales frenadas o vetadas por el bot y verifica con precios reales si el veto nos salvó de una pérdida o dejó escapar una ganancia.">
+              <span class="ind-name">Auditoría Vetos: <span class="help-icon">?</span></span>
+              <span class="ind-val mono font-bold" id="shadowTrackerBadge" style="color: #94a3b8; font-size: 11px;">--</span>
+            </div>
+            <div class="indicator-item has-help"
                  data-tooltip-title="SMA 50 (Filtro Macro de Tendencia)"
                  data-tooltip="Media Móvil Simple de 50 velas. Regla obligatoria: solo se permiten compras si el precio está por encima o convergiendo con esta media para no comprar activos en caída libre.">
               <span class="ind-name">SMA 50 (Macro): <span class="help-icon">?</span></span>
@@ -550,12 +556,12 @@
     </footer>
   </div>
 
-  <script src="/static/app.js?v=25"></script>
+  <script src="/static/app.js?v=26"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=25').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=26').catch(err => console.log('SW error:', err));
       });
     }
 

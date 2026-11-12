@@ -14,6 +14,7 @@ from src.automaton_brain import AutomatonBrain
 from src.trading_council import TradingCouncil
 from src.robustness_backtester import RobustnessBacktester
 from src.binance_client import BinanceSpotClient
+from src.shadow_tracker import ShadowTracker
 from src.kronos_oracle import KronosOracle
 from src.news_filter import EconomicNewsFilter
 from src.config import CONFIG
@@ -385,6 +386,25 @@ def test_all():
     btc_health = feed.get_btc_macro_health(interval="4h")
     assert "btc_bullish" in btc_health and btc_health["price"] > 0
     print(f"Freqtrade Protections test passed: Cooldown=VETO | BTC Guard active | BTC={btc_health['price']}")
+
+    # 15. Test ShadowTracker (Counterfactual Veto Auditing)
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        st = ShadowTracker(Path(tmpdir))
+        vetoed = st.record_veto(
+            "BTCEUR",
+            100.0,
+            {"approved": False, "decision": "VETO", "bull_score": 50.0, "bear_score": 80.0, "risk_verdict": "VETO TEST"},
+            tp_pct=6.0,
+            sl_pct=-4.5,
+        )
+        assert vetoed is True
+        st.update_with_analyses({"BTCEUR": {"price": 94.0}})
+        summary = st.get_summary()
+        assert summary["saved_losses"] == 1 and summary["filter_accuracy_pct"] == 100.0
+        assert summary["net_saved_pct"] >= 5.5
+    assert "shadow_tracker" in brain.get_status_dict()
+    print(f"ShadowTracker test passed: saved_losses=1 | accuracy=100.0%")
 
     print(">>> 100% OF QUANTITATIVE UNIT TESTS PASSED SUCCESSFULLY! <<<")
 

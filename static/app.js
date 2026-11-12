@@ -37,6 +37,7 @@ const sessionLiquidityBadge = document.getElementById("sessionLiquidityBadge");
 const kronosOracleBadge = document.getElementById("kronosOracleBadge");
 const economicNewsBadge = document.getElementById("economicNewsBadge");
 const councilDebateBadge = document.getElementById("councilDebateBadge");
+const shadowTrackerBadge = document.getElementById("shadowTrackerBadge");
 const bbUpper = document.getElementById("bbUpper");
 const bbLower = document.getElementById("bbLower");
 const atrVal = document.getElementById("atrVal");
@@ -555,6 +556,21 @@ function renderState(data) {
     } else {
       councilDebateBadge.textContent = "🏛️ Esperando ronda";
       councilDebateBadge.style.color = "#94a3b8";
+    }
+  }
+
+  if (shadowTrackerBadge) {
+    const st = auto.shadow_tracker || {};
+    if ((st.closed_count || 0) > 0) {
+      const sign = st.net_saved_pct >= 0 ? "+" : "";
+      shadowTrackerBadge.textContent = `👻 ${st.saved_losses}/${st.closed_count} aciertos (${sign}${st.net_saved_pct}%)`;
+      shadowTrackerBadge.style.color = st.net_saved_pct >= 0 ? "#4ade80" : "#fbbf24";
+    } else if ((st.open_count || 0) > 0) {
+      shadowTrackerBadge.textContent = `👻 ${st.open_count} veto(s) en seguimiento`;
+      shadowTrackerBadge.style.color = "#38bdf8";
+    } else {
+      shadowTrackerBadge.textContent = "👻 Sin vetos aún";
+      shadowTrackerBadge.style.color = "#94a3b8";
     }
   }
 

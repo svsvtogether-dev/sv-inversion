@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Optional, Tuple, List
 from .trading_council import TradingCouncil
+from .shadow_tracker import ShadowTracker
 
 class AutomatonBrain:
     """
@@ -55,6 +56,7 @@ class AutomatonBrain:
         self.min_score_required: float = 50.0
         self.council = TradingCouncil()
         self.last_council_debate: Dict = {}
+        self.shadow_tracker = ShadowTracker(data_dir)
 
         # Circuit Breaker (Freno diario de seguridad para proteger el capital)
         self.today_date = datetime.now().strftime("%Y-%m-%d")
@@ -472,7 +474,15 @@ class AutomatonBrain:
             self.add_thought(f"Debate ganado en {best_sym}: Bull {best_debate['bull_score']} pts vs Bear {best_debate['bear_score']} pts (Neto {best_score:+.1f}). Ejecutando €{alloc_eur:.2f}.")
             return best_sym, best_analysis, alloc_eur, full_reason
 
-        # Ninguno supera el consenso Bull vs Bear en este ciclo
+        # Ninguno supera el consenso Bull vs Bear en este ciclo -> registrar en Shadow Tracker si hubo veto/tracción
+        if best_sym and best_analysis and best_debate:
+            self.shadow_tracker.record_veto(
+                symbol=best_sym,
+                price=float(best_analysis.get("price", 0.0)),
+                debate=best_debate,
+                tp_pct=float(config.get("take_profit_pct", 6.0)),
+                sl_pct=float(config.get("stop_loss_pct", -4.5)),
+            )
         wait_msg = f"[Automaton {self.tier}] {best_debate.get('summary', 'Escaneando mercado...')}" if best_debate else f"[Automaton {self.tier}] Escaneando mercado..."
         self.add_thought(wait_msg)
         return None, None, 0.0, wait_msg
@@ -500,6 +510,7 @@ class AutomatonBrain:
             "best_candidate_score": self.best_candidate_score,
             "min_score_required": self.min_score_required,
             "council_debate": self.last_council_debate,
+            "shadow_tracker": self.shadow_tracker.get_summary(),
             "risk_level": "MODERADO" if self.tier == "NORMAL" else ("ALTO" if self.tier == "LOW_COMPUTE" else ("EXTREMO" if self.tier == "CRITICAL" else "APAGADO")),
             "target_tp_pct": 3.5 if self.tier == "NORMAL" else (2.2 if self.tier == "LOW_COMPUTE" else 1.5),
             "stop_loss_pct": -3.0 if self.tier != "CRITICAL" else -2.0,
