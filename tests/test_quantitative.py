@@ -84,7 +84,7 @@ def test_all():
     assert "Trailing Stop ATR" in rsn
 
     # Test Break-Even trigger:
-    pos_be = {"amount": 0.001, "avg_entry_price": 100.0, "highest_price": 101.8, "total_cost_eur": 5.0}
+    pos_be = {"amount": 0.001, "avg_entry_price": 100.0, "highest_price": 102.9, "total_cost_eur": 5.0}
     an_be = {"symbol": "BTCEUR", "price": 100.20, "atr_pct": 1.0, "rsi": 50.0}
     act_be, amt_be, rsn_be = strategy.evaluate(an_be, pos_be, 10.0)
     print(f"Break-Even evaluation: {act_be} | {rsn_be}")
@@ -95,8 +95,8 @@ def test_all():
     an_entry_ok = {
         "symbol": "BTCEUR",
         "price": 100.0,
-        "rsi": 30.0,
-        "rsi_prev": 29.0,
+        "rsi": 28.0,
+        "rsi_prev": 27.0,
         "hma_50": 99.5,
         "hma_50_prev": 99.0,
         "hma_50_slope": "UP",
@@ -132,7 +132,7 @@ def test_all():
     act_ab_be, amt_ab_be, rsn_ab_be = brain.evaluate_position_management(
         "BTCEUR",
         {"price": 100.20, "rsi": 50.0, "atr_pct": 1.0},
-        {"avg_entry_price": 100.0, "highest_price": 101.8, "dca_count": 1},
+        {"avg_entry_price": 100.0, "highest_price": 102.9, "dca_count": 1},
         10.0,
         CONFIG
     )
@@ -234,6 +234,8 @@ def test_all():
         "macd_hist": 5.0,
         "bb_lower": 79200.0,
         "bb_upper": 82000.0,
+        "ema_200": 78000.0,
+        "candle_bullish": True,
         "atr": 400.0,
         "atr_pct": 0.5,
         "session_info": {"is_peak_liquidity": True, "session": "NY_OVERLAP"},

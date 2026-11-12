@@ -280,32 +280,42 @@ class AutomatonBrain:
             highest_price = price
         max_gain_pct = ((highest_price - avg_price) / avg_price) * 100.0
 
-        # JERARQUÍA 1: BREAK-EVEN PROTECTOR (+1.6% trigger -> asegura +0.25%)
-        breakeven_trigger = config.get("breakeven_trigger_pct", 1.6)
-        if max_gain_pct >= breakeven_trigger:
-            if pnl_pct <= 0.25:
+        # JERARQUÍA 1: BREAK-EVEN PROTECTOR (+2.8% trigger -> asegura +0.50%, solo DCA)
+        strategy_tag = position.get("strategy_tag", "DCA_REVERSION")
+        breakeven_trigger = config.get("breakeven_trigger_pct", 2.8)
+        if strategy_tag != "TREND_BREAKOUT" and max_gain_pct >= breakeven_trigger:
+            if pnl_pct <= 0.50:
                 reason = f"🛡️ [Automaton {self.tier}] Break-Even Protector ejecutado: asegurado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}%)"
                 self.add_thought(f"Break-Even ejecutado en {symbol}: beneficio asegurado de +{pnl_pct:.2f}%.")
                 return "SELL", 0.0, reason
 
-        # JERARQUÍA 2: TRAILING STOP DINÁMICO POR ATR (más holgado para Trend Breakouts)
-        strategy_tag = position.get("strategy_tag", "DCA_REVERSION")
+        # JERARQUÍA 2: TRAILING STOP DINÁMICO POR ATR (Trend Breakout sin techo fijo)
         atr_pct = analysis.get("atr_pct", 1.5)
-        if max_gain_pct >= 2.0:
-            atr_mult = 1.4 if strategy_tag == "TREND_BREAKOUT" else 1.0
-            min_trail = 1.2 if strategy_tag == "TREND_BREAKOUT" else 0.8
-            trailing_distance = max(min_trail, atr_pct * atr_mult)
+        ema_trend = float(analysis.get("ema_trend", 0.0))
+        if strategy_tag == "TREND_BREAKOUT":
+            trail_dist = max(2.0, atr_pct * 2.5)
+            trail_floor = max_gain_pct - trail_dist
+            if max_gain_pct >= 1.5 and pnl_pct <= trail_floor:
+                reason = f"🚀 [Automaton {self.tier}] Trailing Stop ATR Trend ejecutado: capturado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}% | Margen 2.5xATR: {trail_dist:.2f}%)"
+                self.add_thought(f"Trailing Trend ejecutado en {symbol}: +{pnl_pct:.2f}%.")
+                return "SELL", 0.0, reason
+            if ema_trend > 0 and price < ema_trend * 0.985 and pnl_pct > -5.0:
+                reason = f"📉 [Automaton {self.tier}] Pérdida de EMA 50 en Trend Breakout ({pnl_pct:+.2f}%). Cerrando tendencia."
+                self.add_thought(f"Salida por pérdida de EMA 50 en {symbol}: {pnl_pct:+.2f}%.")
+                return "SELL", 0.0, reason
+        elif max_gain_pct >= 3.0:
+            trailing_distance = max(1.2, atr_pct * 1.2)
             trailing_floor = max_gain_pct - trailing_distance
-            if trailing_floor >= 0.5 and pnl_pct <= trailing_floor:
+            if trailing_floor >= 0.8 and pnl_pct <= trailing_floor:
                 reason = f"🚀 [Automaton {self.tier}] Trailing Stop ATR ejecutado ({strategy_tag}): capturado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}% | Margen ATR: {trailing_distance:.2f}%)"
                 self.add_thought(f"Trailing Stop ejecutado en {symbol}: capturado +{pnl_pct:.2f}%.")
                 return "SELL", 0.0, reason
 
         # Objetivos dinámicos según el estado vital de Automaton y la estrategia
-        base_tp = config.get("take_profit_pct", 3.5)
+        base_tp = config.get("take_profit_pct", 6.0)
         if strategy_tag == "TREND_BREAKOUT":
-            base_tp = max(base_tp, 5.0)
-        base_sl = config.get("stop_loss_pct", -3.0)
+            base_tp = 25.0  # Sin techo fijo corto: deja correr la tendencia hasta Trailing 2.5x ATR
+        base_sl = config.get("stop_loss_pct", -4.5)
 
         if self.tier == "CRITICAL":
             # En crítico: asegurar cualquier beneficio para no morir (toma de ganancias anticipada)

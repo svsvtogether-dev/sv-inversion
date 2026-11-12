@@ -32,6 +32,8 @@ class RobustnessBacktester:
         price = float(last_c["close"])
         rsi = MarketDataFeed.calculate_rsi(closes, period=14)
         rsi_prev = MarketDataFeed.calculate_rsi(closes[:-1], period=14) if len(closes) > 15 else rsi
+        ema_trend = MarketDataFeed.calculate_ema(closes, period=50)
+        ema_200 = MarketDataFeed.calculate_ema(closes, period=200) if len(closes) >= 200 else ema_trend
         hma_50, hma_50_prev, hma_slope = MarketDataFeed.calculate_hma(closes, period=50)
         bb_upper, bb_mid, bb_lower = MarketDataFeed.calculate_bollinger_bands(closes, period=20, num_std=2.0)
         atr = MarketDataFeed.calculate_atr(window, period=14, conversion_factor=1.0)
@@ -49,6 +51,8 @@ class RobustnessBacktester:
             "price": price,
             "rsi": rsi,
             "rsi_prev": rsi_prev,
+            "ema_trend": ema_trend,
+            "ema_200": ema_200,
             "hma_50": hma_50,
             "hma_50_prev": hma_50_prev,
             "hma_50_slope": hma_slope,
@@ -80,7 +84,7 @@ class RobustnessBacktester:
         - 'TREND_BREAKOUT'
         - 'MULTI' (cartera descorrelacionada que combina ambas)
         """
-        warmup = 55
+        warmup = 205 if len(candles) >= 260 else 55
         if len(candles) <= warmup + 5:
             return {
                 "trades_count": 0,
@@ -120,21 +124,26 @@ class RobustnessBacktester:
                 atr_pct = analysis["atr_pct"]
 
                 exit_triggered = False
-                if max_gain_pct >= be_trigger and raw_pnl_pct <= 0.25:
-                    exit_triggered = True
-                elif max_gain_pct >= 2.0:
-                    atr_mult = 1.4 if tag == "TREND_BREAKOUT" else 1.0
-                    min_trail = 1.2 if tag == "TREND_BREAKOUT" else 0.8
-                    trail_floor = max_gain_pct - max(min_trail, atr_pct * atr_mult)
-                    if trail_floor >= 0.5 and raw_pnl_pct <= trail_floor:
+                if tag == "TREND_BREAKOUT":
+                    trail_floor = max_gain_pct - max(2.0, atr_pct * 2.5)
+                    ema_trend = float(analysis.get("ema_trend", 0.0))
+                    if (max_gain_pct >= 1.5 and raw_pnl_pct <= trail_floor) or (ema_trend > 0 and price < ema_trend * 0.985) or raw_pnl_pct <= -5.0:
                         exit_triggered = True
-
-                target_tp = max(tp_base, 5.0) if tag == "TREND_BREAKOUT" else tp_base
-                if not exit_triggered:
-                    if raw_pnl_pct >= target_tp or raw_pnl_pct <= sl_base:
+                else:
+                    if max_gain_pct >= be_trigger and raw_pnl_pct <= 0.50:
                         exit_triggered = True
-                    elif analysis["rsi"] >= rsi_sell and raw_pnl_pct >= 1.2 and tag == "DCA_REVERSION":
-                        exit_triggered = True
+                    elif max_gain_pct >= 3.0:
+                        trail_floor = max_gain_pct - max(1.2, atr_pct * 1.2)
+                        if trail_floor >= 0.8 and raw_pnl_pct <= trail_floor:
+                            exit_triggered = True
+                    if not exit_triggered:
+                        bb_mid = float(analysis.get("bb_middle", 0.0))
+                        if raw_pnl_pct >= tp_base or raw_pnl_pct <= sl_base:
+                            exit_triggered = True
+                        elif bb_mid > 0 and price >= bb_mid and raw_pnl_pct >= 1.5:
+                            exit_triggered = True
+                        elif analysis["rsi"] >= rsi_sell and raw_pnl_pct >= 2.0:
+                            exit_triggered = True
 
                 if exit_triggered or i == len(candles) - 1:
                     net_ret_pct = raw_pnl_pct - (self.fee_rate * 2.0 * 100.0)
@@ -258,8 +267,8 @@ class RobustnessBacktester:
     def evaluate_robustness(
         self,
         symbol: str = "BTCEUR",
-        interval: str = "1h",
-        limit: int = 500,
+        interval: str = "4h",
+        limit: int = 1000,
         candles: Optional[List[Dict]] = None,
         strategy_mode: str = "MULTI",
     ) -> Dict:

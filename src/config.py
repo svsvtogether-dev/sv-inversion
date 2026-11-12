@@ -53,18 +53,18 @@ CONFIG = {
     "fee_rate": TRADING_FEE_RATE,
     "order_amount_eur": 5.00,       # Tamaño por compra DCA (€5.00 permite escalonar cumpliendo el MIN_NOTIONAL de Binance)
     "min_order_eur": 5.00,          # Mínimo para poder ejecutar una orden (cumple MIN_NOTIONAL de Binance)
-    "take_profit_pct": 3.5,         # Objetivo de beneficio neto (+3.5%)
-    "stop_loss_pct": -3.0,          # Límite de pérdida por protección estricta (-3.0%)
-    "breakeven_trigger_pct": 1.6,   # Al subir >= +1.6%, el SL sube a +0.25% (Break-Even) asegurando comisiones
-    "early_take_profit_pct": 2.4,   # Ganancia mínima para salidas técnicas dinámicas (evita cerrar con migajas)
-    "rsi_buy_threshold": 32.0,      # Comprar cuando RSI entra en sobreventa profunda (<= 32)
-    "rsi_sell_threshold": 68.0,     # Sugerir toma de beneficios si RSI >= 68 con ganancia positiva
+    "take_profit_pct": 6.0,         # Objetivo de beneficio neto (+6.0% en DCA; Trend Breakout corre con Trailing ATR)
+    "stop_loss_pct": -4.5,          # Límite de pérdida ajustado a volatilidad 4H (-4.5%)
+    "breakeven_trigger_pct": 2.8,   # Al subir >= +2.8%, el SL sube a +0.50% (sin ahogar ganadoras tempranas)
+    "early_take_profit_pct": 3.5,   # Ganancia mínima para salidas técnicas dinámicas
+    "rsi_buy_threshold": 29.0,      # Comprar solo cuando RSI entra en sobreventa genuina (<= 29)
+    "rsi_sell_threshold": 75.0,     # Sugerir toma de beneficios si RSI >= 75 con ganancia positiva
     "sma_period": 50,               # Período de la Media Móvil Simple (SMA) para filtro de tendencia macro
     "hma_period": 50,               # Período de la Media Móvil de Hull (HMA) de respuesta rápida sin retraso
     "session_filter_enabled": True, # Filtro de liquidez horaria institucional (Sesión NY / Londres 13-17 UTC)
-    "price_drop_trigger_pct": 2.0,  # Si el precio cae >= 2.0% respecto a la última compra, promediar
-    "candle_interval": "5m",        # Intervalo de velas de 5 minutos (filtra el ruido aleatorio de 1m)
-    "candle_limit": 100,            # 100 velas históricas (contexto cuantitativo para SMA 50)
+    "price_drop_trigger_pct": 3.0,  # Si el precio cae >= 3.0% respecto a la última compra, promediar
+    "candle_interval": "4h",        # Temporalidad 4H (filtra ruido aleatorio y comisiones excesivas)
+    "candle_limit": 250,            # 250 velas históricas (permite calcular EMA 200 macro)
     "check_interval_seconds": 6,    # Frecuencia de revisión del mercado
     "active_category": "top4",      # Estrategia recomendada: Top 4 Líderes Blue-Chips (BTC, ETH, BNB, SOL)
     "msci_sweep_pct": 0.0           # % de las ganancias netas que se desvían a la Bóveda MSCI World

@@ -506,7 +506,7 @@ class MarketDataFeed:
     # ----------------------------------------------------
     # ANÁLISIS UNIVERSAL CON ADAPTATIVE ROUNDING
     # ----------------------------------------------------
-    def analyze_symbol(self, symbol: str, interval: str = "5m", limit: int = 100) -> Dict:
+    def analyze_symbol(self, symbol: str, interval: str = "4h", limit: int = 250) -> Dict:
         meta = MARKETS_CATALOG.get(symbol, {"name": symbol, "source": "binance", "currency": "EUR", "category": "crypto", "sub_category": "top"})
         source = meta.get("source", "binance")
         currency = meta.get("currency", "EUR")
@@ -557,6 +557,7 @@ class MarketDataFeed:
                 "ema_trend": rounded_eur,
                 "sma_50": rounded_eur,
                 "sma_200": rounded_eur,
+                "ema_200": rounded_eur,
                 "hma_50": rounded_eur,
                 "hma_50_prev": rounded_eur,
                 "hma_50_slope": "FLAT",
@@ -585,6 +586,7 @@ class MarketDataFeed:
         ema_trend = self.calculate_ema(closes_eur, period=50)
         sma_50 = self.calculate_sma(closes_eur, period=50)
         sma_200 = self.calculate_sma(closes_eur, period=200) if len(closes_eur) >= 200 else sma_50
+        ema_200 = self.calculate_ema(closes_eur, period=200) if len(closes_eur) >= 200 else ema_trend
         hma_50, hma_50_prev, hma_50_slope = self.calculate_hma(closes_eur, period=50)
         bb_upper, bb_mid, bb_lower = self.calculate_bollinger_bands(closes_eur, period=20, num_std=2.0)
         atr = self.calculate_atr(candles, period=14, conversion_factor=conversion_factor)
@@ -623,6 +625,7 @@ class MarketDataFeed:
             "ema_trend": ema_trend,
             "sma_50": sma_50,
             "sma_200": sma_200,
+            "ema_200": ema_200,
             "hma_50": hma_50,
             "hma_50_prev": hma_50_prev,
             "hma_50_slope": hma_50_slope,

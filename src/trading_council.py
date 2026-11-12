@@ -156,15 +156,24 @@ class TradingCouncil:
             bear_score += 20.0
             bear_objs.append("Cuchillo cayendo: RSI bajando y vela roja (-20)")
 
-        # B. Tendencia HMA bajista o caída pronunciada
+        # B. Tendencia HMA bajista o caída bajo macro EMA 200
         if hma_slope == "DOWN":
-            bear_score += 15.0
-            bear_objs.append("HMA 50 en pendiente bajista (-15)")
+            bear_score += 20.0
+            bear_objs.append("HMA 50 en pendiente bajista (-20)")
         if hma > 0 and price < hma * 0.985:
             bear_score += 15.0
             bear_objs.append("Precio >1.5% bajo HMA 50 (-15)")
+        ema_200 = float(analysis.get("ema_200", 0.0))
+        if ema_200 > 0 and price < ema_200:
+            bear_score += 20.0
+            bear_objs.append("Bajo EMA 200 macro bajista (-20)")
 
-        # C. Sesión nocturna de baja liquidez
+        # C. Vela de confirmación alcista (evita comprar velas rojas en caída libre)
+        if not candle_bullish:
+            bear_score += 25.0
+            bear_objs.append("Vela actual roja sin rechazo alcista (-25)")
+
+        # D. Sesión nocturna de baja liquidez
         if session_info.get("liquidity_tier") == "LOW":
             bear_score += 15.0
             bear_objs.append("Baja liquidez nocturna: riesgo de trampas (-15)")
@@ -191,11 +200,11 @@ class TradingCouncil:
         # 4. CONSENSO FINAL DEL JUEZ
         # ------------------------------------------------------------------
         net_score = round(bull_score - bear_score, 1)
-        min_required = 50.0
+        min_required = 58.0
         if tier == "LOW_COMPUTE":
-            min_required = 65.0
+            min_required = 68.0
         elif tier == "CRITICAL":
-            min_required = 78.0
+            min_required = 80.0
 
         approved = (net_score >= min_required) and (bull_score > bear_score)
         decision = "BUY" if approved else "HOLD"
@@ -269,6 +278,8 @@ class TradingCouncil:
         rsi = float(analysis.get("rsi", 50.0))
         hma = float(analysis.get("hma_50", price))
         hma_slope = analysis.get("hma_50_slope", "FLAT")
+        ema_trend = float(analysis.get("ema_trend", price))
+        ema_200 = float(analysis.get("ema_200", 0.0))
         donchian_high = float(analysis.get("donchian_high_20", 0.0))
         volume_ratio = float(analysis.get("volume_ratio", 1.0))
         session_info = analysis.get("session_info", {})
@@ -278,15 +289,16 @@ class TradingCouncil:
         bull_args: List[str] = []
 
         if donchian_high > 0 and price >= donchian_high:
-            bull_score += 35.0
-            bull_args.append("Ruptura máximo Donchian 20 velas (+35)")
-        elif donchian_high > 0 and price >= donchian_high * 0.997 and hma_slope == "UP":
-            bull_score += 20.0
-            bull_args.append("Presión alcista en techo Donchian 20 (+20)")
+            bull_score += 40.0
+            bull_args.append("Ruptura confirmada máximo Donchian 20 velas (+40)")
 
         if hma > 0 and price > hma and hma_slope == "UP":
             bull_score += 25.0
             bull_args.append("Tendencia alcista confirmada sobre HMA 50 (+25)")
+
+        if ema_200 > 0 and price > ema_200 and ema_trend >= ema_200:
+            bull_score += 20.0
+            bull_args.append("Alineación macro alcista EMA 50 >= EMA 200 (+20)")
 
         if volume_ratio >= 1.25:
             bull_score += 20.0
@@ -317,8 +329,12 @@ class TradingCouncil:
             bear_objs.append(f"Sobrecompra extrema RSI {rsi:.1f}: riesgo de bull trap (-35)")
 
         if hma_slope == "DOWN":
-            bear_score += 25.0
-            bear_objs.append("HMA 50 bajista: ruptura contra tendencia (-25)")
+            bear_score += 30.0
+            bear_objs.append("HMA 50 bajista: ruptura contra tendencia (-30)")
+
+        if ema_200 > 0 and (price < ema_200 or ema_trend < ema_200):
+            bear_score += 65.0
+            bear_objs.append("Bajo EMA 200 / cruce bajista macro: evita bull traps (-65)")
 
         if volume_ratio < 0.85:
             bear_score += 25.0
