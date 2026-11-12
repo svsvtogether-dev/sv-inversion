@@ -372,6 +372,98 @@ class MarketDataFeed:
         }
 
     @staticmethod
+    def calculate_regime(
+        candles: List[Dict],
+        adx_period: int = 14,
+        adx_threshold: float = 25.0,
+        vol_z_threshold: float = 2.2,
+    ) -> Dict:
+        """
+        Detector de Régimen de Mercado (ADX 14 + Volatility Z-Score):
+        - HIGH_VOLATILITY_SHOCK: vol_zscore > vol_z_threshold (pausa preventiva ante shocks extremos)
+        - TRENDING: adx >= adx_threshold (prioriza Trend Breakout)
+        - RANGING: adx < adx_threshold (prioriza DCA Mean Reversion)
+        """
+        default_res = {"regime": "RANGING", "adx": 20.0, "vol_zscore": 0.0}
+        if not candles or len(candles) < adx_period * 2 + 2:
+            return default_res
+
+        trs: List[float] = []
+        plus_dms: List[float] = []
+        minus_dms: List[float] = []
+
+        for i in range(1, len(candles)):
+            h = float(candles[i].get("high", 0.0))
+            l = float(candles[i].get("low", 0.0))
+            ph = float(candles[i - 1].get("high", 0.0))
+            pl = float(candles[i - 1].get("low", 0.0))
+            pc = float(candles[i - 1].get("close", 0.0))
+
+            tr = max(h - l, abs(h - pc), abs(l - pc))
+            up_move = h - ph
+            down_move = pl - l
+            pdm = up_move if (up_move > down_move and up_move > 0) else 0.0
+            mdm = down_move if (down_move > up_move and down_move > 0) else 0.0
+
+            trs.append(tr)
+            plus_dms.append(pdm)
+            minus_dms.append(mdm)
+
+        # Wilder / EMA smoothing para ATR, +DI, -DI y ADX
+        alpha = 1.0 / adx_period
+        atr_series: List[float] = []
+        dx_series: List[float] = []
+
+        atr_ema = sum(trs[:adx_period]) / adx_period
+        pdm_ema = sum(plus_dms[:adx_period]) / adx_period
+        mdm_ema = sum(minus_dms[:adx_period]) / adx_period
+
+        for i in range(adx_period, len(trs)):
+            atr_ema = atr_ema * (1.0 - alpha) + trs[i] * alpha
+            pdm_ema = pdm_ema * (1.0 - alpha) + plus_dms[i] * alpha
+            mdm_ema = mdm_ema * (1.0 - alpha) + minus_dms[i] * alpha
+            atr_series.append(atr_ema)
+
+            if atr_ema > 0:
+                pdi = 100.0 * (pdm_ema / atr_ema)
+                mdi = 100.0 * (mdm_ema / atr_ema)
+                denom = pdi + mdi
+                dx = 100.0 * abs(pdi - mdi) / denom if denom > 0 else 0.0
+            else:
+                dx = 0.0
+            dx_series.append(dx)
+
+        if not dx_series:
+            return default_res
+
+        adx_val = sum(dx_series[:adx_period]) / min(len(dx_series), adx_period)
+        for dx in dx_series[adx_period:]:
+            adx_val = adx_val * (1.0 - alpha) + dx * alpha
+
+        # Volatility Z-Score sobre la serie ATR
+        vol_z = 0.0
+        if len(atr_series) >= 15:
+            win = atr_series[-50:]
+            mean_atr = sum(win) / len(win)
+            var_atr = sum((x - mean_atr) ** 2 for x in win) / len(win)
+            std_atr = var_atr ** 0.5
+            if std_atr > 1e-12:
+                vol_z = (atr_series[-1] - mean_atr) / std_atr
+
+        if vol_z > vol_z_threshold:
+            regime = "HIGH_VOLATILITY_SHOCK"
+        elif adx_val >= adx_threshold:
+            regime = "TRENDING"
+        else:
+            regime = "RANGING"
+
+        return {
+            "regime": regime,
+            "adx": round(adx_val, 2),
+            "vol_zscore": round(vol_z, 2),
+        }
+
+    @staticmethod
     def calculate_bollinger_bands(closes: List[float], period: int = 20, num_std: float = 2.0) -> Tuple[float, float, float]:
         if len(closes) < period:
             avg = adaptive_round(sum(closes) / len(closes)) if closes else 0.0
@@ -472,6 +564,7 @@ class MarketDataFeed:
                 "kronos": self.kronos.predict([], rounded_eur),
                 "news_status": self.news_filter.get_news_status(),
                 "smc": {"bullish_sweep": False, "bullish_fvg": False, "bearish_fvg_overhead": False},
+                "regime": {"regime": "RANGING", "adx": 20.0, "vol_zscore": 0.0},
                 "bb_upper": 0.0,
                 "bb_lower": 0.0,
                 "donchian_high_20": rounded_eur,
@@ -500,6 +593,7 @@ class MarketDataFeed:
         kronos_data = self.kronos.predict(candles, rounded_eur)
         news_status = self.news_filter.get_news_status()
         smc_signals = self.calculate_smc_signals(candles, conversion_factor=conversion_factor)
+        regime_info = self.calculate_regime(candles)
 
         last_c = candles[-1] if candles else {}
         candle_bullish = float(last_c.get("close", 0)) >= float(last_c.get("open", 0))
@@ -536,6 +630,7 @@ class MarketDataFeed:
             "kronos": kronos_data,
             "news_status": news_status,
             "smc": smc_signals,
+            "regime": regime_info,
             "bb_upper": bb_upper,
             "bb_middle": bb_mid,
             "bb_lower": bb_lower,

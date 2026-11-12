@@ -64,6 +64,7 @@ class RobustnessBacktester:
             "kronos": {"available": False},
             "news_status": {"is_shield_active": False},
             "smc": MarketDataFeed.calculate_smc_signals(window, conversion_factor=1.0),
+            "regime": MarketDataFeed.calculate_regime(window),
         }
 
     def simulate_strategy(

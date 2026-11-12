@@ -138,34 +138,118 @@ class BinanceSpotClient:
             "total_estimated_eur": 0.0
         }
 
-    def place_market_order(self, symbol: str, side: str, quantity: float) -> Tuple[bool, Dict, str]:
-        """
-        Envía una orden Market a Binance Spot con control de seguridad.
-        """
-        if not self.is_configured():
-            return False, {}, "API Keys de Binance no configuradas"
+    def _request(self, method: str, endpoint: str, params: Optional[Dict] = None, signed: bool = False, timeout: float = 8.0) -> Tuple[bool, Dict, str]:
+        """Helper unificado para peticiones HTTP firmadas o públicas contra Binance Spot."""
+        req_params = dict(params or {})
+        headers = {}
+        if signed:
+            if not self.is_configured():
+                return False, {}, "API Keys de Binance no configuradas"
+            req_params.setdefault("recvWindow", 60000)
+            query, signature = self._sign_request(req_params)
+            full_qs = f"{query}&signature={signature}"
+            headers["X-MBX-APIKEY"] = self.api_key
+        else:
+            full_qs = urllib.parse.urlencode(req_params)
 
+        for base in self.BASE_URLS:
+            try:
+                url = f"{base}{endpoint}"
+                body = None
+                if method.upper() in ("POST", "PUT", "DELETE"):
+                    body = full_qs.encode("utf-8") if full_qs else None
+                elif full_qs:
+                    url = f"{url}?{full_qs}"
+
+                req = urllib.request.Request(url, data=body, headers=headers, method=method.upper())
+                with urllib.request.urlopen(req, timeout=timeout) as res:
+                    data = json.loads(res.read().decode("utf-8"))
+                    return True, data, "OK"
+            except urllib.error.HTTPError as e:
+                err_body = e.read().decode("utf-8", errors="ignore")
+                return False, {}, f"Error Binance HTTP {e.code}: {err_body}"
+            except Exception:
+                continue
+
+        return False, {}, "No se pudo conectar a los servidores de Binance"
+
+    def get_book_ticker(self, symbol: str) -> Tuple[float, float]:
+        """Obtiene el mejor Bid y Ask actuales del libro de órdenes."""
+        ok, data, _ = self._request("GET", "/api/v3/ticker/bookTicker", {"symbol": symbol}, signed=False, timeout=4.0)
+        if ok:
+            return float(data.get("bidPrice", 0.0)), float(data.get("askPrice", 0.0))
+        return 0.0, 0.0
+
+    def place_market_order(self, symbol: str, side: str, quantity: float) -> Tuple[bool, Dict, str]:
+        """Envía una orden Market a Binance Spot con control de seguridad."""
         params = {
             "symbol": symbol,
             "side": side.upper(),
             "type": "MARKET",
             "quantity": quantity,
-            "recvWindow": 60000
         }
-        query, signature = self._sign_request(params)
+        ok, data, msg = self._request("POST", "/api/v3/order", params, signed=True, timeout=8.0)
+        return ok, data, ("Orden ejecutada con éxito" if ok else msg)
 
-        for base in self.BASE_URLS:
-            try:
-                url = f"{base}/api/v3/order"
-                body = f"{query}&signature={signature}".encode("utf-8")
-                req = urllib.request.Request(url, data=body, headers={"X-MBX-APIKEY": self.api_key}, method="POST")
-                with urllib.request.urlopen(req, timeout=8.0) as res:
-                    data = json.loads(res.read().decode("utf-8"))
-                    return True, data, "Orden ejecutada con éxito"
-            except urllib.error.HTTPError as e:
-                err_body = e.read().decode("utf-8")
-                return False, {}, f"Error Binance HTTP {e.code}: {err_body}"
-            except Exception as e:
-                continue
+    def place_smart_order(self, symbol: str, side: str, quantity: float, wait_seconds: float = 3.2) -> Tuple[bool, Dict, str]:
+        """
+        Ejecución Maker-First (LIMIT_MAKER) en el mejor Bid/Ask para ahorrar comisión Taker y spread.
+        Si no se llena en wait_seconds o el libro cruza, cancela el remanente y cae a MARKET.
+        """
+        if not self.is_configured():
+            return False, {}, "API Keys de Binance no configuradas"
 
-        return False, {}, "No se pudo conectar a los servidores de Binance"
+        bid, ask = self.get_book_ticker(symbol)
+        if bid <= 0 or ask <= 0:
+            return self.place_market_order(symbol, side, quantity)
+
+        side_u = side.upper()
+        maker_price = bid if side_u == "BUY" else ask
+        # Ajuste limpio de decimales según magnitud del precio
+        decimals = 2 if maker_price >= 100 else (4 if maker_price >= 1 else 6)
+        price_str = f"{maker_price:.{decimals}f}"
+
+        ok, order_data, _ = self._request(
+            "POST",
+            "/api/v3/order",
+            {
+                "symbol": symbol,
+                "side": side_u,
+                "type": "LIMIT_MAKER",
+                "quantity": quantity,
+                "price": price_str,
+            },
+            signed=True,
+            timeout=6.0,
+        )
+        if not ok or "orderId" not in order_data:
+            return self.place_market_order(symbol, side_u, quantity)
+
+        order_id = order_data["orderId"]
+        deadline = time.time() + max(0.5, wait_seconds)
+        while time.time() < deadline:
+            time.sleep(0.8)
+            q_ok, q_data, _ = self._request(
+                "GET",
+                "/api/v3/order",
+                {"symbol": symbol, "orderId": order_id},
+                signed=True,
+                timeout=4.0,
+            )
+            if q_ok and q_data.get("status") == "FILLED":
+                return True, q_data, "Orden Maker (LIMIT_MAKER) ejecutada con ahorro de comisión"
+
+        # Cancelar si sigue abierta y comprobar si hubo ejecución parcial
+        c_ok, c_data, _ = self._request(
+            "DELETE",
+            "/api/v3/order",
+            {"symbol": symbol, "orderId": order_id},
+            signed=True,
+            timeout=4.0,
+        )
+        executed_qty = float(c_data.get("executedQty", 0.0)) if c_ok else 0.0
+        remaining_qty = max(0.0, float(quantity) - executed_qty)
+        if remaining_qty <= 0 or (remaining_qty / max(float(quantity), 1e-9)) < 0.05:
+            return True, c_data, "Orden Maker completada"
+
+        return self.place_market_order(symbol, side_u, round(remaining_qty, 8))

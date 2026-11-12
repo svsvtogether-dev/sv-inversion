@@ -139,6 +139,12 @@ class TradingCouncil:
             bull_score += 10.0
             bull_args.append("SMC: FVG alcista activo (+10)")
 
+        # I. Alineación con Régimen de Mercado (Ranging favorece Mean Reversion)
+        regime_info = analysis.get("regime", {})
+        if regime_info.get("regime") == "RANGING":
+            bull_score += 10.0
+            bull_args.append(f"Régimen Rango (ADX {regime_info.get('adx', 20):.1f}): favorece Mean Reversion (+10)")
+
         # ------------------------------------------------------------------
         # 3. AGENTE BAJISTA (Bear Analyst - Abogado del Diablo)
         # ------------------------------------------------------------------
@@ -298,6 +304,11 @@ class TradingCouncil:
             bull_score += 10.0
             bull_args.append("Ventana institucional NY/Londres (+10)")
 
+        regime_info = analysis.get("regime", {})
+        if regime_info.get("regime") == "TRENDING":
+            bull_score += 10.0
+            bull_args.append(f"Régimen Tendencia (ADX {regime_info.get('adx', 25):.1f}): favorece Breakout (+10)")
+
         bear_score = 0.0
         bear_objs: List[str] = []
 
@@ -356,16 +367,47 @@ class TradingCouncil:
         open_positions_count: int = 0
     ) -> Dict:
         """
-        Cartera Multi-Estrategia Descorrelacionada:
-        Evalúa en paralelo DCA_REVERSION (rebotes en sobreventa) y TREND_BREAKOUT (rupturas con volumen).
+        Cartera Multi-Estrategia Descorrelacionada con Detector de Régimen (ADX + Vol Z-Score):
+        - HIGH_VOLATILITY_SHOCK: Risk Manager veta nuevas entradas preventivamente.
+        - TRENDING: prioriza TREND_BREAKOUT.
+        - RANGING: prioriza DCA_REVERSION.
         """
+        regime_info = analysis.get("regime", {})
+        regime_name = regime_info.get("regime", "RANGING")
+        vol_z = float(regime_info.get("vol_zscore", 0.0))
+
+        if regime_name == "HIGH_VOLATILITY_SHOCK":
+            return {
+                "approved": False,
+                "decision": "VETO",
+                "strategy_tag": "SHOCK_GUARD",
+                "regime": regime_name,
+                "bull_score": 0.0,
+                "bear_score": 100.0,
+                "net_score": -100.0,
+                "min_required": 50.0,
+                "bull_arguments": [],
+                "bear_objections": [f"VETO Risk Manager: Shock de volatilidad extrema (Vol Z={vol_z:.2f})"],
+                "risk_verdict": f"VETO POR SHOCK VOLATILIDAD (Z={vol_z:.2f})",
+                "summary": f"⚡ Risk Manager veta {symbol}: Shock de volatilidad (Z={vol_z:.2f})"
+            }
+
         dca_res = self.debate_entry(symbol, analysis, cash, config, tier=tier, open_positions_count=open_positions_count)
         if dca_res.get("decision") == "VETO":
+            dca_res["regime"] = regime_name
             return dca_res
 
         brk_res = self.debate_breakout_entry(symbol, analysis, cash, config, tier=tier, open_positions_count=open_positions_count)
+        dca_res["regime"] = regime_name
+        brk_res["regime"] = regime_name
+
         if dca_res.get("approved") and not brk_res.get("approved"):
             return dca_res
         if brk_res.get("approved") and not dca_res.get("approved"):
             return brk_res
+        if dca_res.get("approved") and brk_res.get("approved"):
+            if regime_name == "TRENDING" and brk_res["net_score"] >= dca_res["net_score"] - 15.0:
+                return brk_res
+            if regime_name == "RANGING" and dca_res["net_score"] >= brk_res["net_score"] - 15.0:
+                return dca_res
         return dca_res if dca_res.get("net_score", -999) >= brk_res.get("net_score", -999) else brk_res

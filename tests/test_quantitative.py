@@ -13,6 +13,7 @@ from src.strategy import SmartDCAStrategy
 from src.automaton_brain import AutomatonBrain
 from src.trading_council import TradingCouncil
 from src.robustness_backtester import RobustnessBacktester
+from src.binance_client import BinanceSpotClient
 from src.kronos_oracle import KronosOracle
 from src.news_filter import EconomicNewsFilter
 from src.config import CONFIG
@@ -347,6 +348,28 @@ def test_all():
     res_smc = council.debate_entry("BTCEUR", smc_boost_analysis, 50.0, CONFIG)
     assert res_smc["bull_score"] >= res_buy["bull_score"] + 20.0
     print(f"SMC Liquidity Sweep + FVG test passed: Bull={res_smc['bull_score']} (+20 SMC boost)")
+
+    # 12. Test Market Regime Detector (TRENDING vs RANGING vs HIGH_VOLATILITY_SHOCK)
+    trend_candles = [{"open": 100.0 + i * 1.5, "high": 101.0 + i * 1.5, "low": 99.5 + i * 1.5, "close": 100.8 + i * 1.5} for i in range(60)]
+    reg_trend = MarketDataFeed.calculate_regime(trend_candles)
+    assert reg_trend["regime"] == "TRENDING" and reg_trend["adx"] >= 25.0, f"Expected TRENDING, got: {reg_trend}"
+
+    shock_candles = [{"open": 100.0, "high": 100.5, "low": 99.5, "close": 100.0} for _ in range(55)]
+    shock_candles.append({"open": 100.0, "high": 118.0, "low": 82.0, "close": 115.0})
+    reg_shock = MarketDataFeed.calculate_regime(shock_candles)
+    assert reg_shock["regime"] == "HIGH_VOLATILITY_SHOCK", f"Expected HIGH_VOLATILITY_SHOCK, got: {reg_shock}"
+
+    shock_analysis = dict(favorable_dip)
+    shock_analysis["regime"] = reg_shock
+    res_shock_veto = council.debate_multi_strategy("BTCEUR", shock_analysis, 50.0, CONFIG)
+    assert res_shock_veto["decision"] == "VETO" and res_shock_veto["strategy_tag"] == "SHOCK_GUARD"
+    print(f"Regime Detector test passed: Trend ADX={reg_trend['adx']} | Shock VETO Z={reg_shock['vol_zscore']}")
+
+    # 13. Test BinanceSpotClient BookTicker & Maker-First guard
+    b_client = BinanceSpotClient()
+    bid, ask = b_client.get_book_ticker("BTCEUR")
+    assert bid > 0 and ask >= bid, f"Expected valid BTCEUR book ticker, got bid={bid}, ask={ask}"
+    print(f"Binance BookTicker Maker-First test passed: BTCEUR Bid={bid} | Ask={ask}")
 
     print(">>> 100% OF QUANTITATIVE UNIT TESTS PASSED SUCCESSFULLY! <<<")
 

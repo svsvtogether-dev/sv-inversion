@@ -548,8 +548,9 @@ function renderState(data) {
     const cd = auto.council_debate || {};
     if (cd.bull_score !== undefined) {
       const netSign = cd.net_score >= 0 ? "+" : "";
-      const stratShort = cd.strategy_tag === "TREND_BREAKOUT" ? "BRK" : "DCA";
-      councilDebateBadge.textContent = `[${stratShort}] 🐂 ${cd.bull_score} vs 🐻 ${cd.bear_score} (${netSign}${cd.net_score})`;
+      const stratShort = cd.strategy_tag === "TREND_BREAKOUT" ? "BRK" : (cd.strategy_tag === "SHOCK_GUARD" ? "SHOCK" : "DCA");
+      const regIcon = cd.regime === "TRENDING" ? "📈" : (cd.regime === "HIGH_VOLATILITY_SHOCK" ? "⚡" : "🌊");
+      councilDebateBadge.textContent = `${regIcon}[${stratShort}] 🐂 ${cd.bull_score} vs 🐻 ${cd.bear_score} (${netSign}${cd.net_score})`;
       councilDebateBadge.style.color = cd.approved ? "#4ade80" : (cd.decision === "VETO" ? "#f87171" : "#fbbf24");
     } else {
       councilDebateBadge.textContent = "🏛️ Esperando ronda";

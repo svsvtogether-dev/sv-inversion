@@ -290,7 +290,7 @@ class TradingBot:
                         raw_qty = position.get("amount", 0.0)
                         ok, adj_qty, msg = BinanceRulesEngine.adjust_quantity_for_sell(sym, raw_qty, price)
                         if ok:
-                            placed, res, order_msg = self.binance_client.place_market_order(sym, "SELL", adj_qty)
+                            placed, res, order_msg = self.binance_client.place_smart_order(sym, "SELL", adj_qty)
                             if placed:
                                 trade = active_port.sell(sym, price, f"[Binance Real] {reason}", sell_pct=1.0)
                                 if trade:
@@ -320,7 +320,7 @@ class TradingBot:
                         # Compra real en Binance
                         ok, adj_qty, msg = BinanceRulesEngine.validate_buy_order(sym, amount_eur, price)
                         if ok:
-                            placed, res, order_msg = self.binance_client.place_market_order(sym, "BUY", adj_qty)
+                            placed, res, order_msg = self.binance_client.place_smart_order(sym, "BUY", adj_qty)
                             if placed:
                                 trade = active_port.buy(sym, amount_eur, price, f"[Binance Real] {reason}")
                                 self.log(f"🔴 COMPRA REAL EN BINANCE: {adj_qty} {sym} a {self.format_price(price)} (€{amount_eur:.2f})")
@@ -392,7 +392,7 @@ class TradingBot:
                     else:
                         ok, adj_qty, msg = BinanceRulesEngine.validate_buy_order(target_symbol, amount_eur, price)
                         if ok:
-                            placed, res, order_msg = self.binance_client.place_market_order(target_symbol, "BUY", adj_qty)
+                            placed, res, order_msg = self.binance_client.place_smart_order(target_symbol, "BUY", adj_qty)
                             if placed:
                                 trade = active_port.buy(target_symbol, amount_eur, price, f"[Binance Real] {best_buy_reason}", strategy_tag=strat_tag)
                                 self.current_symbol = target_symbol
