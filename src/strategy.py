@@ -132,6 +132,14 @@ class SmartDCAStrategy:
         is_converging_sma = (price >= sma_val * 0.992 and (rsi >= rsi_prev or candle_bullish)) if sma_val > 0 else True
         trend_valid = is_reclaiming_hma or is_above_sma or is_converging_sma
 
+        # Filtro de Noticias Macroeconómicas Forex Factory (Red Folder Shield)
+        news_status = analysis.get("news_status", {})
+        if news_status.get("is_shield_active"):
+            act_ev = news_status.get("active_event", {})
+            title = act_ev.get("title", "Noticia de Alto Impacto")
+            country = act_ev.get("country", "USD")
+            return "HOLD", 0.0, f"🛡️ Escudo Forex Factory activo: compras pausadas por evento clave '{title}' ({country})"
+
         # Filtro Protector Oráculo IA Kronos: Si la distribución Monte Carlo prevé desplome inminente, abortar compra
         kronos = analysis.get("kronos", {})
         if kronos.get("verdict") == "BEARISH_BIAS" and float(kronos.get("bullish_prob", 50.0)) <= 35.0:

@@ -2,19 +2,8 @@
   "environment": "simulation",
   "initial_capital": 50.0,
   "fee_rate": 0.001,
-  "cash": 3.1541,
+  "cash": 12.6519,
   "positions": {
-    "SOLEUR": {
-      "symbol": "SOLEUR",
-      "amount": 0.12965539054794742,
-      "avg_entry_price": 77.0504,
-      "current_price": 76.27,
-      "total_cost_eur": 10.0,
-      "current_value_eur": 9.8888,
-      "unrealized_pnl_eur": -0.1112,
-      "unrealized_pnl_pct": -1.11,
-      "dca_count": 2
-    },
     "ETHEUR": {
       "symbol": "ETHEUR",
       "amount": 0.005367644729795551,
@@ -50,6 +39,21 @@
     }
   },
   "trades": [
+    {
+      "id": 30,
+      "environment": "simulation",
+      "timestamp": "2026-11-12 21:45:25",
+      "symbol": "SOLEUR",
+      "side": "SELL",
+      "price": 73.7,
+      "quantity": 0.129,
+      "amount_eur": 9.4978,
+      "fee_eur": 0.0095,
+      "realized_pnl_eur": -0.4517,
+      "swept_to_msci_eur": 0.0,
+      "pnl_pct": -4.54,
+      "reason": "\ud83d\uded1 [Automaton NORMAL] Stop Loss activado: -4.35% (L\u00edmite: -3.0%). Preservando capital para evitar la ruina."
+    },
     {
       "id": 29,
       "environment": "simulation",
@@ -442,8 +446,8 @@
       "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 31.9 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 70.2/100. Convicci\u00f3n: 70.2 pts (Requerida: 60)."
     }
   ],
-  "total_fees_paid": 0.1731,
-  "realized_pnl": -1.4815,
+  "total_fees_paid": 0.1826,
+  "realized_pnl": -1.9332,
   "msci_vault_eur": 0.0,
-  "last_updated": "2026-11-09T13:23:17.406186"
+  "last_updated": "2026-11-12T21:45:25.157130"
 }

@@ -12,6 +12,7 @@ from src.market_data import MarketDataFeed
 from src.strategy import SmartDCAStrategy
 from src.automaton_brain import AutomatonBrain
 from src.kronos_oracle import KronosOracle
+from src.news_filter import EconomicNewsFilter
 from src.config import CONFIG
 
 def test_all():
@@ -173,6 +174,48 @@ def test_all():
     assert act_kb == "HOLD", "Should block entry when Kronos predicts severe bearish breakdown"
     assert "Oráculo Kronos bloquea" in rsn_kb
     print(f"Strategy Kronos protection passed: {act_kb} | {rsn_kb}")
+
+    # 9. Test EconomicNewsFilter (Forex Factory)
+    print("Testing EconomicNewsFilter (Forex Factory)...")
+    from datetime import timedelta, datetime, timezone
+    news_filter = EconomicNewsFilter()
+    calendar_status = news_filter.get_news_status()
+    assert "is_shield_active" in calendar_status, "Must contain is_shield_active"
+    assert "summary" in calendar_status, "Must contain summary"
+    print(f"Live Forex Factory calendar test passed: {calendar_status['summary']}")
+
+    # Test shield activation when an event is in 5 minutes
+    fake_now = datetime.now(timezone.utc)
+    imminent_event_time = fake_now + timedelta(minutes=5)
+    news_filter.cached_events = [{
+        "title": "US CPI m/m (Simulado)",
+        "country": "USD",
+        "impact": "High",
+        "datetime_utc": imminent_event_time
+    }]
+    shield_status = news_filter.get_news_status(now_override=fake_now)
+    assert shield_status["is_shield_active"] is True, "Shield should be active for event in 5 minutes"
+    assert shield_status["active_event"]["title"] == "US CPI m/m (Simulado)"
+    print(f"News shield activation test passed: {shield_status['summary']}")
+
+    # Test Strategy blocking on active News Shield
+    an_news_shield = {
+        "symbol": "BTCEUR",
+        "price": 100.0,
+        "rsi": 30.0,
+        "rsi_prev": 29.0,
+        "hma_50": 100.0,
+        "hma_50_prev": 99.0,
+        "hma_50_slope": "UP",
+        "sma_50": 98.0,
+        "bb_lower": 100.0,
+        "session_info": {"is_institutional_window": True, "liquidity_tier": "INSTITUTIONAL"},
+        "news_status": shield_status
+    }
+    act_ns, amt_ns, rsn_ns = strategy.evaluate(an_news_shield, None, 20.0)
+    assert act_ns == "HOLD", "Should block entry when news shield is active"
+    assert "Escudo Forex Factory activo" in rsn_ns
+    print(f"Strategy News Shield test passed: {act_ns} | {rsn_ns}")
 
     print(">>> 100% OF QUANTITATIVE UNIT TESTS PASSED SUCCESSFULLY! <<<")
 

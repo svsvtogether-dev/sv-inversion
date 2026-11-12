@@ -370,6 +370,17 @@ class AutomatonBrain:
             self.add_thought(reason)
             return None, None, 0.0, reason
 
+        # Escudo de Noticias Macroeconómicas (Forex Factory Red Folder Shield)
+        for _, an in analyses.items():
+            ns = an.get("news_status", {})
+            if ns.get("is_shield_active"):
+                act = ns.get("active_event", {})
+                title = act.get("title", "Noticia de Alto Impacto")
+                country = act.get("country", "USD")
+                reason = f"🛡️ [Forex Factory News Shield] Compras pausadas por '{title}' ({country}). Evitando latigazos de volatilidad."
+                self.add_thought(reason)
+                return None, None, 0.0, reason
+
         min_order = config.get("min_order_eur", 5.0)
         order_amount = config.get("order_amount_eur", 5.0)
         if cash < min_order:

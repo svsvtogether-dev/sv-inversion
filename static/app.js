@@ -35,6 +35,7 @@ const sma50 = document.getElementById("sma50");
 const hma50 = document.getElementById("hma50");
 const sessionLiquidityBadge = document.getElementById("sessionLiquidityBadge");
 const kronosOracleBadge = document.getElementById("kronosOracleBadge");
+const economicNewsBadge = document.getElementById("economicNewsBadge");
 const bbUpper = document.getElementById("bbUpper");
 const bbLower = document.getElementById("bbLower");
 const atrVal = document.getElementById("atrVal");
@@ -524,6 +525,21 @@ function renderState(data) {
     } else {
       kronosOracleBadge.textContent = `⚖️ Neutral (${prob}%)`;
       kronosOracleBadge.style.color = "#c084fc";
+    }
+  }
+
+  if (economicNewsBadge) {
+    const ns = a.news_status || {};
+    if (ns.is_shield_active) {
+      const act = ns.active_event || {};
+      economicNewsBadge.textContent = `🛡️ ESCUDO: ${act.title || "Noticia"} (${act.country || "USD"})`;
+      economicNewsBadge.style.color = "#f87171";
+    } else if (ns.next_event) {
+      economicNewsBadge.textContent = `📰 ${ns.next_event.title} (${ns.next_event.countdown})`;
+      economicNewsBadge.style.color = "#38bdf8";
+    } else {
+      economicNewsBadge.textContent = "🟢 Despejado";
+      economicNewsBadge.style.color = "#4ade80";
     }
   }
 

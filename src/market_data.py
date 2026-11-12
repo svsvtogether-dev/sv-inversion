@@ -5,6 +5,7 @@ import requests
 from typing import Dict, List, Optional, Tuple
 from .config import MARKETS_CATALOG
 from .kronos_oracle import KronosOracle
+from .news_filter import EconomicNewsFilter
 
 BINANCE_ENDPOINTS = [
     "https://data-api.binance.vision/api/v3",
@@ -43,6 +44,7 @@ class MarketDataFeed:
         self.eur_usd_rate = 1.08  # Tasa base por defecto
         self.last_rate_update = 0.0
         self.kronos = KronosOracle(pred_len=6, sample_count=50)
+        self.news_filter = EconomicNewsFilter()
 
     def update_eur_usd_rate(self) -> float:
         """Obtiene la tasa de cambio en vivo EUR/USD (con caché de 60s) para convertir cotizaciones USD a Euros."""
@@ -420,6 +422,7 @@ class MarketDataFeed:
                 "hma_50_slope": "FLAT",
                 "session_info": self.get_market_session_info(),
                 "kronos": self.kronos.predict([], rounded_eur),
+                "news_status": self.news_filter.get_news_status(),
                 "bb_upper": 0.0,
                 "bb_lower": 0.0,
                 "atr": 0.0,
@@ -443,6 +446,7 @@ class MarketDataFeed:
         atr_pct = round((atr / rounded_eur * 100), 2) if rounded_eur > 0 else 1.5
         session_info = self.get_market_session_info()
         kronos_data = self.kronos.predict(candles, rounded_eur)
+        news_status = self.news_filter.get_news_status()
 
         last_c = candles[-1] if candles else {}
         candle_bullish = float(last_c.get("close", 0)) >= float(last_c.get("open", 0))
@@ -468,6 +472,7 @@ class MarketDataFeed:
             "hma_50_slope": hma_50_slope,
             "session_info": session_info,
             "kronos": kronos_data,
+            "news_status": news_status,
             "bb_upper": bb_upper,
             "bb_middle": bb_mid,
             "bb_lower": bb_lower,

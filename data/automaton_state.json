@@ -1,24 +1,35 @@
 {
   "agent_name": "Automaton-Alpha",
   "wallet_address": "0x23A2Eada6209437ad501361c26Ea57497484E902",
-  "treasury_eur": 50.0,
-  "treasury_usd": 50.0,
+  "treasury_eur": 47.66,
+  "treasury_usd": 47.66,
   "total_burned_usd": 0.0,
   "total_earned_usd": 0.0,
   "tier": "NORMAL",
   "is_alive": true,
-  "cycle_count": 0,
+  "cycle_count": 1,
   "birth_time": "2026-11-06T13:00:00.000Z",
   "burn_rate_per_cycle": 0.002,
-  "last_thought": "Capital unificado: 50,00 € bajo la gestión integral de Automaton. Analizando mercado para seleccionar la primera inversión óptima.",
+  "last_thought": "🛡️ [DEFENSA] Posición cerrada con pérdida controlada (€-0.4517). Preservando liquidez.",
   "thought_history": [
     {
       "time": "13:00:00",
       "thought": "Capital unificado: 50,00 € bajo la gestión integral de Automaton. Analizando mercado para seleccionar la primera inversión óptima.",
       "tier": "NORMAL"
+    },
+    {
+      "time": "21:45:25",
+      "thought": "Corte defensivo en SOLEUR a -4.35%. Protegiendo la cartera de caídas mayores.",
+      "tier": "NORMAL"
+    },
+    {
+      "time": "21:45:25",
+      "thought": "🛡️ [DEFENSA] Posición cerrada con pérdida controlada (€-0.4517). Preservando liquidez.",
+      "tier": "NORMAL"
     }
   ],
-  "today_date": "2026-11-06",
-  "daily_realized_pnl_eur": 0.0,
-  "circuit_breaker_active": false
+  "today_date": "2026-11-12",
+  "daily_realized_pnl_eur": -0.4517,
+  "circuit_breaker_active": false,
+  "updated_at": "2026-11-12T21:45:25.159350"
 }
