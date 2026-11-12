@@ -36,6 +36,7 @@ const hma50 = document.getElementById("hma50");
 const sessionLiquidityBadge = document.getElementById("sessionLiquidityBadge");
 const kronosOracleBadge = document.getElementById("kronosOracleBadge");
 const economicNewsBadge = document.getElementById("economicNewsBadge");
+const councilDebateBadge = document.getElementById("councilDebateBadge");
 const bbUpper = document.getElementById("bbUpper");
 const bbLower = document.getElementById("bbLower");
 const atrVal = document.getElementById("atrVal");
@@ -540,6 +541,18 @@ function renderState(data) {
     } else {
       economicNewsBadge.textContent = "🟢 Despejado";
       economicNewsBadge.style.color = "#4ade80";
+    }
+  }
+
+  if (councilDebateBadge) {
+    const cd = auto.council_debate || {};
+    if (cd.bull_score !== undefined) {
+      const netSign = cd.net_score >= 0 ? "+" : "";
+      councilDebateBadge.textContent = `🐂 ${cd.bull_score} vs 🐻 ${cd.bear_score} (${netSign}${cd.net_score})`;
+      councilDebateBadge.style.color = cd.approved ? "#4ade80" : (cd.decision === "VETO" ? "#f87171" : "#fbbf24");
+    } else {
+      councilDebateBadge.textContent = "🏛️ Esperando ronda";
+      councilDebateBadge.style.color = "#94a3b8";
     }
   }
 

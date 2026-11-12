@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Optional, Tuple, List
+from .trading_council import TradingCouncil
 
 class AutomatonBrain:
     """
@@ -49,7 +50,9 @@ class AutomatonBrain:
         self.candidate_scores: Dict[str, float] = {}
         self.best_candidate: Optional[str] = None
         self.best_candidate_score: float = 0.0
-        self.min_score_required: float = 60.0
+        self.min_score_required: float = 50.0
+        self.council = TradingCouncil()
+        self.last_council_debate: Dict = {}
 
         # Circuit Breaker (Freno diario de seguridad para proteger el capital)
         self.today_date = datetime.now().strftime("%Y-%m-%d")
@@ -353,7 +356,8 @@ class AutomatonBrain:
         self,
         analyses: Dict[str, Dict],
         cash: float,
-        config: Dict
+        config: Dict,
+        open_positions_count: int = 0
     ) -> Tuple[Optional[str], Optional[Dict], float, str]:
         """
         Automaton escanea el mercado y selecciona el activo más prometedor para iniciar una inversión.
@@ -386,111 +390,46 @@ class AutomatonBrain:
         if cash < min_order:
             return None, None, 0.0, f"Saldo libre insuficiente (€{cash:.2f} < €{min_order:.2f})"
 
-        # Umbrales de convicción según el nivel de supervivencia
-        # En NORMAL: umbral moderado (>= 60)
-        # En LOW_COMPUTE: umbral exigente (>= 75)
-        # En CRITICAL: umbral extremo (>= 88)
-        min_score_required = 60.0
-        if self.tier == "LOW_COMPUTE":
-            min_score_required = 75.0
-        elif self.tier == "CRITICAL":
-            min_score_required = 88.0
-
         best_sym = None
         best_analysis = None
         best_score = -9999.0
-        best_reason = ""
+        best_debate: Dict = {}
         current_scores = {}
-
-        rsi_threshold = config.get("rsi_buy_threshold", 32.0)
-        if self.tier == "CRITICAL":
-            rsi_threshold = min(rsi_threshold, 28.0)  # Solo sobreventa extrema en crítico
 
         for sym, analysis in analyses.items():
             price = analysis.get("price", 0.0)
             if price <= 0:
                 continue
 
-            rsi = analysis.get("rsi", 50.0)
-            sma = analysis.get("sma_50", 0.0)
-            hma = analysis.get("hma_50", sma)
-            hma_prev = analysis.get("hma_50_prev", hma)
-            hma_slope = analysis.get("hma_50_slope", "FLAT")
-            session_info = analysis.get("session_info", {})
-            bb_lower = analysis.get("bb_lower", 0.0)
-            ema_fast = analysis.get("ema_fast", 0.0)
-            ema_slow = analysis.get("ema_slow", 0.0)
+            debate = self.council.debate_entry(
+                sym, analysis, cash, config, tier=self.tier, open_positions_count=open_positions_count
+            )
+            net_score = debate["net_score"]
+            current_scores[sym] = net_score
 
-            # Cálculo de puntuación cuantitativa según visión de Automaton
-            score = 0.0
-
-            # 1. Puntuación por RSI (sobreventa profunda da mayor ventaja estadística)
-            if rsi <= rsi_threshold:
-                score += (rsi_threshold - rsi) * 2.5 + 40.0
-            elif rsi <= 40.0:
-                score += (40.0 - rsi) * 1.0
-
-            # 2. Puntuación por soporte Bollinger inferior
-            if bb_lower > 0 and price <= bb_lower * 1.01:
-                score += 25.0
-
-            # 3. Tendencia Dinámica HMA 50 (Hull Moving Average - Cero Retraso)
-            if hma_slope == "UP":
-                score += 20.0  # Giro alcista detectado en tiempo real sin lag
-            elif hma >= hma_prev:
-                score += 10.0
-
-            if hma > 0:
-                if price >= hma:
-                    score += 15.0  # Cotizando sobre la HMA rápida
-                elif price >= hma * 0.985:
-                    score += 5.0
-                else:
-                    score -= 15.0  # Bajo HMA en caída
-
-            # 4. Puntuación macro complementaria (precio sobre SMA 50)
-            if sma > 0 and price >= sma:
-                score += 10.0
-
-            # 5. Ventana de Liquidez Institucional (13:00 - 17:00 UTC)
-            if session_info.get("is_institutional_window"):
-                score += 15.0  # Solapamiento NY/Londres: volumen real y menor deslizamiento
-            elif session_info.get("liquidity_tier") == "LOW":
-                score -= 10.0  # Sesión nocturna: riesgo de mechas y trampas
-
-            # 6. Cruce de EMAs favorable
-            if ema_fast > 0 and ema_slow > 0 and ema_fast >= ema_slow:
-                score += 10.0
-
-            # 7. Oráculo IA Kronos (Distribución Monte Carlo y Sesgo K-line)
-            kronos = analysis.get("kronos", {})
-            score += float(kronos.get("conviction_bonus", 0.0))
-
-            current_scores[sym] = round(score, 1)
-
-            if score > best_score:
-                best_score = score
+            if net_score > best_score:
+                best_score = net_score
                 best_sym = sym
                 best_analysis = analysis
-                kronos_str = f" | {kronos.get('summary', '')}" if kronos.get('summary') else ""
-                best_reason = f"Sobreventa cuantitativa (RSI {rsi:.1f} <= {rsi_threshold:.1f}) con HMA 50 ({hma_slope}){kronos_str} y convicción {score:.1f}/100"
+                best_debate = debate
 
-        # Guardar telemetría
+        # Guardar telemetría del Consejo
         self.candidate_scores = current_scores
         self.best_candidate = best_sym
         self.best_candidate_score = round(best_score, 1) if best_sym else 0.0
-        self.min_score_required = min_score_required
+        self.min_score_required = best_debate.get("min_required", 50.0) if best_debate else 50.0
+        self.last_council_debate = best_debate
 
-        # Comprobar si el mejor activo supera el umbral de supervivencia
-        if best_sym and best_score >= min_score_required:
+        # Comprobar si el consenso Bull vs Bear aprueba la entrada
+        if best_sym and best_debate.get("approved"):
             alloc_eur = min(cash, order_amount)
-            full_reason = f"🤖 [Automaton {self.tier}] Compra selectiva en {best_sym}: {best_reason}. Convicción: {best_score:.1f} pts (Requerida: {min_score_required:.0f})."
-            self.add_thought(f"Identificada oportunidad en {best_sym} (Convicción {best_score:.1f}/100). Ejecutando orden de €{alloc_eur:.2f} para expandir tesorería.")
+            full_reason = f"🤖 [Automaton {self.tier}] Consenso Bull vs Bear APROBADO en {best_sym}: {best_debate['summary']}"
+            self.add_thought(f"Debate ganado en {best_sym}: Bull {best_debate['bull_score']} pts vs Bear {best_debate['bear_score']} pts (Neto {best_score:+.1f}). Ejecutando €{alloc_eur:.2f}.")
             return best_sym, best_analysis, alloc_eur, full_reason
 
-        # Ninguno cumple el criterio en este ciclo
-        wait_msg = f"[Automaton {self.tier}] Escaneando mercado. Mejor candidato: {best_sym} ({best_score:.1f} pts < {min_score_required:.0f} pts requeridos para arriesgar capital)."
-        self.add_thought(f"Escaneando mercado ({self.tier}). Radar en {best_sym} ({best_score:.1f} pts de convicción / {min_score_required:.0f} necesarios). Esperando ventaja clara.")
+        # Ninguno supera el consenso Bull vs Bear en este ciclo
+        wait_msg = f"[Automaton {self.tier}] {best_debate.get('summary', 'Escaneando mercado...')}" if best_debate else f"[Automaton {self.tier}] Escaneando mercado..."
+        self.add_thought(wait_msg)
         return None, None, 0.0, wait_msg
 
     def get_status_dict(self) -> Dict:
@@ -515,6 +454,7 @@ class AutomatonBrain:
             "best_candidate": self.best_candidate,
             "best_candidate_score": self.best_candidate_score,
             "min_score_required": self.min_score_required,
+            "council_debate": self.last_council_debate,
             "risk_level": "MODERADO" if self.tier == "NORMAL" else ("ALTO" if self.tier == "LOW_COMPUTE" else ("EXTREMO" if self.tier == "CRITICAL" else "APAGADO")),
             "target_tp_pct": 3.5 if self.tier == "NORMAL" else (2.2 if self.tier == "LOW_COMPUTE" else 1.5),
             "stop_loss_pct": -3.0 if self.tier != "CRITICAL" else -2.0,

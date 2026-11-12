@@ -371,7 +371,7 @@ class TradingBot:
         with self._lock:
             cash = active_port.cash
             best_buy_sym, best_buy_analysis, best_buy_amount, best_buy_reason = self.automaton.evaluate_new_entry(
-                analyses, cash, self.config
+                analyses, cash, self.config, open_positions_count=len(active_port.positions)
             )
             now_str = datetime.now().strftime("%H:%M:%S")
             env_prefix = "[REAL] " if self.active_environment == "live" else ""

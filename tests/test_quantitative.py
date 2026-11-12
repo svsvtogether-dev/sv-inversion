@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.market_data import MarketDataFeed
 from src.strategy import SmartDCAStrategy
 from src.automaton_brain import AutomatonBrain
+from src.trading_council import TradingCouncil
 from src.kronos_oracle import KronosOracle
 from src.news_filter import EconomicNewsFilter
 from src.config import CONFIG
@@ -216,6 +217,67 @@ def test_all():
     assert act_ns == "HOLD", "Should block entry when news shield is active"
     assert "Escudo Forex Factory activo" in rsn_ns
     print(f"Strategy News Shield test passed: {act_ns} | {rsn_ns}")
+
+    # 8. Test TradingCouncil (Bull vs. Bear + Risk Manager Debate)
+    council = TradingCouncil()
+    favorable_dip = {
+        "symbol": "BTCEUR",
+        "price": 79000.0,
+        "rsi": 28.0,
+        "hma_50": 80000.0,
+        "hma_slope": 12.0,
+        "hma_50_prev": 79988.0,
+        "macd": 10.0,
+        "macd_signal": 5.0,
+        "macd_hist": 5.0,
+        "bb_lower": 79200.0,
+        "bb_upper": 82000.0,
+        "atr": 400.0,
+        "atr_pct": 0.5,
+        "session_info": {"is_peak_liquidity": True, "session": "NY_OVERLAP"},
+        "kronos": {"available": True, "signal": "BULLISH", "expected_return_pct": 1.2, "confidence": 0.72},
+        "news_shield": {"blocked": False, "reason": "Clear"},
+    }
+    res_buy = council.debate_entry("BTCEUR", favorable_dip, 50.0, CONFIG, tier="NORMAL", open_positions_count=0)
+    assert res_buy["approved"] is True, f"Expected BUY approval on favorable dip, got: {res_buy}"
+    assert res_buy["decision"] == "BUY"
+    print(f"TradingCouncil BUY test passed: {res_buy['decision']} (net={res_buy['net_score']})")
+
+    falling_knife = {
+        "symbol": "ETHEUR",
+        "price": 2000.0,
+        "rsi": 48.0,
+        "hma_50": 2100.0,
+        "hma_slope": -25.0,
+        "hma_50_prev": 2125.0,
+        "macd": -15.0,
+        "macd_signal": -5.0,
+        "macd_hist": -10.0,
+        "bb_lower": 1950.0,
+        "bb_upper": 2150.0,
+        "atr": 120.0,
+        "atr_pct": 6.0,
+        "session_info": {"is_peak_liquidity": False, "session": "ASIA"},
+        "kronos": {"available": True, "signal": "BEARISH", "expected_return_pct": -1.5, "confidence": 0.8},
+        "news_shield": {"blocked": False, "reason": "Clear"},
+    }
+    res_hold = council.debate_entry("ETHEUR", falling_knife, 50.0, CONFIG, tier="NORMAL", open_positions_count=2)
+    assert res_hold["approved"] is False, f"Expected HOLD rejection on falling knife, got: {res_hold}"
+    assert res_hold["decision"] == "HOLD"
+    print(f"TradingCouncil HOLD test passed: {res_hold['decision']} (net={res_hold['net_score']})")
+
+    veto_analysis = dict(favorable_dip)
+    veto_analysis["news_status"] = {"is_shield_active": True, "active_event": {"title": "High-Impact USD CPI"}}
+    res_veto = council.debate_entry("BTCEUR", veto_analysis, 50.0, CONFIG, tier="NORMAL", open_positions_count=0)
+    assert res_veto["approved"] is False
+    assert res_veto["decision"] == "VETO"
+    print(f"TradingCouncil VETO test passed: {res_veto['decision']} ({res_veto['risk_verdict']})")
+
+    brain.evaluate_new_entry({"BTCEUR": favorable_dip}, 50.0, CONFIG, open_positions_count=0)
+    status_dict = brain.get_status_dict()
+    assert "council_debate" in status_dict and status_dict["council_debate"].get("decision") == "BUY"
+    assert "BTCEUR" in status_dict["council_debate"].get("summary", "")
+    print(f"AutomatonBrain council_debate populated: {status_dict['council_debate'].get('decision')}")
 
     print(">>> 100% OF QUANTITATIVE UNIT TESTS PASSED SUCCESSFULLY! <<<")
 
