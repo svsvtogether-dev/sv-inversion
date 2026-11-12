@@ -326,6 +326,28 @@ def test_all():
     assert live_report["candles_analyzed"] >= 200
     print(f"RobustnessBacktester live BTCEUR 1H passed: verdict={live_report['verdict']} | trades={live_report['full_backtest']['trades_count']} | MC p95 DD={live_report['monte_carlo']['mc_p95_drawdown_pct']}%")
 
+    # 11. Test SMC Signals (Liquidity Sweep + Fair Value Gap) & TradingCouncil integration
+    smc_candles = [{"open": 102.0, "high": 103.0, "low": 100.0, "close": 101.0} for _ in range(25)]
+    # Sweep below 100.0 (low=98.5), followed by strong displacement forming bullish FVG (candle[-3].high=100.5 < candle[-1].low=102.0)
+    smc_candles.append({"open": 100.0, "high": 100.5, "low": 98.5, "close": 100.2})
+    smc_candles.append({"open": 100.3, "high": 102.5, "low": 100.2, "close": 102.2})
+    smc_candles.append({"open": 102.2, "high": 103.5, "low": 102.0, "close": 103.0})
+    smc_res = MarketDataFeed.calculate_smc_signals(smc_candles)
+    assert smc_res["bullish_sweep"] is True and smc_res["bullish_fvg"] is True, f"Expected sweep+FVG, got: {smc_res}"
+
+    smc_bear_candles = [{"open": 100.0, "high": 102.0, "low": 99.0, "close": 100.0} for _ in range(10)]
+    smc_bear_candles.append({"open": 101.5, "high": 102.0, "low": 101.0, "close": 101.1})
+    smc_bear_candles.append({"open": 101.0, "high": 101.1, "low": 99.0, "close": 99.2})
+    smc_bear_candles.append({"open": 99.2, "high": 99.8, "low": 98.8, "close": 99.5})
+    smc_bear_res = MarketDataFeed.calculate_smc_signals(smc_bear_candles)
+    assert smc_bear_res["bearish_fvg_overhead"] is True, f"Expected bearish FVG overhead, got: {smc_bear_res}"
+
+    smc_boost_analysis = dict(favorable_dip)
+    smc_boost_analysis["smc"] = {"bullish_sweep": True, "bullish_fvg": True, "bearish_fvg_overhead": False}
+    res_smc = council.debate_entry("BTCEUR", smc_boost_analysis, 50.0, CONFIG)
+    assert res_smc["bull_score"] >= res_buy["bull_score"] + 20.0
+    print(f"SMC Liquidity Sweep + FVG test passed: Bull={res_smc['bull_score']} (+20 SMC boost)")
+
     print(">>> 100% OF QUANTITATIVE UNIT TESTS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":

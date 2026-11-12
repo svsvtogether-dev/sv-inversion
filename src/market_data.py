@@ -324,6 +324,54 @@ class MarketDataFeed:
         return adaptive_round(ema)
 
     @staticmethod
+    def calculate_smc_signals(candles: List[Dict], conversion_factor: float = 1.0) -> Dict:
+        """
+        Detección Smart Money Concepts (SMC) determinista (coste cero):
+        - bullish_sweep: Barrido de liquidez por debajo del mínimo reciente (24 velas previas) con recuperación.
+        - bullish_fvg: Fair Value Gap alcista (vela[i-2].high < vela[i].low) sin invalidar.
+        - bearish_fvg_overhead: Fair Value Gap bajista sin mitigar justo encima del precio actual (resistencia).
+        """
+        default_res = {"bullish_sweep": False, "bullish_fvg": False, "bearish_fvg_overhead": False}
+        if not candles or len(candles) < 8:
+            return default_res
+
+        cur_close = float(candles[-1].get("close", 0.0)) * conversion_factor
+        if cur_close <= 0:
+            return default_res
+
+        # 1. Barrido de Liquidez Alcista (Liquidity Sweep)
+        ref_window = candles[-27:-3] if len(candles) >= 27 else candles[:-3]
+        bullish_sweep = False
+        if ref_window:
+            swing_low = min(float(c.get("low", 0.0)) * conversion_factor for c in ref_window)
+            recent_low = min(float(c.get("low", 0.0)) * conversion_factor for c in candles[-3:])
+            if swing_low > 0 and recent_low < swing_low and cur_close > swing_low:
+                bullish_sweep = True
+
+        # 2. Fair Value Gaps (FVG) en las últimas 12 velas
+        scan = candles[-12:]
+        bullish_fvg = False
+        bearish_fvg_overhead = False
+        for i in range(2, len(scan)):
+            c0_high = float(scan[i - 2].get("high", 0.0)) * conversion_factor
+            c0_low = float(scan[i - 2].get("low", 0.0)) * conversion_factor
+            c2_low = float(scan[i].get("low", 0.0)) * conversion_factor
+            c2_high = float(scan[i].get("high", 0.0)) * conversion_factor
+
+            if c0_high > 0 and c0_high < c2_low and cur_close >= c0_high:
+                bullish_fvg = True
+            if c2_high > 0 and c0_low > c2_high:
+                # FVG bajista sin mitigar por encima del precio (actúa como techo)
+                if cur_close < c0_low and ((c0_low - cur_close) / cur_close) <= 0.03:
+                    bearish_fvg_overhead = True
+
+        return {
+            "bullish_sweep": bullish_sweep,
+            "bullish_fvg": bullish_fvg,
+            "bearish_fvg_overhead": bearish_fvg_overhead,
+        }
+
+    @staticmethod
     def calculate_bollinger_bands(closes: List[float], period: int = 20, num_std: float = 2.0) -> Tuple[float, float, float]:
         if len(closes) < period:
             avg = adaptive_round(sum(closes) / len(closes)) if closes else 0.0
@@ -423,6 +471,7 @@ class MarketDataFeed:
                 "session_info": self.get_market_session_info(),
                 "kronos": self.kronos.predict([], rounded_eur),
                 "news_status": self.news_filter.get_news_status(),
+                "smc": {"bullish_sweep": False, "bullish_fvg": False, "bearish_fvg_overhead": False},
                 "bb_upper": 0.0,
                 "bb_lower": 0.0,
                 "donchian_high_20": rounded_eur,
@@ -450,6 +499,7 @@ class MarketDataFeed:
         session_info = self.get_market_session_info()
         kronos_data = self.kronos.predict(candles, rounded_eur)
         news_status = self.news_filter.get_news_status()
+        smc_signals = self.calculate_smc_signals(candles, conversion_factor=conversion_factor)
 
         last_c = candles[-1] if candles else {}
         candle_bullish = float(last_c.get("close", 0)) >= float(last_c.get("open", 0))
@@ -485,6 +535,7 @@ class MarketDataFeed:
             "session_info": session_info,
             "kronos": kronos_data,
             "news_status": news_status,
+            "smc": smc_signals,
             "bb_upper": bb_upper,
             "bb_middle": bb_mid,
             "bb_lower": bb_lower,

@@ -63,6 +63,7 @@ class RobustnessBacktester:
             "session_info": {"is_institutional_window": True, "liquidity_tier": "HIGH"},
             "kronos": {"available": False},
             "news_status": {"is_shield_active": False},
+            "smc": MarketDataFeed.calculate_smc_signals(window, conversion_factor=1.0),
         }
 
     def simulate_strategy(

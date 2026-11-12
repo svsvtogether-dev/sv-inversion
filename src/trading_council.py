@@ -127,6 +127,18 @@ class TradingCouncil:
             bull_score += 15.0
             bull_args.append(f"Oráculo Kronos alcista {kronos.get('bullish_prob', 60)}% (+15)")
 
+        # H. Smart Money Concepts (Liquidity Sweep + Fair Value Gap Alcista)
+        smc = analysis.get("smc", {})
+        if smc.get("bullish_sweep") and smc.get("bullish_fvg"):
+            bull_score += 20.0
+            bull_args.append("SMC: Barrido de liquidez + FVG alcista sin mitigar (+20)")
+        elif smc.get("bullish_sweep"):
+            bull_score += 12.0
+            bull_args.append("SMC: Barrido de mínimo reciente recuperado (+12)")
+        elif smc.get("bullish_fvg"):
+            bull_score += 10.0
+            bull_args.append("SMC: FVG alcista activo (+10)")
+
         # ------------------------------------------------------------------
         # 3. AGENTE BAJISTA (Bear Analyst - Abogado del Diablo)
         # ------------------------------------------------------------------
@@ -163,6 +175,11 @@ class TradingCouncil:
         if open_positions_count >= 3 and cash < (order_amt + min_order):
             bear_score += 15.0
             bear_objs.append("Alta exposición: dejaría poco margen para DCA (-15)")
+
+        # F. Smart Money Concepts: FVG Bajista justo encima como resistencia
+        if smc.get("bearish_fvg_overhead"):
+            bear_score += 15.0
+            bear_objs.append("SMC: FVG bajista sin mitigar actuando como techo (-15)")
 
         # ------------------------------------------------------------------
         # 4. CONSENSO FINAL DEL JUEZ
