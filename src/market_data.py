@@ -425,6 +425,9 @@ class MarketDataFeed:
                 "news_status": self.news_filter.get_news_status(),
                 "bb_upper": 0.0,
                 "bb_lower": 0.0,
+                "donchian_high_20": rounded_eur,
+                "donchian_low_20": rounded_eur,
+                "volume_ratio": 1.0,
                 "atr": 0.0,
                 "atr_pct": 1.5,
                 "candle_bullish": False,
@@ -451,6 +454,15 @@ class MarketDataFeed:
         last_c = candles[-1] if candles else {}
         candle_bullish = float(last_c.get("close", 0)) >= float(last_c.get("open", 0))
 
+        # Canal Donchian (20 velas previas) y Ratio de Volumen para detección de Trend Breakouts
+        prev_window = candles[-21:-1] if len(candles) > 1 else candles
+        donchian_high_20 = adaptive_round(max(float(c.get("high", 0)) * conversion_factor for c in prev_window)) if prev_window else rounded_eur
+        donchian_low_20 = adaptive_round(min(float(c.get("low", 0)) * conversion_factor for c in prev_window)) if prev_window else rounded_eur
+        vols = [float(c.get("volume", 0)) for c in prev_window if float(c.get("volume", 0)) > 0]
+        avg_vol_20 = (sum(vols) / len(vols)) if vols else 0.0
+        cur_vol = float(last_c.get("volume", 0))
+        volume_ratio = round(cur_vol / avg_vol_20, 2) if (avg_vol_20 > 0 and cur_vol > 0) else 1.0
+
         result = {
             "symbol": symbol,
             "name": meta.get("name", symbol),
@@ -476,6 +488,9 @@ class MarketDataFeed:
             "bb_upper": bb_upper,
             "bb_middle": bb_mid,
             "bb_lower": bb_lower,
+            "donchian_high_20": donchian_high_20,
+            "donchian_low_20": donchian_low_20,
+            "volume_ratio": volume_ratio,
             "atr": atr,
             "atr_pct": atr_pct,
             "candle_bullish": candle_bullish,

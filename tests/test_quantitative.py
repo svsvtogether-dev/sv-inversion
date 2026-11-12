@@ -12,6 +12,7 @@ from src.market_data import MarketDataFeed
 from src.strategy import SmartDCAStrategy
 from src.automaton_brain import AutomatonBrain
 from src.trading_council import TradingCouncil
+from src.robustness_backtester import RobustnessBacktester
 from src.kronos_oracle import KronosOracle
 from src.news_filter import EconomicNewsFilter
 from src.config import CONFIG
@@ -278,6 +279,52 @@ def test_all():
     assert "council_debate" in status_dict and status_dict["council_debate"].get("decision") == "BUY"
     assert "BTCEUR" in status_dict["council_debate"].get("summary", "")
     print(f"AutomatonBrain council_debate populated: {status_dict['council_debate'].get('decision')}")
+
+    # 9. Test Multi-Strategy Trend Breakout (Donchian 20 + HMA UP + Volume Expansion)
+    breakout_setup = {
+        "symbol": "SOLEUR",
+        "price": 152.0,
+        "rsi": 62.0,
+        "hma_50": 146.0,
+        "hma_50_prev": 145.0,
+        "hma_50_slope": "UP",
+        "donchian_high_20": 150.0,
+        "volume_ratio": 1.45,
+        "bb_lower": 142.0,
+        "bb_upper": 153.0,
+        "atr": 2.0,
+        "atr_pct": 1.3,
+        "session_info": {"is_institutional_window": True, "liquidity_tier": "HIGH"},
+        "kronos": {"available": True, "signal": "BULLISH"},
+        "news_status": {"is_shield_active": False},
+    }
+    res_brk = council.debate_multi_strategy("SOLEUR", breakout_setup, 50.0, CONFIG, tier="NORMAL", open_positions_count=0)
+    assert res_brk["approved"] is True, f"Expected TREND_BREAKOUT approval, got: {res_brk}"
+    assert res_brk["strategy_tag"] == "TREND_BREAKOUT"
+    print(f"Multi-Strategy Trend Breakout test passed: {res_brk['strategy_tag']} (net={res_brk['net_score']})")
+
+    # 10. Test RobustnessBacktester (Walk-Forward + Monte Carlo) on synthetic & live BTCEUR
+    import math
+    synth_bars = []
+    for idx in range(220):
+        base = 100.0 + idx * 0.08 + math.sin(idx / 5.0) * 3.5
+        synth_bars.append({
+            "time": idx * 3600000,
+            "open": base - 0.3,
+            "high": base + 1.2,
+            "low": base - 1.2,
+            "close": base,
+            "volume": 1000.0 + (400.0 if idx % 7 == 0 else 0.0),
+        })
+    tester = RobustnessBacktester(CONFIG)
+    synth_report = tester.evaluate_robustness(symbol="SYNTHEUR", candles=synth_bars, strategy_mode="MULTI")
+    assert "walk_forward" in synth_report and "monte_carlo" in synth_report
+    assert synth_report["monte_carlo"]["iterations"] >= 0
+    print(f"RobustnessBacktester synthetic test passed: verdict={synth_report['verdict']} score={synth_report['robustness_score']}")
+
+    live_report = tester.evaluate_robustness(symbol="BTCEUR", interval="1h", limit=240, strategy_mode="MULTI")
+    assert live_report["candles_analyzed"] >= 200
+    print(f"RobustnessBacktester live BTCEUR 1H passed: verdict={live_report['verdict']} | trades={live_report['full_backtest']['trades_count']} | MC p95 DD={live_report['monte_carlo']['mc_p95_drawdown_pct']}%")
 
     print(">>> 100% OF QUANTITATIVE UNIT TESTS PASSED SUCCESSFULLY! <<<")
 

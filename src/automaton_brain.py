@@ -288,18 +288,23 @@ class AutomatonBrain:
                 self.add_thought(f"Break-Even ejecutado en {symbol}: beneficio asegurado de +{pnl_pct:.2f}%.")
                 return "SELL", 0.0, reason
 
-        # JERARQUÍA 2: TRAILING STOP DINÁMICO POR ATR
+        # JERARQUÍA 2: TRAILING STOP DINÁMICO POR ATR (más holgado para Trend Breakouts)
+        strategy_tag = position.get("strategy_tag", "DCA_REVERSION")
         atr_pct = analysis.get("atr_pct", 1.5)
         if max_gain_pct >= 2.0:
-            trailing_distance = max(0.8, atr_pct * 1.0)
+            atr_mult = 1.4 if strategy_tag == "TREND_BREAKOUT" else 1.0
+            min_trail = 1.2 if strategy_tag == "TREND_BREAKOUT" else 0.8
+            trailing_distance = max(min_trail, atr_pct * atr_mult)
             trailing_floor = max_gain_pct - trailing_distance
             if trailing_floor >= 0.5 and pnl_pct <= trailing_floor:
-                reason = f"🚀 [Automaton {self.tier}] Trailing Stop ATR ejecutado: capturado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}% | Margen ATR: {trailing_distance:.2f}%)"
+                reason = f"🚀 [Automaton {self.tier}] Trailing Stop ATR ejecutado ({strategy_tag}): capturado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}% | Margen ATR: {trailing_distance:.2f}%)"
                 self.add_thought(f"Trailing Stop ejecutado en {symbol}: capturado +{pnl_pct:.2f}%.")
                 return "SELL", 0.0, reason
 
-        # Objetivos dinámicos según el estado vital de Automaton
+        # Objetivos dinámicos según el estado vital de Automaton y la estrategia
         base_tp = config.get("take_profit_pct", 3.5)
+        if strategy_tag == "TREND_BREAKOUT":
+            base_tp = max(base_tp, 5.0)
         base_sl = config.get("stop_loss_pct", -3.0)
 
         if self.tier == "CRITICAL":
@@ -401,7 +406,7 @@ class AutomatonBrain:
             if price <= 0:
                 continue
 
-            debate = self.council.debate_entry(
+            debate = self.council.debate_multi_strategy(
                 sym, analysis, cash, config, tier=self.tier, open_positions_count=open_positions_count
             )
             net_score = debate["net_score"]

@@ -134,7 +134,7 @@ class Portfolio:
         self.msci_vault_eur = 0.0
         self.save()
 
-    def buy(self, symbol: str, amount_eur: float, current_price: float, reason: str = "") -> Optional[Dict]:
+    def buy(self, symbol: str, amount_eur: float, current_price: float, reason: str = "", strategy_tag: str = "DCA_REVERSION") -> Optional[Dict]:
         """Ejecuta una compra con validación institucional de filtros de exchange."""
         if amount_eur > self.cash:
             amount_eur = self.cash
@@ -158,8 +158,11 @@ class Portfolio:
             "avg_entry_price": 0.0,
             "total_cost_eur": 0.0,
             "dca_count": 0,
+            "strategy_tag": strategy_tag,
             "first_buy_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
+        if "strategy_tag" not in pos:
+            pos["strategy_tag"] = strategy_tag
 
         new_total_amount = pos["amount"] + quantity
         new_total_cost = pos["total_cost_eur"] + amount_eur
@@ -184,6 +187,7 @@ class Portfolio:
             "amount_eur": amount_eur,
             "fee_eur": fee_eur,
             "realized_pnl_eur": 0.0,
+            "strategy_tag": pos.get("strategy_tag", strategy_tag),
             "reason": reason
         }
         self.trades.insert(0, trade)

@@ -185,6 +185,7 @@ class TradingCouncil:
         return {
             "approved": approved,
             "decision": decision,
+            "strategy_tag": "DCA_REVERSION",
             "bull_score": round(bull_score, 1),
             "bear_score": round(bear_score, 1),
             "net_score": net_score,
@@ -194,3 +195,160 @@ class TradingCouncil:
             "risk_verdict": risk_verdict,
             "summary": summary
         }
+
+    def debate_breakout_entry(
+        self,
+        symbol: str,
+        analysis: Dict,
+        cash: float,
+        config: Dict,
+        tier: str = "NORMAL",
+        open_positions_count: int = 0
+    ) -> Dict:
+        """
+        Segunda estrategia descorrelacionada: Trend Breakout (Ruptura Donchian 20 + HMA 50 + Volumen).
+        Permite capturar tendencias alcistas sostenidas cuando el mercado no ofrece caídas de sobreventa.
+        """
+        price = float(analysis.get("price", 0.0))
+        if price <= 0:
+            return {
+                "approved": False,
+                "decision": "HOLD",
+                "strategy_tag": "TREND_BREAKOUT",
+                "bull_score": 0.0,
+                "bear_score": 100.0,
+                "net_score": -100.0,
+                "min_required": 55.0,
+                "bull_arguments": [],
+                "bear_objections": ["Precio inválido"],
+                "risk_verdict": "RECHAZADO (Sin datos)",
+                "summary": "Sin datos válidos para breakout"
+            }
+
+        news_status = analysis.get("news_status", {})
+        if news_status.get("is_shield_active"):
+            act_ev = news_status.get("active_event", {})
+            title = act_ev.get("title", "Noticia Alto Impacto")
+            return {
+                "approved": False,
+                "decision": "VETO",
+                "strategy_tag": "TREND_BREAKOUT",
+                "bull_score": 0.0,
+                "bear_score": 100.0,
+                "net_score": -100.0,
+                "min_required": 55.0,
+                "bull_arguments": [],
+                "bear_objections": [f"VETO Risk Manager: Escudo Forex Factory activo por '{title}'"],
+                "risk_verdict": f"VETO POR NOTICIA ({title})",
+                "summary": f"🛡️ Risk Manager veta {symbol} (Breakout): Escudo activo ({title})"
+            }
+
+        rsi = float(analysis.get("rsi", 50.0))
+        hma = float(analysis.get("hma_50", price))
+        hma_slope = analysis.get("hma_50_slope", "FLAT")
+        donchian_high = float(analysis.get("donchian_high_20", 0.0))
+        volume_ratio = float(analysis.get("volume_ratio", 1.0))
+        session_info = analysis.get("session_info", {})
+        kronos = analysis.get("kronos", {})
+
+        bull_score = 0.0
+        bull_args: List[str] = []
+
+        if donchian_high > 0 and price >= donchian_high:
+            bull_score += 35.0
+            bull_args.append("Ruptura máximo Donchian 20 velas (+35)")
+        elif donchian_high > 0 and price >= donchian_high * 0.997 and hma_slope == "UP":
+            bull_score += 20.0
+            bull_args.append("Presión alcista en techo Donchian 20 (+20)")
+
+        if hma > 0 and price > hma and hma_slope == "UP":
+            bull_score += 25.0
+            bull_args.append("Tendencia alcista confirmada sobre HMA 50 (+25)")
+
+        if volume_ratio >= 1.25:
+            bull_score += 20.0
+            bull_args.append(f"Expansión de volumen institucional x{volume_ratio:.2f} (+20)")
+
+        if 52.0 <= rsi <= 72.0:
+            bull_score += 15.0
+            bull_args.append(f"Momento alcista saludable RSI {rsi:.1f} (+15)")
+
+        if kronos.get("available") and kronos.get("signal") == "BULLISH":
+            bull_score += 15.0
+            bull_args.append("Kronos proyecta continuidad alcista (+15)")
+
+        if session_info.get("is_institutional_window"):
+            bull_score += 10.0
+            bull_args.append("Ventana institucional NY/Londres (+10)")
+
+        bear_score = 0.0
+        bear_objs: List[str] = []
+
+        if rsi > 75.0:
+            bear_score += 35.0
+            bear_objs.append(f"Sobrecompra extrema RSI {rsi:.1f}: riesgo de bull trap (-35)")
+
+        if hma_slope == "DOWN":
+            bear_score += 25.0
+            bear_objs.append("HMA 50 bajista: ruptura contra tendencia (-25)")
+
+        if volume_ratio < 0.85:
+            bear_score += 25.0
+            bear_objs.append(f"Volumen débil x{volume_ratio:.2f}: posible falsa ruptura (-25)")
+
+        if kronos.get("available") and kronos.get("signal") == "BEARISH":
+            bear_score += 25.0
+            bear_objs.append("Kronos advierte giro bajista (-25)")
+
+        if open_positions_count >= 2:
+            bear_score += 15.0
+            bear_objs.append(f"Exposición elevada ({open_positions_count} activas) (-15)")
+
+        if session_info.get("liquidity_tier") == "LOW":
+            bear_score += 15.0
+            bear_objs.append("Baja liquidez nocturna (-15)")
+
+        net_score = round(bull_score - bear_score, 1)
+        min_required = 55.0 if tier == "NORMAL" else (68.0 if tier == "LOW_COMPUTE" else 80.0)
+        approved = (net_score >= min_required) and (bull_score > bear_score)
+        decision = "BUY" if approved else "HOLD"
+        risk_verdict = "APROBADO" if approved else "BLOQUEADO POR DEBATE"
+
+        summary = f"🚀 Breakout {symbol}: Bull {bull_score:.0f} pts vs Bear {bear_score:.0f} pts => Neto {net_score:+.1f} pts (Req: {min_required:.0f})"
+        return {
+            "approved": approved,
+            "decision": decision,
+            "strategy_tag": "TREND_BREAKOUT",
+            "bull_score": round(bull_score, 1),
+            "bear_score": round(bear_score, 1),
+            "net_score": net_score,
+            "min_required": min_required,
+            "bull_arguments": bull_args,
+            "bear_objections": bear_objs,
+            "risk_verdict": risk_verdict,
+            "summary": summary
+        }
+
+    def debate_multi_strategy(
+        self,
+        symbol: str,
+        analysis: Dict,
+        cash: float,
+        config: Dict,
+        tier: str = "NORMAL",
+        open_positions_count: int = 0
+    ) -> Dict:
+        """
+        Cartera Multi-Estrategia Descorrelacionada:
+        Evalúa en paralelo DCA_REVERSION (rebotes en sobreventa) y TREND_BREAKOUT (rupturas con volumen).
+        """
+        dca_res = self.debate_entry(symbol, analysis, cash, config, tier=tier, open_positions_count=open_positions_count)
+        if dca_res.get("decision") == "VETO":
+            return dca_res
+
+        brk_res = self.debate_breakout_entry(symbol, analysis, cash, config, tier=tier, open_positions_count=open_positions_count)
+        if dca_res.get("approved") and not brk_res.get("approved"):
+            return dca_res
+        if brk_res.get("approved") and not dca_res.get("approved"):
+            return brk_res
+        return dca_res if dca_res.get("net_score", -999) >= brk_res.get("net_score", -999) else brk_res

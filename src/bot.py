@@ -383,6 +383,7 @@ class TradingBot:
                 amount_eur = best_buy_amount
                 target_name = MARKETS_CATALOG.get(target_symbol, {}).get("name", target_symbol)
 
+                strat_tag = self.automaton.last_council_debate.get("strategy_tag", "DCA_REVERSION")
                 if self.active_environment == "live":
                     if not self.live_trading_armed:
                         self.status_message = f"Modo Real: Señal de compra en {target_name} (Trading Real Desarmado)"
@@ -393,7 +394,7 @@ class TradingBot:
                         if ok:
                             placed, res, order_msg = self.binance_client.place_market_order(target_symbol, "BUY", adj_qty)
                             if placed:
-                                trade = active_port.buy(target_symbol, amount_eur, price, f"[Binance Real] {best_buy_reason}")
+                                trade = active_port.buy(target_symbol, amount_eur, price, f"[Binance Real] {best_buy_reason}", strategy_tag=strat_tag)
                                 self.current_symbol = target_symbol
                                 self.last_analysis = target_analysis
                                 self.last_action = {"action": "BUY", "reason": best_buy_reason, "time": now_str}
@@ -402,7 +403,7 @@ class TradingBot:
                             else:
                                 self.log(f"⚠️ Error orden Binance: {order_msg}")
                 else:
-                    trade = active_port.buy(target_symbol, amount_eur, price, best_buy_reason)
+                    trade = active_port.buy(target_symbol, amount_eur, price, best_buy_reason, strategy_tag=strat_tag)
                     if trade:
                         self.current_symbol = target_symbol
                         self.last_analysis = target_analysis

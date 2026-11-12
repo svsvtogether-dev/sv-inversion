@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from src.bot import TradingBot
 from src.config import CONFIG
+from src.robustness_backtester import RobustnessBacktester
 
 app = FastAPI(title="SV Inversión AI - Bot de Trading Universal")
 data_api_app = FastAPI(title="SV Inversión AI - Data API")
@@ -132,6 +133,11 @@ async def data_config(request: Request):
 @data_api_app.api_route("/automaton/status", methods=["GET", "POST"])
 def data_automaton_status():
     return bot.automaton.get_status_dict()
+
+@data_api_app.api_route("/robustness", methods=["GET", "POST"])
+def data_robustness(symbol: str = "BTCEUR", interval: str = "1h", limit: int = 500, mode: str = "MULTI"):
+    tester = RobustnessBacktester(config=bot.config)
+    return tester.evaluate_robustness(symbol=symbol, interval=interval, limit=limit, strategy_mode=mode)
 
 @data_api_app.api_route("/automaton/fund", methods=["GET", "POST"])
 async def data_automaton_fund(request: Request, amount: float = 5.0):
