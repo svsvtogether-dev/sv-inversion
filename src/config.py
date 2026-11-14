@@ -59,6 +59,12 @@ CONFIG = {
     "early_take_profit_pct": 3.5,   # Ganancia mínima para salidas técnicas dinámicas
     "rsi_buy_threshold": 29.0,      # Comprar solo cuando RSI entra en sobreventa genuina (<= 29)
     "rsi_sell_threshold": 85.0,     # No cortar tendencias por RSI temprano; manda el Trailing Stop 2.0x ATR
+    "breakout_donchian_period": 20, # Ventana Donchian validada en Walk-Forward (shift 1, sin look-ahead)
+    "breakout_atr_mult": 2.0,       # Multiplicador ATR del Trailing Stop (validado 2.0x)
+    "breakout_min_trail_pct": 2.0,  # Margen mínimo del Trailing Stop (2.0%)
+    "breakout_ema_exit_factor": 0.985, # Cierre si pierde EMA 50 por >1.5%
+    "breakout_volume_min_ratio": 1.1,  # Volumen mínimo confirmado (>= 1.10x media 20)
+    "max_drawdown_pct": 15.0,       # Freno por drawdown total (-15% desde máximo exige reinicio manual)
     "sma_period": 50,               # Período de la Media Móvil Simple (SMA) para filtro de tendencia macro
     "hma_period": 50,               # Período de la Media Móvil de Hull (HMA) de respuesta rápida sin retraso
     "session_filter_enabled": True, # Filtro de liquidez horaria institucional (Sesión NY / Londres 13-17 UTC)

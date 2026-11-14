@@ -1,7 +1,8 @@
 import os
+import hmac
 from typing import Optional
 from pathlib import Path
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
@@ -109,14 +110,17 @@ def data_emergency_sell():
     return {"message": f"Se liquidaron {sold} posiciones"}
 
 @data_api_app.get("/export_csv")
-def data_export_csv():
-    port = bot.get_active_portfolio()
+def data_export_csv(request: Request, token: Optional[str] = None):
+    expected_key = os.getenv("EXPORT_API_KEY", "").strip()
+    provided_key = (request.headers.get("X-API-Key") or token or "").strip()
+    if not expected_key or not provided_key or not hmac.compare_digest(provided_key, expected_key):
+        raise HTTPException(status_code=401, detail="No autorizado: requiere EXPORT_API_KEY válida")
+    port = bot.portfolio
     csv_text = port.export_trades_csv_text()
-    filename = f"trades_{port.environment}.csv"
     return PlainTextResponse(
         content=csv_text,
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": 'attachment; filename="trades_history.csv"'},
     )
 
 @data_api_app.api_route("/config", methods=["GET", "POST"])

@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Dict, Optional, Tuple, List
 from .trading_council import TradingCouncil
 from .shadow_tracker import ShadowTracker
+from .signals import evaluate_breakout_exit_signal
 
 class AutomatonBrain:
     """
@@ -318,92 +319,34 @@ class AutomatonBrain:
         if avg_price <= 0 or price <= 0:
             return "HOLD", 0.0, "Precio no disponible"
 
-        pnl_pct = ((price - avg_price) / avg_price) * 100.0
-        dca_count = position.get("dca_count", 1)
-
-        # Seguimiento de máxima ganancia alcanzada para Trailing y Break-Even
         highest_price = position.get("highest_price", avg_price)
         if price > highest_price:
             position["highest_price"] = price
             highest_price = price
-        max_gain_pct = ((highest_price - avg_price) / avg_price) * 100.0
 
-        # JERARQUÍA 1: BREAK-EVEN PROTECTOR (+2.8% trigger -> asegura +0.50%, solo DCA)
-        strategy_tag = position.get("strategy_tag", "DCA_REVERSION")
-        breakeven_trigger = config.get("breakeven_trigger_pct", 2.8)
-        if strategy_tag != "TREND_BREAKOUT" and max_gain_pct >= breakeven_trigger:
-            if pnl_pct <= 0.50:
-                reason = f"🛡️ [Automaton {self.tier}] Break-Even Protector ejecutado: asegurado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}%)"
-                self.add_thought(f"Break-Even ejecutado en {symbol}: beneficio asegurado de +{pnl_pct:.2f}%.")
-                return "SELL", 0.0, reason
-
-        # JERARQUÍA 2: TRAILING STOP DINÁMICO POR ATR (Trend Breakout sin techo fijo)
-        atr_pct = analysis.get("atr_pct", 1.5)
+        atr_pct = float(analysis.get("atr_pct", 1.5))
         ema_trend = float(analysis.get("ema_trend", 0.0))
-        if strategy_tag == "TREND_BREAKOUT":
-            trail_dist = max(2.0, atr_pct * 2.0)
-            trail_floor = max_gain_pct - trail_dist
-            if max_gain_pct >= 1.5 and pnl_pct <= trail_floor:
-                reason = f"🚀 [Automaton {self.tier}] Trailing Stop ATR Trend ejecutado: capturado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}% | Margen 2.0xATR: {trail_dist:.2f}%)"
-                self.add_thought(f"Trailing Trend ejecutado en {symbol}: +{pnl_pct:.2f}%.")
-                return "SELL", 0.0, reason
-            if ema_trend > 0 and price < ema_trend * 0.985 and pnl_pct > -5.0:
-                reason = f"📉 [Automaton {self.tier}] Pérdida de EMA 50 en Trend Breakout ({pnl_pct:+.2f}%). Cerrando tendencia."
-                self.add_thought(f"Salida por pérdida de EMA 50 en {symbol}: {pnl_pct:+.2f}%.")
-                return "SELL", 0.0, reason
-        elif max_gain_pct >= 3.0:
-            trailing_distance = max(1.2, atr_pct * 1.2)
-            trailing_floor = max_gain_pct - trailing_distance
-            if trailing_floor >= 0.8 and pnl_pct <= trailing_floor:
-                reason = f"🚀 [Automaton {self.tier}] Trailing Stop ATR ejecutado ({strategy_tag}): capturado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}% | Margen ATR: {trailing_distance:.2f}%)"
-                self.add_thought(f"Trailing Stop ejecutado en {symbol}: capturado +{pnl_pct:.2f}%.")
-                return "SELL", 0.0, reason
 
-        # Parámetros fijos y versionados (sin autocalibración dinámica para mantener paridad 1:1 con el backtest)
-        base_tp = float(config.get("take_profit_pct", 25.0))
-        if strategy_tag == "TREND_BREAKOUT":
-            base_tp = 25.0
-        base_sl = float(config.get("stop_loss_pct", -4.5))
-        target_tp = base_tp
-        stop_loss = base_sl
+        should_sell, reason, pnl_pct, _ = evaluate_breakout_exit_signal(
+            price=price,
+            entry_price=avg_price,
+            highest_price=highest_price,
+            atr_pct=atr_pct,
+            ema_50=ema_trend,
+            sl_pct=float(config.get("stop_loss_pct", -4.5)),
+            atr_mult=float(config.get("breakout_atr_mult", 2.0)),
+            min_trail_pct=float(config.get("breakout_min_trail_pct", 2.0)),
+            ema_exit_factor=float(config.get("breakout_ema_exit_factor", 0.985)),
+            tp_pct=float(config.get("take_profit_pct", 25.0)),
+        )
+        if should_sell:
+            full_reason = f"[Automaton] {reason}"
+            self.add_thought(f"Venta en {symbol}: {reason}")
+            return "SELL", 0.0, full_reason
 
-        # 1. Take Profit
-        if pnl_pct >= target_tp:
-            reason = f"🎯 [Automaton {self.tier}] Take Profit alcanzado: +{pnl_pct:.2f}% (Meta: +{target_tp:.1f}%). Cerrando posición para nutrir la tesorería de cómputo."
-            self.add_thought(f"Venta ejecutada en {symbol}: ganancia neta de +{pnl_pct:.2f}%. Saldo asegurado.")
-            return "SELL", 0.0, reason
-
-        # 2. Toma técnica de beneficios por sobrecompra extrema (solo para DCA, no corta tendencias)
-        rsi_sell = config.get("rsi_sell_threshold", 85.0)
-        if strategy_tag != "TREND_BREAKOUT" and rsi >= rsi_sell and pnl_pct >= 1.2:
-            reason = f"📈 [Automaton {self.tier}] Sobrecompra técnica detectada (RSI {rsi:.1f} >= {rsi_sell:.0f}) con P&L favorable (+{pnl_pct:.2f}%). Asegurando beneficio."
-            self.add_thought(f"Venta técnica en {symbol}: RSI {rsi:.1f} en techo. Tomando ganancias.")
-            return "SELL", 0.0, reason
-
-        # 3. Stop Loss de Protección Estricta
-        if pnl_pct <= stop_loss:
-            reason = f"🛑 [Automaton {self.tier}] Stop Loss activado: {pnl_pct:.2f}% (Límite: {stop_loss:.1f}%). Preservando capital para evitar la ruina."
-            self.add_thought(f"Corte defensivo en {symbol} a {pnl_pct:.2f}%. Protegiendo la cartera de caídas mayores.")
-            return "SELL", 0.0, reason
-
-        # 4. Sin promediar a la baja (1 entrada única por operación)
-        max_dca = 1
-        dca_step_drop = 1.8
-        min_order = config.get("min_order_eur", 5.0)
-        order_amount = config.get("order_amount_eur", 5.0)
-
-        # En modo crítico no permitimos DCA para no apalancar riesgo
-        if self.tier != "CRITICAL" and dca_count < max_dca and cash >= min_order:
-            drop_needed = -(dca_count * dca_step_drop)
-            if pnl_pct <= drop_needed and rsi <= config.get("rsi_buy_threshold", 32.0):
-                dca_eur = min(cash, order_amount)
-                reason = f"📉 [Automaton {self.tier}] Entrada DCA #{dca_count+1}: Descuento de {pnl_pct:.2f}% con RSI {rsi:.1f}. Promediando precio a la baja."
-                self.add_thought(f"Aplicando DCA en {symbol}: mejorando precio de entrada medio tras caída de {pnl_pct:.2f}%.")
-                return "BUY", dca_eur, reason
-
-        # Vigilancia activa
-        self.add_thought(f"Vigilando {symbol} ({pnl_pct:+.2f}%): RSI {rsi:.1f} | Meta TP: +{target_tp:.1f}% | Preservando capital.")
-        return "HOLD", 0.0, f"[Automaton {self.tier}] Posición vigilada: P&L {pnl_pct:+.2f}% | RSI {rsi:.1f} | Meta: +{target_tp:.1f}%"
+        # Vigilancia activa (sin promediar a la baja)
+        self.add_thought(f"Vigilando {symbol} ({pnl_pct:+.2f}%): RSI {rsi:.1f} | Trailing 2.0x ATR activo.")
+        return "HOLD", 0.0, f"[Automaton] Posición vigilada: P&L {pnl_pct:+.2f}% | RSI {rsi:.1f}"
 
     def record_trade_exit(
         self,

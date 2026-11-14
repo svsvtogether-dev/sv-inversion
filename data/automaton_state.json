@@ -1,16 +1,16 @@
 {
   "agent_name": "Automaton-Alpha",
   "wallet_address": "0x23A2Eada6209437ad501361c26Ea57497484E902",
-  "treasury_eur": 47.66,
-  "treasury_usd": 47.66,
+  "treasury_eur": 42.9,
+  "treasury_usd": 42.9,
   "total_burned_usd": 0.0,
   "total_earned_usd": 0.0,
   "tier": "NORMAL",
   "is_alive": true,
-  "cycle_count": 1,
+  "cycle_count": 4,
   "birth_time": "2026-11-06T13:00:00.000Z",
   "burn_rate_per_cycle": 0.002,
-  "last_thought": "🛡️ [DEFENSA] Posición cerrada con pérdida controlada (€-0.4517). Preservando liquidez.",
+  "last_thought": "🛡️ [DEFENSA] Posición cerrada con pérdida controlada (€-0.5706). Preservando liquidez.",
   "thought_history": [
     {
       "time": "13:00:00",
@@ -26,10 +26,47 @@
       "time": "21:45:25",
       "thought": "🛡️ [DEFENSA] Posición cerrada con pérdida controlada (€-0.4517). Preservando liquidez.",
       "tier": "NORMAL"
+    },
+    {
+      "time": "22:58:48",
+      "thought": "Venta en ETHEUR: 🛑 Stop Loss activado: -13.56% (Límite: -4.5%)",
+      "tier": "NORMAL"
+    },
+    {
+      "time": "22:58:48",
+      "thought": "🛡️ [DEFENSA] Posición cerrada con pérdida controlada (€-1.3560). Preservando liquidez.",
+      "tier": "NORMAL"
+    },
+    {
+      "time": "22:59:02",
+      "thought": "Venta en BNBEUR: 🛑 Stop Loss activado: -12.90% (Límite: -4.5%)",
+      "tier": "NORMAL"
+    },
+    {
+      "time": "22:59:02",
+      "thought": "🛑 [CIRCUIT BREAKER] Límite de pérdida diaria superado (-€3.96 <= -€1.50). Pausando compras para proteger el capital.",
+      "tier": "NORMAL"
+    },
+    {
+      "time": "22:59:02",
+      "thought": "🛡️ [DEFENSA] Posición cerrada con pérdida controlada (€-2.6028). Preservando liquidez.",
+      "tier": "NORMAL"
+    },
+    {
+      "time": "22:59:18",
+      "thought": "Venta en BTCEUR: 🛑 Stop Loss activado: -11.23% (Límite: -4.5%)",
+      "tier": "NORMAL"
+    },
+    {
+      "time": "22:59:18",
+      "thought": "🛡️ [DEFENSA] Posición cerrada con pérdida controlada (€-0.5706). Preservando liquidez.",
+      "tier": "NORMAL"
     }
   ],
-  "today_date": "2026-11-12",
-  "daily_realized_pnl_eur": -0.4517,
-  "circuit_breaker_active": false,
-  "updated_at": "2026-11-12T21:45:25.159350"
+  "today_date": "2026-11-14",
+  "daily_realized_pnl_eur": -4.5294,
+  "circuit_breaker_active": true,
+  "peak_equity_eur": 50.0,
+  "drawdown_kill_switch": false,
+  "updated_at": "2026-11-14T22:59:18.244710"
 }

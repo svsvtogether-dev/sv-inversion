@@ -2,43 +2,54 @@
   "environment": "simulation",
   "initial_capital": 50.0,
   "fee_rate": 0.001,
-  "cash": 12.6519,
-  "positions": {
-    "ETHEUR": {
-      "symbol": "ETHEUR",
-      "amount": 0.005367644729795551,
-      "avg_entry_price": 1861.1515,
-      "current_price": 1871.2,
-      "total_cost_eur": 10.0,
-      "current_value_eur": 10.0439,
-      "unrealized_pnl_eur": 0.0439,
-      "unrealized_pnl_pct": 0.44,
-      "dca_count": 2
-    },
-    "BNBEUR": {
-      "symbol": "BNBEUR",
-      "amount": 0.03314891294442065,
-      "avg_entry_price": 602.7347,
-      "current_price": 604.31,
-      "total_cost_eur": 20.0,
-      "current_value_eur": 20.0322,
-      "unrealized_pnl_eur": 0.0322,
-      "unrealized_pnl_pct": 0.16,
-      "dca_count": 4
-    },
-    "BTCEUR": {
-      "symbol": "BTCEUR",
-      "amount": 7.577993022784802e-05,
-      "avg_entry_price": 65914.55,
-      "current_price": 65759.92,
-      "total_cost_eur": 5.0,
-      "current_value_eur": 4.9833,
-      "unrealized_pnl_eur": -0.0167,
-      "unrealized_pnl_pct": -0.33,
-      "dca_count": 1
-    }
-  },
+  "cash": 42.9067,
+  "positions": {},
   "trades": [
+    {
+      "id": 33,
+      "environment": "simulation",
+      "timestamp": "2026-11-14 22:59:18",
+      "symbol": "BTCEUR",
+      "side": "SELL",
+      "price": 58509.3,
+      "quantity": 7.577993022784802e-05,
+      "amount_eur": 4.4294,
+      "fee_eur": 0.0044,
+      "realized_pnl_eur": -0.5706,
+      "swept_to_msci_eur": 0.0,
+      "pnl_pct": -11.41,
+      "reason": "[Automaton] \ud83d\uded1 Stop Loss activado: -11.23% (L\u00edmite: -4.5%)"
+    },
+    {
+      "id": 32,
+      "environment": "simulation",
+      "timestamp": "2026-11-14 22:59:02",
+      "symbol": "BNBEUR",
+      "side": "SELL",
+      "price": 524.99,
+      "quantity": 0.033,
+      "amount_eur": 17.3074,
+      "fee_eur": 0.0173,
+      "realized_pnl_eur": -2.6028,
+      "swept_to_msci_eur": 0.0,
+      "pnl_pct": -13.07,
+      "reason": "[Automaton] \ud83d\uded1 Stop Loss activado: -12.90% (L\u00edmite: -4.5%)"
+    },
+    {
+      "id": 31,
+      "environment": "simulation",
+      "timestamp": "2026-11-14 22:58:48",
+      "symbol": "ETHEUR",
+      "side": "SELL",
+      "price": 1608.77,
+      "quantity": 0.0053,
+      "amount_eur": 8.518,
+      "fee_eur": 0.0085,
+      "realized_pnl_eur": -1.356,
+      "swept_to_msci_eur": 0.0,
+      "pnl_pct": -13.73,
+      "reason": "[Automaton] \ud83d\uded1 Stop Loss activado: -13.56% (L\u00edmite: -4.5%)"
+    },
     {
       "id": 30,
       "environment": "simulation",
@@ -446,8 +457,8 @@
       "reason": "\ud83e\udd16 [Automaton NORMAL] Compra selectiva en BTCEUR: Sobreventa cuantitativa (RSI 31.9 <= 32.0) con puntuaci\u00f3n de convicci\u00f3n 70.2/100. Convicci\u00f3n: 70.2 pts (Requerida: 60)."
     }
   ],
-  "total_fees_paid": 0.1826,
-  "realized_pnl": -1.9332,
+  "total_fees_paid": 0.2128,
+  "realized_pnl": -6.4626,
   "msci_vault_eur": 0.0,
-  "last_updated": "2026-11-12T21:45:25.157130"
+  "last_updated": "2026-11-14T22:59:18.243116"
 }

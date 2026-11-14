@@ -185,16 +185,69 @@ class BinanceSpotClient:
         """Genera un ID único de orden (<= 36 chars) para evitar duplicados ante reintentos."""
         return f"sv_{symbol}_{side.upper()[:1]}_{int(time.time()*1000)}_{uuid.uuid4().hex[:6]}"[:36]
 
-    def place_market_order(self, symbol: str, side: str, quantity: float) -> Tuple[bool, Dict, str]:
-        """Envía una orden Market a Binance Spot con control de seguridad."""
+    def get_open_orders(self, symbol: str = "BTCEUR") -> Tuple[bool, List[Dict], str]:
+        """Consulta órdenes abiertas en Binance Spot para reconciliación."""
+        ok, data, msg = self._request("GET", "/api/v3/openOrders", {"symbol": symbol}, signed=True, timeout=6.0)
+        if not ok:
+            return False, [], msg
+        return True, (data if isinstance(data, list) else []), "OK"
+
+    def get_order_by_client_id(self, symbol: str, orig_client_order_id: str) -> Tuple[bool, Dict, str]:
+        """Consulta una orden por su newClientOrderId para evitar duplicados tras corte de red."""
+        return self._request(
+            "GET",
+            "/api/v3/order",
+            {"symbol": symbol, "origClientOrderId": orig_client_order_id},
+            signed=True,
+            timeout=5.0,
+        )
+
+    def reconcile_startup(self, symbol: str = "BTCEUR") -> Dict:
+        """Reconcilia saldo y órdenes abiertas con Binance al arrancar."""
+        if not self.is_configured():
+            return {"ok": False, "reason": "API no configurada", "eur_free": 0.0, "asset_free": 0.0, "open_orders_count": 0}
+        ok_b, acc_data, msg_b = self._request("GET", "/api/v3/account", {}, signed=True, timeout=6.0)
+        ok_o, orders, msg_o = self.get_open_orders(symbol)
+        base_asset = symbol.replace("EUR", "")
+        eur_free = 0.0
+        asset_free = 0.0
+        if ok_b and isinstance(acc_data, dict):
+            for b in acc_data.get("balances", []):
+                if b.get("asset") == "EUR":
+                    eur_free = float(b.get("free", 0.0))
+                elif b.get("asset") == base_asset:
+                    asset_free = float(b.get("free", 0.0))
+        return {
+            "ok": ok_b and ok_o,
+            "eur_free": eur_free,
+            "asset_free": asset_free,
+            "open_orders_count": len(orders) if ok_o else 0,
+            "open_orders": orders if ok_o else [],
+            "message": "Reconciliado OK" if (ok_b and ok_o) else f"{msg_b} | {msg_o}",
+        }
+
+    def place_market_order(
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        client_order_id: Optional[str] = None,
+    ) -> Tuple[bool, Dict, str]:
+        """Envía una orden Market a Binance Spot con control idempotente por clientOrderId."""
+        cid = client_order_id or self._new_client_order_id(symbol, side)
         params = {
             "symbol": symbol,
             "side": side.upper(),
             "type": "MARKET",
             "quantity": quantity,
-            "newClientOrderId": self._new_client_order_id(symbol, side),
+            "newClientOrderId": cid,
         }
         ok, data, msg = self._request("POST", "/api/v3/order", params, signed=True, timeout=8.0)
+        if not ok:
+            # Si hubo corte de red/timeout, comprobar si la orden ya entró en Binance antes de reintentar
+            q_ok, q_data, _ = self.get_order_by_client_id(symbol, cid)
+            if q_ok and q_data.get("orderId"):
+                return True, q_data, "Orden recuperada por origClientOrderId tras corte de red (sin duplicado)"
         return ok, data, ("Orden ejecutada con éxito" if ok else msg)
 
     def place_smart_order(self, symbol: str, side: str, quantity: float, wait_seconds: float = 3.2) -> Tuple[bool, Dict, str]:

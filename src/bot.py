@@ -17,7 +17,6 @@ if sys.platform == "win32":
 from .config import CONFIG, SUPPORTED_SYMBOLS, TOP4_SYMBOLS, MARKETS_CATALOG, DATA_DIR
 from .market_data import MarketDataFeed
 from .portfolio import Portfolio
-from .strategy import SmartDCAStrategy
 from .binance_client import BinanceSpotClient
 from .binance_rules import BinanceRulesEngine
 from .automaton_brain import AutomatonBrain
@@ -36,7 +35,6 @@ class TradingBot:
         self.live_trading_armed = False          # Cerrojo de seguridad para dinero real
         self.binance_client = BinanceSpotClient()
 
-        self.strategy = SmartDCAStrategy(self.config)
         # Cerebro soberano de inversión Conway Automaton
         self.automaton = AutomatonBrain(DATA_DIR)
 
@@ -214,10 +212,6 @@ class TradingBot:
         # 7. Estructura alcista de medias móviles (EMA 9 > EMA 21)
         if ema_fast > ema_slow:
             score += 10.0
-
-        # 8. Oráculo IA Kronos (Sesgo direccional de trayectorias)
-        kronos = analysis.get("kronos", {})
-        score += float(kronos.get("conviction_bonus", 0.0))
 
         return score
 
@@ -466,6 +460,13 @@ class TradingBot:
             time.sleep(self.config.get("check_interval_seconds", 6))
 
     def start(self):
+        if self.binance_client.is_configured():
+            rec = self.binance_client.reconcile_startup("BTCEUR")
+            self.log(
+                f"🔄 Reconciliación Binance al arrancar: ok={rec.get('ok')} | "
+                f"EUR={rec.get('eur_free', 0.0):.2f} | BTC={rec.get('asset_free', 0.0):.6f} | "
+                f"Órdenes abiertas={rec.get('open_orders_count', 0)}"
+            )
         if self._thread is None or not self._thread.is_alive():
             self._stop_event.clear()
             self._thread = threading.Thread(target=self.run_loop, daemon=True)

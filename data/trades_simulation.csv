@@ -1,0 +1,2 @@
+﻿id,timestamp,environment,symbol,side,strategy_tag,price,quantity,amount_eur,fee_eur,realized_pnl_eur,pnl_pct,reason
+1,2026-11-14 22:52:54,simulation,BTCEUR,BUY,TREND_BREAKOUT,60000.0,0.0008325,50.0,0.05,0.0,,Test Breakout

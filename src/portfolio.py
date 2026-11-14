@@ -267,22 +267,23 @@ class Portfolio:
         return trade
 
     def _csv_path(self) -> Path:
-        return DATA_DIR / f"trades_{self.environment}.csv"
+        return DATA_DIR / "trades_history.csv"
 
     def _append_trade_csv(self, trade: Dict):
-        """Registra cada operación en disco (CSV) para auditoría y control fiscal."""
+        """Registra cada operación en disco (data/trades_history.csv) para auditoría y control fiscal."""
         csv_fields = [
             "id", "timestamp", "environment", "symbol", "side", "strategy_tag",
-            "price", "quantity", "amount_eur", "fee_eur", "realized_pnl_eur", "pnl_pct", "reason"
+            "price", "quantity", "amount_eur", "fee_eur", "slippage_eur", "realized_pnl_eur", "pnl_pct", "reason"
         ]
         try:
             p = self._csv_path()
             is_new = not p.exists()
+            row = {k: trade.get(k, 0.0 if k == "slippage_eur" else "") for k in csv_fields}
             with open(p, "a", newline="", encoding="utf-8-sig") as f:
                 writer = csv.DictWriter(f, fieldnames=csv_fields, extrasaction="ignore")
                 if is_new:
                     writer.writeheader()
-                writer.writerow({k: trade.get(k, "") for k in csv_fields})
+                writer.writerow(row)
         except Exception as e:
             print(f"[Portfolio] Error guardando CSV: {e}")
 
@@ -290,13 +291,13 @@ class Portfolio:
         """Devuelve todo el historial actual en formato CSV listo para descarga."""
         csv_fields = [
             "id", "timestamp", "environment", "symbol", "side", "strategy_tag",
-            "price", "quantity", "amount_eur", "fee_eur", "realized_pnl_eur", "pnl_pct", "reason"
+            "price", "quantity", "amount_eur", "fee_eur", "slippage_eur", "realized_pnl_eur", "pnl_pct", "reason"
         ]
         buf = io.StringIO()
         writer = csv.DictWriter(buf, fieldnames=csv_fields, extrasaction="ignore")
         writer.writeheader()
         for t in reversed(self.trades):
-            writer.writerow({k: t.get(k, "") for k in csv_fields})
+            writer.writerow({k: t.get(k, 0.0 if k == "slippage_eur" else "") for k in csv_fields})
         return buf.getvalue()
 
     def get_summary(self, current_prices: Dict[str, float]) -> Dict:

@@ -1,7 +1,7 @@
 import random
 from typing import Dict, List, Optional
 from .market_data import MarketDataFeed
-from .trading_council import TradingCouncil
+from .signals import evaluate_breakout_entry_signal, evaluate_breakout_exit_signal
 from .config import CONFIG, TRADING_FEE_RATE
 
 
@@ -17,7 +17,6 @@ class RobustnessBacktester:
     def __init__(self, config: Optional[Dict] = None, fee_rate: float = TRADING_FEE_RATE):
         self.config = config or dict(CONFIG)
         self.fee_rate = fee_rate
-        self.council = TradingCouncil()
 
     def fetch_binance_klines(self, symbol: str = "BTCEUR", interval: str = "1h", limit: int = 500) -> List[Dict]:
         """Descarga velas históricas reales de Binance reutilizando MarketDataFeed."""
@@ -65,9 +64,7 @@ class RobustnessBacktester:
             "atr_pct": atr_pct,
             "candle_bullish": float(last_c["close"]) >= float(last_c["open"]),
             "session_info": {"is_institutional_window": True, "liquidity_tier": "HIGH"},
-            "kronos": {"available": False},
             "news_status": {"is_shield_active": False},
-            "smc": MarketDataFeed.calculate_smc_signals(window, conversion_factor=1.0),
             "regime": MarketDataFeed.calculate_regime(window),
         }
 
@@ -105,52 +102,47 @@ class RobustnessBacktester:
         cooldown_until = -1
         consecutive_losses = 0
 
-        tp_base = float(self.config.get("take_profit_pct", 3.5))
-        sl_base = float(self.config.get("stop_loss_pct", -3.0))
-        be_trigger = float(self.config.get("breakeven_trigger_pct", 1.6))
-        rsi_sell = float(self.config.get("rsi_sell_threshold", 68.0))
+        dd_kill_switch = False
+        dd_limit = float(self.config.get("max_drawdown_pct", 15.0))
+        sl_base = float(self.config.get("stop_loss_pct", -4.5))
+        tp_base = float(self.config.get("take_profit_pct", 25.0))
+        atr_mult = float(self.config.get("breakout_atr_mult", 2.0))
+        min_trail_pct = float(self.config.get("breakout_min_trail_pct", 2.0))
+        ema_exit_factor = float(self.config.get("breakout_ema_exit_factor", 0.985))
+        donchian_n = int(self.config.get("breakout_donchian_period", 20))
+        vol_min = float(self.config.get("breakout_volume_min_ratio", 1.1))
 
-        for i in range(warmup, len(candles)):
+        for i in range(warmup, len(candles) - 1):
             window = candles[: i + 1]
             analysis = self._build_bar_analysis(symbol, window)
             price = analysis["price"]
+            next_open = float(candles[i + 1].get("open", price))
 
             if position is not None:
                 entry_price = position["entry_price"]
                 if price > position["highest_price"]:
                     position["highest_price"] = price
 
-                raw_pnl_pct = ((price - entry_price) / entry_price) * 100.0
-                max_gain_pct = ((position["highest_price"] - entry_price) / entry_price) * 100.0
-                tag = position["strategy_tag"]
-                atr_pct = analysis["atr_pct"]
+                exit_triggered, _, _, _ = evaluate_breakout_exit_signal(
+                    price=price,
+                    entry_price=entry_price,
+                    highest_price=position["highest_price"],
+                    atr_pct=float(analysis["atr_pct"]),
+                    ema_50=float(analysis.get("ema_trend", 0.0)),
+                    sl_pct=sl_base,
+                    atr_mult=atr_mult,
+                    min_trail_pct=min_trail_pct,
+                    ema_exit_factor=ema_exit_factor,
+                    tp_pct=tp_base,
+                )
 
-                exit_triggered = False
-                if tag == "TREND_BREAKOUT":
-                    trail_floor = max_gain_pct - max(2.0, atr_pct * 2.5)
-                    ema_trend = float(analysis.get("ema_trend", 0.0))
-                    if (max_gain_pct >= 1.5 and raw_pnl_pct <= trail_floor) or (ema_trend > 0 and price < ema_trend * 0.985) or raw_pnl_pct <= -5.0:
-                        exit_triggered = True
-                else:
-                    if max_gain_pct >= be_trigger and raw_pnl_pct <= 0.50:
-                        exit_triggered = True
-                    elif max_gain_pct >= 3.0:
-                        trail_floor = max_gain_pct - max(1.2, atr_pct * 1.2)
-                        if trail_floor >= 0.8 and raw_pnl_pct <= trail_floor:
-                            exit_triggered = True
-                    if not exit_triggered:
-                        bb_mid = float(analysis.get("bb_middle", 0.0))
-                        if raw_pnl_pct >= tp_base or raw_pnl_pct <= sl_base:
-                            exit_triggered = True
-                        elif bb_mid > 0 and price >= bb_mid and raw_pnl_pct >= 1.5:
-                            exit_triggered = True
-                        elif analysis["rsi"] >= rsi_sell and raw_pnl_pct >= 2.0:
-                            exit_triggered = True
-
-                if exit_triggered or i == len(candles) - 1:
+                if exit_triggered or i == len(candles) - 2:
+                    exec_exit = next_open if next_open > 0 else price
+                    raw_pnl_pct = ((exec_exit - entry_price) / entry_price) * 100.0
                     net_ret_pct = raw_pnl_pct - (self.fee_rate * 2.0 * 100.0)
                     equity *= 1.0 + (net_ret_pct / 100.0)
                     trade_returns.append(round(net_ret_pct, 4))
+                    tag = position["strategy_tag"]
                     breakdown[tag] = breakdown.get(tag, 0) + 1
                     position = None
                     if net_ret_pct < 0:
@@ -165,21 +157,24 @@ class RobustnessBacktester:
                     dd = ((peak_equity - equity) / peak_equity) * 100.0 if peak_equity > 0 else 0.0
                     if dd > max_dd_pct:
                         max_dd_pct = dd
+                    if dd >= dd_limit:
+                        dd_kill_switch = True
             else:
-                if strategy_mode == "DCA_REVERSION":
-                    debate = self.council.debate_entry(symbol, analysis, equity, self.config)
-                elif strategy_mode == "TREND_BREAKOUT":
-                    debate = self.council.debate_breakout_entry(symbol, analysis, equity, self.config)
-                else:
-                    debate = self.council.debate_multi_strategy(
-                        symbol, analysis, equity, self.config, pair_cooldown_active=(i <= cooldown_until)
-                    )
-
-                if debate.get("approved"):
+                if dd_kill_switch or i <= cooldown_until:
+                    continue
+                sig = evaluate_breakout_entry_signal(
+                    symbol=symbol,
+                    analysis=analysis,
+                    open_positions_count=0,
+                    donchian_period=donchian_n,
+                    volume_min_ratio=vol_min,
+                )
+                if sig.get("approved"):
+                    exec_entry = next_open if next_open > 0 else price
                     position = {
-                        "entry_price": price,
-                        "highest_price": price,
-                        "strategy_tag": debate.get("strategy_tag", "DCA_REVERSION"),
+                        "entry_price": exec_entry,
+                        "highest_price": exec_entry,
+                        "strategy_tag": sig.get("strategy_tag", "TREND_BREAKOUT"),
                     }
 
         wins = [r for r in trade_returns if r > 0]
