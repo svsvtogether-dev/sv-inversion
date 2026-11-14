@@ -436,7 +436,25 @@ def test_all():
         assert mem_brain.daily_realized_pnl_eur == 0.0
         assert mem_brain.recent_closed_trades == []
         assert mem_brain.pair_cooldowns == {}
-    print("Recent Trade Loss Memory & reset_session test passed")
+        assert mem_brain.drawdown_kill_switch is False
+
+        # 17. Test Drawdown Kill-Switch (-15%), Fixed SL, ClientOrderId & CSV Export
+        mem_brain.update_equity_drawdown(60.0)
+        assert mem_brain.peak_equity_eur == 60.0
+        assert mem_brain.update_equity_drawdown(50.5) is True  # -15.8% >= 15%
+        _, _, dd_amt, dd_reason = mem_brain.evaluate_new_entry({"BTCEUR": breakout_btc}, 50.0, CONFIG)
+        assert dd_amt == 0.0 and "Drawdown Kill-Switch" in dd_reason
+
+        cid1 = b_client._new_client_order_id("BTCEUR", "BUY")
+        cid2 = b_client._new_client_order_id("BTCEUR", "BUY")
+        assert cid1 != cid2 and len(cid1) <= 36
+
+        from src.portfolio import Portfolio
+        tmp_port = Portfolio(storage_path=Path(tmpdir_mem) / "p.json", environment="simulation", initial_capital=50.0)
+        tmp_port.buy("BTCEUR", 50.0, 60000.0, "Test Breakout", strategy_tag="TREND_BREAKOUT")
+        csv_out = tmp_port.export_trades_csv_text()
+        assert "id,timestamp,environment,symbol,side" in csv_out and "BTCEUR" in csv_out
+    print("Recent Trade Loss Memory, Drawdown Kill-Switch, ClientOrderId & CSV Export tests passed")
 
     print(">>> 100% OF QUANTITATIVE UNIT TESTS PASSED SUCCESSFULLY! <<<")
 

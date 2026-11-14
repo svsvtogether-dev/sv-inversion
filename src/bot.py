@@ -385,6 +385,9 @@ class TradingBot:
         btc_health = self.feed.get_btc_macro_health(interval=self.config.get("candle_interval", "4h"))
         with self._lock:
             self.automaton.shadow_tracker.update_with_analyses(analyses)
+            cur_prices = {s: float(a.get("price", 0.0)) for s, a in analyses.items() if a.get("price", 0.0) > 0}
+            cur_equity = active_port.get_summary(cur_prices).get("total_value_eur", active_port.cash)
+            self.automaton.update_equity_drawdown(cur_equity)
             cash = active_port.cash
             best_buy_sym, best_buy_analysis, best_buy_amount, best_buy_reason = self.automaton.evaluate_new_entry(
                 analyses,

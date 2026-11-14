@@ -3,7 +3,7 @@ from typing import Optional
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
 from src.bot import TradingBot
 from src.config import CONFIG
@@ -107,6 +107,17 @@ async def data_reset(request: Request, capital: float = 15.0):
 def data_emergency_sell():
     sold = bot.emergency_sell_all()
     return {"message": f"Se liquidaron {sold} posiciones"}
+
+@data_api_app.get("/export_csv")
+def data_export_csv():
+    port = bot.get_active_portfolio()
+    csv_text = port.export_trades_csv_text()
+    filename = f"trades_{port.environment}.csv"
+    return PlainTextResponse(
+        content=csv_text,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 @data_api_app.api_route("/config", methods=["GET", "POST"])
 async def data_config(request: Request):

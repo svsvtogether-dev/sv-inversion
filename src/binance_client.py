@@ -3,6 +3,7 @@ import time
 import hmac
 import hashlib
 import json
+import uuid
 import urllib.request
 import urllib.parse
 from pathlib import Path
@@ -180,6 +181,10 @@ class BinanceSpotClient:
             return float(data.get("bidPrice", 0.0)), float(data.get("askPrice", 0.0))
         return 0.0, 0.0
 
+    def _new_client_order_id(self, symbol: str, side: str) -> str:
+        """Genera un ID único de orden (<= 36 chars) para evitar duplicados ante reintentos."""
+        return f"sv_{symbol}_{side.upper()[:1]}_{int(time.time()*1000)}_{uuid.uuid4().hex[:6]}"[:36]
+
     def place_market_order(self, symbol: str, side: str, quantity: float) -> Tuple[bool, Dict, str]:
         """Envía una orden Market a Binance Spot con control de seguridad."""
         params = {
@@ -187,6 +192,7 @@ class BinanceSpotClient:
             "side": side.upper(),
             "type": "MARKET",
             "quantity": quantity,
+            "newClientOrderId": self._new_client_order_id(symbol, side),
         }
         ok, data, msg = self._request("POST", "/api/v3/order", params, signed=True, timeout=8.0)
         return ok, data, ("Orden ejecutada con éxito" if ok else msg)
@@ -218,6 +224,7 @@ class BinanceSpotClient:
                 "type": "LIMIT_MAKER",
                 "quantity": quantity,
                 "price": price_str,
+                "newClientOrderId": self._new_client_order_id(symbol, side_u),
             },
             signed=True,
             timeout=6.0,

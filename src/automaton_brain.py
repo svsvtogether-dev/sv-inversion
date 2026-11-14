@@ -64,6 +64,11 @@ class AutomatonBrain:
         self.daily_realized_pnl_eur = 0.0
         self.max_daily_loss_eur = 1.50
         self.circuit_breaker_active = False
+
+        # Freno por Drawdown Total (-15% desde el pico máximo exige reinicio manual)
+        self.peak_equity_eur = float(self.initial_treasury)
+        self.max_drawdown_pct_limit = 15.0
+        self.drawdown_kill_switch = False
         
         # Cargar estado previo si existe
         self._load_state()
@@ -106,6 +111,8 @@ class AutomatonBrain:
                     self.today_date = s.get("today_date", self.today_date)
                     self.daily_realized_pnl_eur = float(s.get("daily_realized_pnl_eur", 0.0))
                     self.circuit_breaker_active = bool(s.get("circuit_breaker_active", False))
+                    self.peak_equity_eur = float(s.get("peak_equity_eur", self.initial_treasury))
+                    self.drawdown_kill_switch = bool(s.get("drawdown_kill_switch", False))
                     self._check_day_reset()
                     self._update_tier()
             except Exception as e:
@@ -120,7 +127,7 @@ class AutomatonBrain:
             self.circuit_breaker_active = False
 
     def reset_session(self, initial_capital: float = 50.0):
-        """Reinicia el estado operativo del autómata al resetear la cartera (Circuit Breaker, cooldowns y memoria)."""
+        """Reinicia el estado operativo del autómata al resetear la cartera (Circuit Breaker, Drawdown, cooldowns y memoria)."""
         self.treasury_eur = float(initial_capital)
         self.initial_treasury_eur = float(initial_capital)
         self.total_earned_usd = 0.0
@@ -128,12 +135,30 @@ class AutomatonBrain:
         self.today_date = datetime.now().strftime("%Y-%m-%d")
         self.daily_realized_pnl_eur = 0.0
         self.circuit_breaker_active = False
+        self.peak_equity_eur = float(initial_capital)
+        self.drawdown_kill_switch = False
         self.pair_cooldowns = {}
         self.recent_sl_times = {}
         self.recent_closed_trades = []
         self._update_tier()
-        self.add_thought(f"🔄 Sesión reiniciada a €{self.treasury_eur:.2f}: Circuit Breaker, cooldowns y memoria limpios.")
+        self.add_thought(f"🔄 Sesión reiniciada a €{self.treasury_eur:.2f}: Circuit Breaker, Drawdown, cooldowns y memoria limpios.")
         self.save_state()
+
+    def update_equity_drawdown(self, current_equity_eur: float) -> bool:
+        """Actualiza el pico de patrimonio y activa el Kill-Switch si cae >= 15% desde el máximo."""
+        if current_equity_eur <= 0:
+            return self.drawdown_kill_switch
+        if current_equity_eur > self.peak_equity_eur:
+            self.peak_equity_eur = float(current_equity_eur)
+        if self.peak_equity_eur > 0:
+            dd_pct = ((self.peak_equity_eur - current_equity_eur) / self.peak_equity_eur) * 100.0
+            if dd_pct >= self.max_drawdown_pct_limit and not self.drawdown_kill_switch:
+                self.drawdown_kill_switch = True
+                self.add_thought(
+                    f"🛑 [Drawdown Kill-Switch] Caída del {dd_pct:.1f}% desde pico €{self.peak_equity_eur:.2f}. Compras pausadas hasta reinicio manual."
+                )
+                self.save_state()
+        return self.drawdown_kill_switch
 
     def save_state(self):
         """Guarda el estado del autómata de forma atómica."""
@@ -156,6 +181,8 @@ class AutomatonBrain:
                 "today_date": self.today_date,
                 "daily_realized_pnl_eur": round(self.daily_realized_pnl_eur, 4),
                 "circuit_breaker_active": self.circuit_breaker_active,
+                "peak_equity_eur": round(self.peak_equity_eur, 4),
+                "drawdown_kill_switch": self.drawdown_kill_switch,
                 "updated_at": datetime.now().isoformat()
             }
             with open(self.state_file, "w", encoding="utf-8") as f:
@@ -332,23 +359,13 @@ class AutomatonBrain:
                 self.add_thought(f"Trailing Stop ejecutado en {symbol}: capturado +{pnl_pct:.2f}%.")
                 return "SELL", 0.0, reason
 
-        # Objetivos dinámicos según el estado vital de Automaton y la estrategia
-        base_tp = config.get("take_profit_pct", 6.0)
+        # Parámetros fijos y versionados (sin autocalibración dinámica para mantener paridad 1:1 con el backtest)
+        base_tp = float(config.get("take_profit_pct", 25.0))
         if strategy_tag == "TREND_BREAKOUT":
-            base_tp = 25.0  # Sin techo fijo corto: deja correr la tendencia hasta Trailing 2.5x ATR
-        base_sl = config.get("stop_loss_pct", -4.5)
-
-        if self.tier == "CRITICAL":
-            # En crítico: asegurar cualquier beneficio para no morir (toma de ganancias anticipada)
-            target_tp = max(1.5, base_tp * 0.5)
-            stop_loss = max(-2.0, base_sl * 0.7)  # Corta pérdidas antes para preservar capital
-        elif self.tier == "LOW_COMPUTE":
-            target_tp = max(2.2, base_tp * 0.8)
-            stop_loss = base_sl
-        else:
-            # Modo NORMAL: deja correr los beneficios hacia el objetivo óptimo
-            target_tp = base_tp
-            stop_loss = base_sl
+            base_tp = 25.0
+        base_sl = float(config.get("stop_loss_pct", -4.5))
+        target_tp = base_tp
+        stop_loss = base_sl
 
         # 1. Take Profit
         if pnl_pct >= target_tp:
@@ -470,6 +487,12 @@ class AutomatonBrain:
         if not self.is_alive:
             return None, None, 0.0, "💀 Automaton está DEAD. No se abren operaciones hasta recargar cómputo."
 
+        # Freno por Drawdown Total (-15% desde el pico máximo)
+        if self.drawdown_kill_switch:
+            reason = f"🛑 [Drawdown Kill-Switch] Caída >= {self.max_drawdown_pct_limit:.0f}% desde máximo (€{self.peak_equity_eur:.2f}). Reinicio manual requerido."
+            self.add_thought(reason)
+            return None, None, 0.0, reason
+
         # Circuit Breaker: si la pérdida acumulada hoy excede el límite de seguridad, pausar compras
         self._check_day_reset()
         if self.circuit_breaker_active:
@@ -576,9 +599,11 @@ class AutomatonBrain:
             "council_debate": self.last_council_debate,
             "shadow_tracker": self.shadow_tracker.get_summary(),
             "risk_level": "MODERADO" if self.tier == "NORMAL" else ("ALTO" if self.tier == "LOW_COMPUTE" else ("EXTREMO" if self.tier == "CRITICAL" else "APAGADO")),
-            "target_tp_pct": 3.5 if self.tier == "NORMAL" else (2.2 if self.tier == "LOW_COMPUTE" else 1.5),
-            "stop_loss_pct": -3.0 if self.tier != "CRITICAL" else -2.0,
-            "dca_enabled": self.tier != "CRITICAL" and self.tier != "DEAD",
+            "target_tp_pct": 25.0,
+            "stop_loss_pct": -4.5,
+            "dca_enabled": False,
+            "peak_equity_eur": round(self.peak_equity_eur, 2),
+            "drawdown_kill_switch": self.drawdown_kill_switch,
             "circuit_breaker": {
                 "active": self.circuit_breaker_active,
                 "daily_realized_pnl_eur": round(self.daily_realized_pnl_eur, 4),

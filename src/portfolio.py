@@ -1,4 +1,6 @@
 import os
+import csv
+import io
 import json
 import time
 from datetime import datetime
@@ -191,6 +193,7 @@ class Portfolio:
             "reason": reason
         }
         self.trades.insert(0, trade)
+        self._append_trade_csv(trade)
         self.save()
         return trade
 
@@ -259,8 +262,42 @@ class Portfolio:
             "reason": reason
         }
         self.trades.insert(0, trade)
+        self._append_trade_csv(trade)
         self.save()
         return trade
+
+    def _csv_path(self) -> Path:
+        return DATA_DIR / f"trades_{self.environment}.csv"
+
+    def _append_trade_csv(self, trade: Dict):
+        """Registra cada operación en disco (CSV) para auditoría y control fiscal."""
+        csv_fields = [
+            "id", "timestamp", "environment", "symbol", "side", "strategy_tag",
+            "price", "quantity", "amount_eur", "fee_eur", "realized_pnl_eur", "pnl_pct", "reason"
+        ]
+        try:
+            p = self._csv_path()
+            is_new = not p.exists()
+            with open(p, "a", newline="", encoding="utf-8-sig") as f:
+                writer = csv.DictWriter(f, fieldnames=csv_fields, extrasaction="ignore")
+                if is_new:
+                    writer.writeheader()
+                writer.writerow({k: trade.get(k, "") for k in csv_fields})
+        except Exception as e:
+            print(f"[Portfolio] Error guardando CSV: {e}")
+
+    def export_trades_csv_text(self) -> str:
+        """Devuelve todo el historial actual en formato CSV listo para descarga."""
+        csv_fields = [
+            "id", "timestamp", "environment", "symbol", "side", "strategy_tag",
+            "price", "quantity", "amount_eur", "fee_eur", "realized_pnl_eur", "pnl_pct", "reason"
+        ]
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=csv_fields, extrasaction="ignore")
+        writer.writeheader()
+        for t in reversed(self.trades):
+            writer.writerow({k: t.get(k, "") for k in csv_fields})
+        return buf.getvalue()
 
     def get_summary(self, current_prices: Dict[str, float]) -> Dict:
         """Calcula el estado consolidado de la cuenta, P&L no realizado, y métricas."""
