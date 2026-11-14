@@ -22,20 +22,31 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 STATIC_DIR.mkdir(exist_ok=True)
 
+
+def _require_api_auth(request: Request, token: Optional[str] = None) -> None:
+    """Exige EXPORT_API_KEY / ADMIN_API_KEY en endpoints de control y exportación."""
+    expected_key = (os.getenv("ADMIN_API_KEY") or os.getenv("EXPORT_API_KEY") or "").strip()
+    provided_key = (request.headers.get("X-API-Key") or token or "").strip()
+    if not expected_key or not provided_key or not hmac.compare_digest(provided_key, expected_key):
+        raise HTTPException(status_code=401, detail="No autorizado: requiere X-API-Key o token válido")
+
+
 # Definición de endpoints en data_api_app (para paths relativos a /data_api o /static/api)
 @data_api_app.api_route("/status", methods=["GET", "POST"])
 def data_status():
     return bot.get_state()
 
 @data_api_app.api_route("/toggle", methods=["GET", "POST"])
-def data_toggle():
+def data_toggle(request: Request, token: Optional[str] = None):
+    _require_api_auth(request, token)
     bot.is_running = not bot.is_running
     state_str = "activo" if bot.is_running else "en pausa"
     bot.log(f"Bot marcado como {state_str} por el usuario.")
     return {"is_running": bot.is_running}
 
 @data_api_app.api_route("/environment", methods=["GET", "POST"])
-async def data_environment(request: Request, env: Optional[str] = None):
+async def data_environment(request: Request, env: Optional[str] = None, token: Optional[str] = None):
+    _require_api_auth(request, token)
     chosen_env = env
     if request.method == "POST":
         try:
@@ -49,7 +60,8 @@ async def data_environment(request: Request, env: Optional[str] = None):
     return {"active_environment": bot.active_environment}
 
 @data_api_app.api_route("/live_armed", methods=["GET", "POST"])
-async def data_live_armed(request: Request, armed: Optional[bool] = None):
+async def data_live_armed(request: Request, armed: Optional[bool] = None, token: Optional[str] = None):
+    _require_api_auth(request, token)
     chosen_armed = armed
     if request.method == "POST":
         try:
@@ -63,7 +75,8 @@ async def data_live_armed(request: Request, armed: Optional[bool] = None):
     return {"live_trading_armed": bot.live_trading_armed}
 
 @data_api_app.api_route("/symbol", methods=["GET", "POST"])
-async def data_symbol(request: Request, symbol: Optional[str] = None):
+async def data_symbol(request: Request, symbol: Optional[str] = None, token: Optional[str] = None):
+    _require_api_auth(request, token)
     chosen_symbol = symbol
     if request.method == "POST":
         try:
@@ -77,7 +90,8 @@ async def data_symbol(request: Request, symbol: Optional[str] = None):
     return {"symbol": bot.current_symbol}
 
 @data_api_app.api_route("/category", methods=["GET", "POST"])
-async def data_category(request: Request, category: Optional[str] = None):
+async def data_category(request: Request, category: Optional[str] = None, token: Optional[str] = None):
+    _require_api_auth(request, token)
     chosen_cat = category
     if request.method == "POST":
         try:
@@ -91,7 +105,8 @@ async def data_category(request: Request, category: Optional[str] = None):
     return {"category": bot.active_category, "symbol": bot.current_symbol}
 
 @data_api_app.api_route("/reset", methods=["GET", "POST"])
-async def data_reset(request: Request, capital: float = 15.0):
+async def data_reset(request: Request, capital: float = 15.0, token: Optional[str] = None):
+    _require_api_auth(request, token)
     if request.method == "POST":
         try:
             body = await request.json()
@@ -105,16 +120,14 @@ async def data_reset(request: Request, capital: float = 15.0):
     return {"message": "Cartera reiniciada", "capital": capital}
 
 @data_api_app.api_route("/emergency_sell", methods=["GET", "POST"])
-def data_emergency_sell():
+def data_emergency_sell(request: Request, token: Optional[str] = None):
+    _require_api_auth(request, token)
     sold = bot.emergency_sell_all()
     return {"message": f"Se liquidaron {sold} posiciones"}
 
 @data_api_app.get("/export_csv")
 def data_export_csv(request: Request, token: Optional[str] = None):
-    expected_key = os.getenv("EXPORT_API_KEY", "").strip()
-    provided_key = (request.headers.get("X-API-Key") or token or "").strip()
-    if not expected_key or not provided_key or not hmac.compare_digest(provided_key, expected_key):
-        raise HTTPException(status_code=401, detail="No autorizado: requiere EXPORT_API_KEY válida")
+    _require_api_auth(request, token)
     port = bot.portfolio
     csv_text = port.export_trades_csv_text()
     return PlainTextResponse(
@@ -124,8 +137,9 @@ def data_export_csv(request: Request, token: Optional[str] = None):
     )
 
 @data_api_app.api_route("/config", methods=["GET", "POST"])
-async def data_config(request: Request):
+async def data_config(request: Request, token: Optional[str] = None):
     if request.method == "POST":
+        _require_api_auth(request, token)
         try:
             body = await request.json()
             for key in [
@@ -140,7 +154,6 @@ async def data_config(request: Request):
                     CONFIG[key] = val
             if "symbol" in body and body["symbol"]:
                 bot.set_symbol(str(body["symbol"]))
-            bot.strategy.config = bot.config
             bot.log("⚙️ Parámetros actualizados.")
         except Exception:
             pass
@@ -156,7 +169,8 @@ def data_robustness(symbol: str = "BTCEUR", interval: str = "1h", limit: int = 5
     return tester.evaluate_robustness(symbol=symbol, interval=interval, limit=limit, strategy_mode=mode)
 
 @data_api_app.api_route("/automaton/fund", methods=["GET", "POST"])
-async def data_automaton_fund(request: Request, amount: float = 5.0):
+async def data_automaton_fund(request: Request, amount: float = 5.0, token: Optional[str] = None):
+    _require_api_auth(request, token)
     if request.method == "POST":
         try:
             body = await request.json()
@@ -169,7 +183,8 @@ async def data_automaton_fund(request: Request, amount: float = 5.0):
     return res
 
 @data_api_app.api_route("/automaton/revive", methods=["GET", "POST"])
-async def data_automaton_revive(request: Request, grant: float = 3.0):
+async def data_automaton_revive(request: Request, grant: float = 3.0, token: Optional[str] = None):
+    _require_api_auth(request, token)
     if request.method == "POST":
         try:
             body = await request.json()
