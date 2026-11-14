@@ -180,3 +180,20 @@ def evaluate_breakout_exit_signal(
         return True, f"🎯 Take Profit alcanzado: +{pnl_pct:.2f}% (Meta: +{tp_pct:.1f}%)", pnl_pct, max_gain_pct
 
     return False, f"Posición vigilada: P&L {pnl_pct:+.2f}%", pnl_pct, max_gain_pct
+
+
+def evaluate_daily_sma200_signal(close_price: float, sma_200: float, in_position: bool) -> str:
+    """
+    Regla única del experimento congelado (v1.0-frozen):
+    - Par: BTCEUR, velas DIARIAS, spot, long-only.
+    - Si cierre diario > SMA 200 diaria y sin posición => BUY (100% BTC al open siguiente).
+    - Si cierre diario <= SMA 200 diaria y en posición => SELL (100% EUR al open siguiente).
+    - En otro caso => HOLD.
+    """
+    if close_price <= 0 or sma_200 <= 0:
+        return "HOLD"
+    if not in_position and close_price > sma_200:
+        return "BUY"
+    if in_position and close_price <= sma_200:
+        return "SELL"
+    return "HOLD"

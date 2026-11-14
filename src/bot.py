@@ -1,7 +1,7 @@
 import sys
 import time
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional, List
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
@@ -14,12 +14,22 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from .config import CONFIG, SUPPORTED_SYMBOLS, TOP4_SYMBOLS, MARKETS_CATALOG, DATA_DIR
+from .config import (
+    CONFIG,
+    SUPPORTED_SYMBOLS,
+    TOP4_SYMBOLS,
+    MARKETS_CATALOG,
+    DATA_DIR,
+    FROZEN_EXPERIMENT,
+    FROZEN_CONFIG_HASH,
+    verify_frozen_config,
+)
 from .market_data import MarketDataFeed
 from .portfolio import Portfolio
 from .binance_client import BinanceSpotClient
 from .binance_rules import BinanceRulesEngine
 from .automaton_brain import AutomatonBrain
+from .experiment_tracker import ExperimentTracker
 
 class TradingBot:
     def __init__(self, config: Dict = None):
@@ -30,9 +40,13 @@ class TradingBot:
         self.sim_portfolio = Portfolio(storage_path=DATA_DIR / "portfolio.json", environment="simulation")
         self.live_portfolio = Portfolio(storage_path=DATA_DIR / "portfolio_live.json", environment="live", initial_capital=0.0)
 
-        # Entorno activo por defecto: Simulación
-        self.active_environment = "simulation"  # 'simulation' | 'live'
-        self.live_trading_armed = False          # Cerrojo de seguridad para dinero real
+        # Experimento congelado v1.0-frozen: cerrojo inmutable de dinero real
+        self.frozen_hash = verify_frozen_config()
+        self.experiment = ExperimentTracker(DATA_DIR)
+
+        # Entorno activo bloqueado en Simulación
+        self.active_environment = "simulation"
+        self.live_trading_armed = False
         self.binance_client = BinanceSpotClient()
 
         # Cerebro soberano de inversión Conway Automaton
@@ -57,19 +71,21 @@ class TradingBot:
         return self.live_portfolio if self.active_environment == "live" else self.sim_portfolio
 
     def set_environment(self, env: str):
-        """Cambia de entorno de forma no destructiva."""
-        if env in ["simulation", "live"]:
-            with self._lock:
-                self.active_environment = env
-                env_title = "DINERO REAL (Binance Spot)" if env == "live" else "SIMULACIÓN (Paper Trading)"
-                self.log(f"🔄 Entorno cambiado a: {env_title}")
+        """Bloqueado en experimento congelado v1.0-frozen: siempre simulación."""
+        with self._lock:
+            self.active_environment = "simulation"
+            self.live_trading_armed = False
+            if env == "live":
+                self.log("🔒 BLOQUEADO: modo REAL deshabilitado en experimento congelado v1.0-frozen.")
+            else:
+                self.log("🔄 Entorno: SIMULACIÓN (v1.0-frozen)")
 
     def set_live_armed(self, armed: bool):
-        """Activa o desactiva el cerrojo de seguridad para órdenes reales en Binance."""
+        """Bloqueado en experimento congelado v1.0-frozen: live_armed siempre False."""
         with self._lock:
-            self.live_trading_armed = bool(armed)
-            estado = "🔴 ARMADO (Órdenes Reales Permitidas)" if armed else "🟢 DESARMADO (Modo Seguro / Sólo Lectura)"
-            self.log(f"🛡️ Seguridad Binance: {estado}")
+            self.live_trading_armed = False
+            if armed:
+                self.log("🔒 BLOQUEADO: live_armed=False forzado por código en v1.0-frozen.")
 
     def log(self, message: str):
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -224,6 +240,39 @@ class TradingBot:
             return [sym for sym, meta in MARKETS_CATALOG.items() if meta.get("sub_category") in ["top", "top4"]]
         return [sym for sym, meta in MARKETS_CATALOG.items() if meta.get("sub_category") == self.active_category or meta.get("category") == self.active_category]
 
+    def _check_daily_experiment_0005_utc(self):
+        """Registra 1 fila diaria tras las 00:05 UTC con la vela diaria cerrada BTCEUR y SMA 200."""
+        now_utc = datetime.now(timezone.utc)
+        if now_utc.hour == 0 and now_utc.minute < 5:
+            return
+        try:
+            _, _, daily_candles = self.feed._get_binance_data("BTCEUR", interval="1d", limit=205)
+            if not daily_candles or len(daily_candles) < 201:
+                return
+            # daily_candles[-1] es la vela del día actual en curso; daily_candles[-2] es la última vela diaria cerrada
+            closed_bar = daily_candles[-2]
+            current_bar = daily_candles[-1]
+            raw_ts = closed_bar.get("time") or closed_bar.get("timestamp") or 0
+            ts_sec = raw_ts / 1000.0 if raw_ts > 1e11 else float(raw_ts)
+            closed_date = datetime.fromtimestamp(ts_sec, tz=timezone.utc).strftime("%Y-%m-%d")
+            if self.experiment.state.get("last_recorded_date") == closed_date:
+                return
+            closed_window = daily_candles[-201:-1]  # 200 velas cerradas hasta closed_bar inclusive
+            sma200 = sum(c["close"] for c in closed_window) / len(closed_window)
+            row = self.experiment.process_daily_bar(
+                date_str=closed_date,
+                open_price=current_bar["open"],
+                close_price=closed_bar["close"],
+                sma_200=sma200,
+            )
+            if row:
+                self.log(
+                    f"📅 Registro diario 00:05 UTC ({closed_date}): Cierre={row['cierre']}€ | "
+                    f"SMA200={row['sma200']}€ | Señal={row['senal']} | Bot={row['equity_bot_eur']}€"
+                )
+        except Exception as e:
+            self.log(f"⚠️ Error en registro diario 00:05 UTC: {e}")
+
     def step(self):
         """Ejecuta una iteración completa del ciclo con aislamiento por entorno."""
         self.iteration_count += 1
@@ -231,6 +280,7 @@ class TradingBot:
             if not self.is_running:
                 self.status_message = "Bot en Pausa por el usuario"
                 return
+        self._check_daily_experiment_0005_utc()
 
         # Ciclo vital y consumo de cómputo de Conway Automaton
         self.automaton.burn_cycle()
@@ -460,6 +510,14 @@ class TradingBot:
             time.sleep(self.config.get("check_interval_seconds", 6))
 
     def start(self):
+        self.frozen_hash = verify_frozen_config()
+        self.live_trading_armed = False
+        self.active_environment = "simulation"
+        self.log(
+            f"🔒 Experimento congelado {FROZEN_EXPERIMENT['version']} | "
+            f"Hash={self.frozen_hash[:12]}... | Inicio={FROZEN_EXPERIMENT['start_date']} | "
+            f"Revisión={FROZEN_EXPERIMENT['review_date']} | live_armed=False"
+        )
         if self.binance_client.is_configured():
             rec = self.binance_client.reconcile_startup("BTCEUR")
             self.log(

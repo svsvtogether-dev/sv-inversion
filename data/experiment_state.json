@@ -1,0 +1,20 @@
+{
+  "version": "v1.0-frozen",
+  "config_hash": "b43db7079f7d362b5350d49fdffb032cf34a82615cda6b35de5a7c849d63fe82",
+  "start_date": "2026-11-14",
+  "review_date": "2027-05-14",
+  "bot_cash_eur": 50.0,
+  "bot_btc_qty": 0.0,
+  "pending_signal": "HOLD",
+  "pending_signal_date": null,
+  "signals_evaluated": 0,
+  "signals_executed_next_open": 0,
+  "trades_closed": 0,
+  "last_entry_price": 0.0,
+  "ref_bh_btc_qty": 0.0008057287515973361,
+  "ref_dca_btc_qty": 0.0008057287515973361,
+  "ref_dca_contributed_eur": 50.0,
+  "ref_dca_last_deposit_date": "2026-11-13",
+  "ref_cash_eur": 50.0,
+  "last_recorded_date": "2026-11-13"
+}

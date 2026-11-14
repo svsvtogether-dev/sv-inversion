@@ -1,3 +1,5 @@
+import hashlib
+import json
 from pathlib import Path
 
 # Directorios del proyecto
@@ -75,3 +77,52 @@ CONFIG = {
     "active_category": "top4",      # Estrategia recomendada: Top 4 Líderes Blue-Chips (BTC, ETH, BNB, SOL)
     "msci_sweep_pct": 0.0           # % de las ganancias netas que se desvían a la Bóveda MSCI World
 }
+
+# ==============================================================================
+# EXPERIMENTO CONGELADO v1.0-frozen (2026-11-14 -> 2027-05-14)
+# Cualquier cambio en FROZEN_EXPERIMENT exige nueva etiqueta git y fecha nueva.
+# ==============================================================================
+FROZEN_EXPERIMENT = {
+    "version": "v1.0-frozen",
+    "start_date": "2026-11-14",
+    "review_date": "2027-05-14",
+    "symbol": "BTCEUR",
+    "interval": "1d",
+    "mode": "spot_long_only",
+    "rule": "close > sma_200 => 100% BTC; close <= sma_200 => 100% EUR",
+    "sma_period": 200,
+    "execution": "next_day_open",
+    "daily_run_utc": "00:05",
+    "cost_rate_per_side": 0.0015,
+    "stops": False,
+    "trailing": False,
+    "drawdown_kill_switch": False,
+    "tier_autocalibration": False,
+    "live_armed_locked": False,
+    "criteria": {
+        "C1": "100% de señales ejecutadas en apertura siguiente, sin duplicados, y test de réplica coincidente con el CSV.",
+        "C2": "Drawdown máximo del bot <= 60% del drawdown de comprar y mantener BTC en el mismo periodo.",
+        "C3": "Retorno frente a comprar y mantener y DCA 20 EUR/mes (informativo; sin ventaja si < 10 operaciones).",
+    },
+}
+
+FROZEN_CONFIG_HASH = "b43db7079f7d362b5350d49fdffb032cf34a82615cda6b35de5a7c849d63fe82"
+
+
+def compute_frozen_config_hash(cfg: dict = None) -> str:
+    target = cfg if cfg is not None else FROZEN_EXPERIMENT
+    payload = json.dumps(target, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def verify_frozen_config(cfg: dict = None, expected_hash: str = FROZEN_CONFIG_HASH) -> str:
+    actual = compute_frozen_config_hash(cfg)
+    if actual != expected_hash:
+        raise RuntimeError(
+            f"BLOQUEO EXPERIMIENTO CONGELADO: hash alterado ({actual[:12]} != {expected_hash[:12]}). "
+            "Se requiere una nueva etiqueta git y fecha de inicio nueva."
+        )
+    target = cfg if cfg is not None else FROZEN_EXPERIMENT
+    if target.get("live_armed_locked", True) is not False:
+        raise RuntimeError("BLOQUEO DINERO REAL: live_armed_locked debe ser False en v1.0-frozen.")
+    return actual
