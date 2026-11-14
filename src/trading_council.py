@@ -403,16 +403,33 @@ class TradingCouncil:
         recent_memory: Optional[Dict] = None,
     ) -> Dict:
         """
-        Cartera Multi-Estrategia Descorrelacionada + Protecciones Freqtrade:
-        - StoplossGuard / CooldownPeriod por par.
-        - HIGH_VOLATILITY_SHOCK: Risk Manager veta nuevas entradas preventivamente.
-        - BTC Macro Guard: penaliza entradas en altcoins si BTCEUR cae bajo EMA 50.
-        - TRENDING: prioriza TREND_BREAKOUT.
-        - RANGING: prioriza DCA_REVERSION.
+        Estrategia Simplificada y Validada en Walk-Forward (3 años 4H):
+        - Solo opera BTCEUR (1 posición a la vez, sin promediar a la baja).
+        - Mantiene vetos de seguridad (CooldownPeriod, Shock de volatilidad, Forex Factory News Shield).
+        - Regla determinista TREND_BREAKOUT: Precio > EMA 200, EMA 50 >= EMA 200, ruptura Donchian 20, HMA 50 UP, Volumen >= 1.1x.
         """
         regime_info = analysis.get("regime", {})
         regime_name = regime_info.get("regime", "RANGING")
         vol_z = float(regime_info.get("vol_zscore", 0.0))
+        news_status = analysis.get("news_status", {})
+
+        if news_status.get("is_shield_active"):
+            act_ev = news_status.get("active_event", {})
+            title = act_ev.get("title", "Noticia Alto Impacto")
+            return {
+                "approved": False,
+                "decision": "VETO",
+                "strategy_tag": "TREND_BREAKOUT",
+                "regime": regime_name,
+                "bull_score": 0.0,
+                "bear_score": 100.0,
+                "net_score": -100.0,
+                "min_required": 100.0,
+                "bull_arguments": [],
+                "bear_objections": [f"VETO News Shield: Escudo Forex Factory activo por '{title}'"],
+                "risk_verdict": f"VETO POR NOTICIA ({title})",
+                "summary": f"🛡️ News Shield veta {symbol}: {title}"
+            }
 
         if pair_cooldown_active:
             return {
@@ -423,7 +440,7 @@ class TradingCouncil:
                 "bull_score": 0.0,
                 "bear_score": 100.0,
                 "net_score": -100.0,
-                "min_required": 58.0,
+                "min_required": 100.0,
                 "bull_arguments": [],
                 "bear_objections": [f"VETO StoplossGuard/Cooldown activo en {symbol}: evitando revenge trading"],
                 "risk_verdict": f"COOLDOWN ACTIVO ({symbol})",
@@ -439,73 +456,102 @@ class TradingCouncil:
                 "bull_score": 0.0,
                 "bear_score": 100.0,
                 "net_score": -100.0,
-                "min_required": 50.0,
+                "min_required": 100.0,
                 "bull_arguments": [],
                 "bear_objections": [f"VETO Risk Manager: Shock de volatilidad extrema (Vol Z={vol_z:.2f})"],
                 "risk_verdict": f"VETO POR SHOCK VOLATILIDAD (Z={vol_z:.2f})",
                 "summary": f"⚡ Risk Manager veta {symbol}: Shock de volatilidad (Z={vol_z:.2f})"
             }
 
-        dca_res = self.debate_entry(symbol, analysis, cash, config, tier=tier, open_positions_count=open_positions_count)
-        if dca_res.get("decision") == "VETO":
-            dca_res["regime"] = regime_name
-            return dca_res
+        if symbol != "BTCEUR":
+            return {
+                "approved": False,
+                "decision": "HOLD",
+                "strategy_tag": "TREND_BREAKOUT",
+                "regime": regime_name,
+                "bull_score": 0.0,
+                "bear_score": 100.0,
+                "net_score": -100.0,
+                "min_required": 100.0,
+                "bull_arguments": [],
+                "bear_objections": [f"Solo opera BTCEUR (validado Walk-Forward; {symbol} en observación)"],
+                "risk_verdict": "PAR EN OBSERVACIÓN",
+                "summary": f"⏸️ {symbol} en espera: estrategia centrada solo en BTCEUR"
+            }
 
-        brk_res = self.debate_breakout_entry(symbol, analysis, cash, config, tier=tier, open_positions_count=open_positions_count)
+        if open_positions_count >= 1:
+            return {
+                "approved": False,
+                "decision": "HOLD",
+                "strategy_tag": "TREND_BREAKOUT",
+                "regime": regime_name,
+                "bull_score": 0.0,
+                "bear_score": 100.0,
+                "net_score": -100.0,
+                "min_required": 100.0,
+                "bull_arguments": [],
+                "bear_objections": ["Máximo 1 posición abierta a la vez"],
+                "risk_verdict": "POSICIÓN ACTIVA",
+                "summary": "⏸️ Ya hay 1 posición abierta; esperando cierre antes de nueva entrada"
+            }
 
-        # BTC Informative Market Filter: si BTC está bajista y vamos a entrar en una altcoin, penalizar
-        if not btc_healthy and symbol != "BTCEUR":
-            for r in (dca_res, brk_res):
-                self._apply_bear_penalty(
-                    r,
-                    35.0,
-                    "BTC Macro Guard: BTCEUR bajo EMA 50 arrastra altcoins (-35)",
-                    "BLOQUEADO POR BTC GUARD",
-                )
+        price = float(analysis.get("price", 0.0))
+        ema_trend = float(analysis.get("ema_trend", 0.0))
+        ema_200 = float(analysis.get("ema_200", 0.0))
+        donchian_high = float(analysis.get("donchian_high_20", 0.0))
+        hma_slope = analysis.get("hma_50_slope", "FLAT")
+        volume_ratio = float(analysis.get("volume_ratio", 1.0))
 
-        # Memoria de errores recientes: endurece el filtro si hay racha o patrón reciente de pérdidas
-        if recent_memory:
-            consec_losses = int(recent_memory.get("consecutive_losses", 0))
-            if consec_losses >= 2:
-                streak_pts = 25.0 if consec_losses >= 3 else 15.0
-                for r in (dca_res, brk_res):
-                    self._apply_bear_penalty(
-                        r,
-                        streak_pts,
-                        f"Memoria de errores: {consec_losses} pérdidas seguidas recientes (-{streak_pts:.0f})",
-                        "BLOQUEADO POR MEMORIA",
-                    )
+        if price <= 0 or ema_200 <= 0 or donchian_high <= 0:
+            return {
+                "approved": False,
+                "decision": "HOLD",
+                "strategy_tag": "TREND_BREAKOUT",
+                "regime": regime_name,
+                "bull_score": 0.0,
+                "bear_score": 100.0,
+                "net_score": -100.0,
+                "min_required": 100.0,
+                "bull_arguments": [],
+                "bear_objections": ["Datos insuficientes de EMA 200 / Donchian 20"],
+                "risk_verdict": "SIN DATOS",
+                "summary": f"⏸️ Datos insuficientes en {symbol}"
+            }
 
-            strat_losses = recent_memory.get("strategy_losses", {})
-            for r, tag in ((dca_res, "DCA_REVERSION"), (brk_res, "TREND_BREAKOUT")):
-                losses_count = int(strat_losses.get(tag, 0))
-                if losses_count >= 2:
-                    self._apply_bear_penalty(
-                        r,
-                        20.0,
-                        f"Memoria de errores: {tag} acumula {losses_count} pérdidas en 24h (-20)",
-                        "BLOQUEADO POR MEMORIA",
-                    )
+        checks = [
+            (price > ema_200, f"Precio sobre EMA 200 (€{price:.0f} > €{ema_200:.0f})", f"Bajo EMA 200 (€{price:.0f} <= €{ema_200:.0f}): mercado bajista, quedarse en EUR"),
+            (ema_trend >= ema_200, f"EMA 50 >= EMA 200 (€{ema_trend:.0f} >= €{ema_200:.0f})", f"EMA 50 < EMA 200 (€{ema_trend:.0f} < €{ema_200:.0f})"),
+            (price > donchian_high, f"Ruptura Donchian 20 (€{price:.0f} > €{donchian_high:.0f})", f"Sin ruptura Donchian 20 (€{price:.0f} <= €{donchian_high:.0f})"),
+            (hma_slope == "UP", "HMA 50 en pendiente alcista", f"HMA 50 no alcista ({hma_slope})"),
+            (volume_ratio >= 1.1, f"Volumen confirmado x{volume_ratio:.2f} >= 1.10", f"Volumen insuficiente x{volume_ratio:.2f} < 1.10"),
+        ]
 
-            if recent_memory.get("symbol_recent_loss"):
-                for r in (dca_res, brk_res):
-                    self._apply_bear_penalty(
-                        r,
-                        10.0,
-                        f"Memoria de errores: {symbol} cerró en pérdida recientemente (-10)",
-                        "BLOQUEADO POR MEMORIA",
-                    )
+        bull_args = [ok_msg for ok, ok_msg, _ in checks if ok]
+        bear_objs = [fail_msg for ok, _, fail_msg in checks if not ok]
 
-        dca_res["regime"] = regime_name
-        brk_res["regime"] = regime_name
+        passed_count = len(bull_args)
+        bull_score = round(passed_count * 20.0, 1)
+        bear_score = round((5 - passed_count) * 20.0, 1)
+        net_score = round(bull_score - bear_score, 1)
+        approved = (passed_count == 5)
 
-        if dca_res.get("approved") and not brk_res.get("approved"):
-            return dca_res
-        if brk_res.get("approved") and not dca_res.get("approved"):
-            return brk_res
-        if dca_res.get("approved") and brk_res.get("approved"):
-            if regime_name == "TRENDING" and brk_res["net_score"] >= dca_res["net_score"] - 15.0:
-                return brk_res
-            if regime_name == "RANGING" and dca_res["net_score"] >= brk_res["net_score"] - 15.0:
-                return dca_res
-        return dca_res if dca_res.get("net_score", -999) >= brk_res.get("net_score", -999) else brk_res
+        if recent_memory and int(recent_memory.get("consecutive_losses", 0)) >= 3:
+            approved = False
+            bear_score = round(bear_score + 20.0, 1)
+            net_score = round(bull_score - bear_score, 1)
+            bear_objs.append("Memoria de errores: 3+ pérdidas seguidas recientes")
+
+        return {
+            "approved": approved,
+            "decision": "BUY" if approved else "HOLD",
+            "strategy_tag": "TREND_BREAKOUT",
+            "regime": regime_name,
+            "bull_score": bull_score,
+            "bear_score": bear_score,
+            "net_score": net_score,
+            "min_required": 100.0,
+            "bull_arguments": bull_args,
+            "bear_objections": bear_objs,
+            "risk_verdict": "APROBADO (5/5)" if approved else f"ESPERANDO ({passed_count}/5 condiciones)",
+            "summary": f"🚀 Breakout {symbol}: {passed_count}/5 condiciones ({'COMPRA' if approved else 'ESPERA'})",
+        }

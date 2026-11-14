@@ -314,10 +314,10 @@ class AutomatonBrain:
         atr_pct = analysis.get("atr_pct", 1.5)
         ema_trend = float(analysis.get("ema_trend", 0.0))
         if strategy_tag == "TREND_BREAKOUT":
-            trail_dist = max(2.0, atr_pct * 2.5)
+            trail_dist = max(2.0, atr_pct * 2.0)
             trail_floor = max_gain_pct - trail_dist
             if max_gain_pct >= 1.5 and pnl_pct <= trail_floor:
-                reason = f"🚀 [Automaton {self.tier}] Trailing Stop ATR Trend ejecutado: capturado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}% | Margen 2.5xATR: {trail_dist:.2f}%)"
+                reason = f"🚀 [Automaton {self.tier}] Trailing Stop ATR Trend ejecutado: capturado +{pnl_pct:.2f}% (Pico: +{max_gain_pct:.2f}% | Margen 2.0xATR: {trail_dist:.2f}%)"
                 self.add_thought(f"Trailing Trend ejecutado en {symbol}: +{pnl_pct:.2f}%.")
                 return "SELL", 0.0, reason
             if ema_trend > 0 and price < ema_trend * 0.985 and pnl_pct > -5.0:
@@ -356,9 +356,9 @@ class AutomatonBrain:
             self.add_thought(f"Venta ejecutada en {symbol}: ganancia neta de +{pnl_pct:.2f}%. Saldo asegurado.")
             return "SELL", 0.0, reason
 
-        # 2. Toma técnica de beneficios por sobrecompra extrema (RSI >= 70 con ganancia)
-        rsi_sell = config.get("rsi_sell_threshold", 68.0)
-        if rsi >= rsi_sell and pnl_pct >= 1.2:
+        # 2. Toma técnica de beneficios por sobrecompra extrema (solo para DCA, no corta tendencias)
+        rsi_sell = config.get("rsi_sell_threshold", 85.0)
+        if strategy_tag != "TREND_BREAKOUT" and rsi >= rsi_sell and pnl_pct >= 1.2:
             reason = f"📈 [Automaton {self.tier}] Sobrecompra técnica detectada (RSI {rsi:.1f} >= {rsi_sell:.0f}) con P&L favorable (+{pnl_pct:.2f}%). Asegurando beneficio."
             self.add_thought(f"Venta técnica en {symbol}: RSI {rsi:.1f} en techo. Tomando ganancias.")
             return "SELL", 0.0, reason
@@ -369,8 +369,8 @@ class AutomatonBrain:
             self.add_thought(f"Corte defensivo en {symbol} a {pnl_pct:.2f}%. Protegiendo la cartera de caídas mayores.")
             return "SELL", 0.0, reason
 
-        # 4. Evaluación de DCA (Comprar más en caídas controladas)
-        max_dca = 3
+        # 4. Sin promediar a la baja (1 entrada única por operación)
+        max_dca = 1
         dca_step_drop = 1.8
         min_order = config.get("min_order_eur", 5.0)
         order_amount = config.get("order_amount_eur", 5.0)

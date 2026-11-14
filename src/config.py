@@ -51,14 +51,14 @@ CONFIG = {
     "symbol": DEFAULT_SYMBOL,
     "initial_capital": INITIAL_CAPITAL_EUR,
     "fee_rate": TRADING_FEE_RATE,
-    "order_amount_eur": 5.00,       # Tamaño por compra DCA (€5.00 permite escalonar cumpliendo el MIN_NOTIONAL de Binance)
+    "order_amount_eur": 50.00,      # 1 posición única con el capital disponible (sin promediar a la baja)
     "min_order_eur": 5.00,          # Mínimo para poder ejecutar una orden (cumple MIN_NOTIONAL de Binance)
-    "take_profit_pct": 6.0,         # Objetivo de beneficio neto (+6.0% en DCA; Trend Breakout corre con Trailing ATR)
+    "take_profit_pct": 25.0,        # Sin techo corto: Trailing Stop 2.0x ATR deja correr las tendencias
     "stop_loss_pct": -4.5,          # Límite de pérdida ajustado a volatilidad 4H (-4.5%)
     "breakeven_trigger_pct": 2.8,   # Al subir >= +2.8%, el SL sube a +0.50% (sin ahogar ganadoras tempranas)
     "early_take_profit_pct": 3.5,   # Ganancia mínima para salidas técnicas dinámicas
     "rsi_buy_threshold": 29.0,      # Comprar solo cuando RSI entra en sobreventa genuina (<= 29)
-    "rsi_sell_threshold": 75.0,     # Sugerir toma de beneficios si RSI >= 75 con ganancia positiva
+    "rsi_sell_threshold": 85.0,     # No cortar tendencias por RSI temprano; manda el Trailing Stop 2.0x ATR
     "sma_period": 50,               # Período de la Media Móvil Simple (SMA) para filtro de tendencia macro
     "hma_period": 50,               # Período de la Media Móvil de Hull (HMA) de respuesta rápida sin retraso
     "session_filter_enabled": True, # Filtro de liquidez horaria institucional (Sesión NY / Londres 13-17 UTC)

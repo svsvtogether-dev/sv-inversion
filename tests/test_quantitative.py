@@ -278,31 +278,37 @@ def test_all():
     assert res_veto["decision"] == "VETO"
     print(f"TradingCouncil VETO test passed: {res_veto['decision']} ({res_veto['risk_verdict']})")
 
-    brain.evaluate_new_entry({"BTCEUR": favorable_dip}, 50.0, CONFIG, open_positions_count=0)
+    breakout_btc = {
+        "symbol": "BTCEUR",
+        "price": 65000.0,
+        "rsi": 62.0,
+        "ema_trend": 63500.0,
+        "ema_200": 60000.0,
+        "hma_50": 63800.0,
+        "hma_50_prev": 63400.0,
+        "hma_50_slope": "UP",
+        "donchian_high_20": 64500.0,
+        "volume_ratio": 1.35,
+        "bb_lower": 61000.0,
+        "bb_upper": 65500.0,
+        "atr": 900.0,
+        "atr_pct": 1.4,
+        "session_info": {"is_institutional_window": True, "liquidity_tier": "HIGH"},
+        "news_status": {"is_shield_active": False},
+    }
+    brain.evaluate_new_entry({"BTCEUR": breakout_btc}, 50.0, CONFIG, open_positions_count=0)
     status_dict = brain.get_status_dict()
     assert "council_debate" in status_dict and status_dict["council_debate"].get("decision") == "BUY"
     assert "BTCEUR" in status_dict["council_debate"].get("summary", "")
     print(f"AutomatonBrain council_debate populated: {status_dict['council_debate'].get('decision')}")
 
-    # 9. Test Multi-Strategy Trend Breakout (Donchian 20 + HMA UP + Volume Expansion)
-    breakout_setup = {
-        "symbol": "SOLEUR",
-        "price": 152.0,
-        "rsi": 62.0,
-        "hma_50": 146.0,
-        "hma_50_prev": 145.0,
-        "hma_50_slope": "UP",
-        "donchian_high_20": 150.0,
-        "volume_ratio": 1.45,
-        "bb_lower": 142.0,
-        "bb_upper": 153.0,
-        "atr": 2.0,
-        "atr_pct": 1.3,
-        "session_info": {"is_institutional_window": True, "liquidity_tier": "HIGH"},
-        "kronos": {"available": True, "signal": "BULLISH"},
-        "news_status": {"is_shield_active": False},
-    }
-    res_brk = council.debate_multi_strategy("SOLEUR", breakout_setup, 50.0, CONFIG, tier="NORMAL", open_positions_count=0)
+    # 9. Test Simplified Walk-Forward Trend Breakout (only BTCEUR, max 1 pos)
+    res_brk = council.debate_multi_strategy("BTCEUR", breakout_btc, 50.0, CONFIG, tier="NORMAL", open_positions_count=0)
+    assert res_brk["decision"] == "BUY" and res_brk["strategy_tag"] == "TREND_BREAKOUT"
+    res_alt = council.debate_multi_strategy("SOLEUR", breakout_btc, 50.0, CONFIG, tier="NORMAL", open_positions_count=0)
+    assert res_alt["decision"] == "HOLD"
+    res_pos_limit = council.debate_multi_strategy("BTCEUR", breakout_btc, 50.0, CONFIG, tier="NORMAL", open_positions_count=1)
+    assert res_pos_limit["decision"] == "HOLD"
     assert res_brk["approved"] is True, f"Expected TREND_BREAKOUT approval, got: {res_brk}"
     assert res_brk["strategy_tag"] == "TREND_BREAKOUT"
     print(f"Multi-Strategy Trend Breakout test passed: {res_brk['strategy_tag']} (net={res_brk['net_score']})")
@@ -374,18 +380,18 @@ def test_all():
     assert bid > 0 and ask >= bid, f"Expected valid BTCEUR book ticker, got bid={bid}, ask={ask}"
     print(f"Binance BookTicker Maker-First test passed: BTCEUR Bid={bid} | Ask={ask}")
 
-    # 14. Test Freqtrade-style Protections (CooldownPeriod / StoplossGuard & BTC Macro Guard)
-    res_cd = council.debate_multi_strategy("SOLEUR", favorable_dip, 50.0, CONFIG, pair_cooldown_active=True)
+    # 14. Test Freqtrade-style Protections (CooldownPeriod / StoplossGuard & BTCEUR-only filter)
+    res_cd = council.debate_multi_strategy("BTCEUR", breakout_btc, 50.0, CONFIG, pair_cooldown_active=True)
     assert res_cd["decision"] == "VETO" and res_cd["strategy_tag"] == "COOLDOWN_GUARD"
 
-    res_btc_guard = council.debate_multi_strategy("ETHEUR", favorable_dip, 50.0, CONFIG, btc_healthy=False)
-    assert any("BTC Macro Guard" in obj for obj in res_btc_guard["bear_objections"])
+    res_alt_hold = council.debate_multi_strategy("ETHEUR", breakout_btc, 50.0, CONFIG, btc_healthy=False)
+    assert res_alt_hold["decision"] == "HOLD"
 
-    brain.record_trade_exit("SOLEUR", -1.5, was_stoploss=True)
-    assert brain.is_pair_in_cooldown("SOLEUR") is True
+    brain.record_trade_exit("BTCEUR", -1.5, was_stoploss=True)
+    assert brain.is_pair_in_cooldown("BTCEUR") is True
     btc_health = feed.get_btc_macro_health(interval="4h")
     assert "btc_bullish" in btc_health and btc_health["price"] > 0
-    print(f"Freqtrade Protections test passed: Cooldown=VETO | BTC Guard active | BTC={btc_health['price']}")
+    print(f"Freqtrade Protections test passed: Cooldown=VETO | Altcoins=HOLD | BTC={btc_health['price']}")
 
     # 15. Test ShadowTracker (Counterfactual Veto Auditing)
     import tempfile
@@ -409,16 +415,18 @@ def test_all():
     # 16. Test Recent Trade Loss Memory in AutomatonBrain & TradingCouncil
     with tempfile.TemporaryDirectory() as tmpdir_mem:
         mem_brain = AutomatonBrain(Path(tmpdir_mem))
-        mem_brain.record_trade_exit("ETHEUR", -0.80, was_stoploss=True, strategy_tag="DCA_REVERSION")
-        mem_brain.record_trade_exit("SOLEUR", -0.60, was_stoploss=True, strategy_tag="DCA_REVERSION")
-        mem = mem_brain.get_recent_trade_memory("ETHEUR")
-        assert mem["consecutive_losses"] == 2
-        assert mem["strategy_losses"].get("DCA_REVERSION") == 2
+        mem_brain.record_trade_exit("BTCEUR", -0.80, was_stoploss=True, strategy_tag="TREND_BREAKOUT")
+        mem_brain.record_trade_exit("BTCEUR", -0.60, was_stoploss=True, strategy_tag="TREND_BREAKOUT")
+        mem_brain.record_trade_exit("BTCEUR", -0.50, was_stoploss=True, strategy_tag="TREND_BREAKOUT")
+        mem = mem_brain.get_recent_trade_memory("BTCEUR")
+        assert mem["consecutive_losses"] == 3
+        assert mem["strategy_losses"].get("TREND_BREAKOUT") == 3
         assert mem["symbol_recent_loss"] is True
 
-        res_base = council.debate_multi_strategy("ETHEUR", favorable_dip, 50.0, CONFIG, btc_healthy=True)
-        res_mem = council.debate_multi_strategy("ETHEUR", favorable_dip, 50.0, CONFIG, btc_healthy=True, recent_memory=mem)
-        assert res_mem["net_score"] < res_base["net_score"]
+        res_base = council.debate_multi_strategy("BTCEUR", breakout_btc, 50.0, CONFIG, btc_healthy=True)
+        res_mem = council.debate_multi_strategy("BTCEUR", breakout_btc, 50.0, CONFIG, btc_healthy=True, recent_memory=mem)
+        assert res_base["approved"] is True
+        assert res_mem["approved"] is False
         assert any("Memoria de errores" in obj for obj in res_mem["bear_objections"])
 
         mem_brain.circuit_breaker_active = True
