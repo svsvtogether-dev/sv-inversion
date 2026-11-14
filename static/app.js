@@ -462,10 +462,10 @@ function renderState(data) {
   rsiNeedle.style.left = `${clampedRsi}%`;
 
   // Moving Averages, Bollinger & SMA Macro
-  emaFast.textContent = formatEur(a.ema_fast || 0);
-  emaSlow.textContent = formatEur(a.ema_slow || 0);
-  bbUpper.textContent = formatEur(a.bb_upper || 0);
-  bbLower.textContent = formatEur(a.bb_lower || 0);
+  if (emaFast) emaFast.textContent = formatEur(a.ema_fast || 0);
+  if (emaSlow) emaSlow.textContent = formatEur(a.ema_slow || 0);
+  if (bbUpper) bbUpper.textContent = formatEur(a.bb_upper || 0);
+  if (bbLower) bbLower.textContent = formatEur(a.bb_lower || 0);
 
   if (atrVal) {
     const atr = a.atr || 0;

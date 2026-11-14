@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SV Inversión">
   <link rel="apple-touch-icon" href="/static/logo-thumb.png">
-  <link rel="stylesheet" href="/static/style.css?v=26">
+  <link rel="stylesheet" href="/static/style.css?v=27">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -27,8 +27,8 @@
       <div class="brand">
         <img src="/static/logo-thumb.png" alt="SV Inversión" class="brand-logo-img">
         <div>
-          <h1>SV Inversión <span style="font-size: 13px; color: #c084fc; font-weight: 700; padding: 3px 8px; background: rgba(192, 132, 252, 0.15); border-radius: 6px; border: 1px solid rgba(192, 132, 252, 0.3);">POWERED BY CONWAY AUTOMATON</span> <span id="headerEnvBadge" class="badge paper">🧪 SIMULACIÓN 50 €</span></h1>
-          <p class="subtitle" id="headerSubtitle">100% de la gestión, capital, estrategia y supervivencia a cargo de Conway Automaton</p>
+          <h1>SV Inversión <span id="headerEnvBadge" class="badge paper">🧪 SIMULACIÓN 50 €</span></h1>
+          <p class="subtitle" id="headerSubtitle">Trading algorítmico en Binance Spot (EUR)</p>
         </div>
       </div>
 
@@ -180,26 +180,16 @@
             </div>
             <div>
               <div class="automaton-title-row">
-                <h2>CEREBRO GESTOR: CONWAY AUTOMATON</h2>
+                <h2>CEREBRO GESTOR: AUTOMATON</h2>
                 <span id="automatonTierBadge" class="tier-pill tier-normal">TIER NORMAL</span>
-                <span class="sovereign-tag">⚡ AGENTE SOBERANO 24/7</span>
               </div>
-              <p class="automaton-sub">Gestión de Inversiones 100% Autónoma • Regla de Supervivencia: <em>Gana dinero o Muere</em></p>
             </div>
-          </div>
-          <div class="automaton-actions">
-            <button id="fundAutomatonBtn" class="btn btn-sm btn-outline-success" onclick="fundAutomaton(5.0)">
-              🔋 Recargar Cómputo (+5$)
-            </button>
-            <button id="reviveAutomatonBtn" class="btn btn-sm btn-danger" style="display: none;" onclick="reviveAutomaton()">
-              ❤️ Revivir Autómata
-            </button>
           </div>
         </div>
 
         <div class="automaton-metrics-grid">
           <div class="automaton-metric-item">
-            <span class="automaton-metric-label">BATERÍA DE CÓMPUTO / VIDA</span>
+            <span class="automaton-metric-label">SALDO / SALUD DE CÓMPUTO</span>
             <div class="automaton-battery-bar-container">
               <div id="automatonBatteryFill" class="automaton-battery-fill" style="width: 100%;"></div>
             </div>
@@ -207,15 +197,7 @@
               <span id="automatonTreasuryVal" class="mono font-bold" style="color: #4ade80;">50,00 €</span>
               <span id="automatonBurnRateVal" class="mono text-muted">Salud: 100% (Normal)</span>
             </div>
-          </div>
-
-          <div class="automaton-metric-item">
-            <span class="automaton-metric-label">WALLET SOBERANA ON-CHAIN</span>
-            <div class="automaton-wallet-chip" id="automatonWalletChip" title="Dirección de Ethereum/Base del agente">
-              <span class="wallet-icon">🔗</span>
-              <span id="automatonWalletAddress" class="mono">0x23A2...E902</span>
-            </div>
-            <div class="automaton-battery-sub">
+            <div class="automaton-battery-sub" style="margin-top: 4px;">
               <span id="automatonEarnedVal" class="text-accent" style="color: #c084fc;">Ganancias vida: +0,00 €</span>
               <span id="automatonCyclesVal" class="text-muted">Ciclos: #0</span>
             </div>
@@ -265,14 +247,6 @@
           <div class="kpi-title">WIN RATE DE LA IA <span class="help-icon">?</span></div>
           <div class="kpi-value" id="kpiWinRate">0.0%</div>
           <div class="kpi-sub" id="kpiTradesCount">0 operaciones cerradas</div>
-        </div>
-
-        <div class="card kpi-card has-help" style="border-color: rgba(168, 85, 247, 0.4); background: linear-gradient(180deg, #181c2a 0%, #121622 100%);"
-             data-tooltip-title="⚡ Batería Vital y Bóveda MSCI World"
-             data-tooltip="Capital vital de Automaton (unificado 100% con los 50 € de la inversión) más el capital acumulado en la Bóveda MSCI World.">
-          <div class="kpi-title" style="color: #c084fc;">⚡ SALDO VITAL IA <span class="help-icon">?</span></div>
-          <div class="kpi-value" style="color: #4ade80;" id="kpiVitalTreasury">50,00 €</div>
-          <div class="kpi-sub" id="kpiMsciSub">Bóveda MSCI: 0,00 € • Tier: NORMAL</div>
         </div>
       </section>
 
@@ -363,36 +337,6 @@
               <span class="ind-val mono font-bold" id="shadowTrackerBadge" style="color: #94a3b8; font-size: 11px;">--</span>
             </div>
             <div class="indicator-item has-help"
-                 data-tooltip-title="SMA 50 (Filtro Macro de Tendencia)"
-                 data-tooltip="Media Móvil Simple de 50 velas. Regla obligatoria: solo se permiten compras si el precio está por encima o convergiendo con esta media para no comprar activos en caída libre.">
-              <span class="ind-name">SMA 50 (Macro): <span class="help-icon">?</span></span>
-              <span class="ind-val mono font-bold" id="sma50" style="color: #38bdf8;">€--</span>
-            </div>
-            <div class="indicator-item has-help"
-                 data-tooltip-title="EMA Rápida (9)"
-                 data-tooltip="Media Móvil Exponencial de las últimas 9 velas. Muestra la dirección más inmediata del precio a corto plazo.">
-              <span class="ind-name">EMA Rápida (9): <span class="help-icon">?</span></span>
-              <span class="ind-val mono" id="emaFast">€--</span>
-            </div>
-            <div class="indicator-item has-help"
-                 data-tooltip-title="EMA Lenta (21)"
-                 data-tooltip="Media Móvil de las últimas 21 velas. Si la EMA rápida cruza por encima de esta línea, indica una fuerte tendencia alcista.">
-              <span class="ind-name">EMA Lenta (21): <span class="help-icon">?</span></span>
-              <span class="ind-val mono" id="emaSlow">€--</span>
-            </div>
-            <div class="indicator-item has-help"
-                 data-tooltip-title="Banda Bollinger Superior"
-                 data-tooltip="Límite superior estadístico del canal de precios. Cuando el precio choca contra este techo, suele frenar su subida o rebotar hacia abajo.">
-              <span class="ind-name">Bollinger Superior: <span class="help-icon">?</span></span>
-              <span class="ind-val mono" id="bbUpper">€--</span>
-            </div>
-            <div class="indicator-item has-help"
-                 data-tooltip-title="Banda Bollinger Inferior"
-                 data-tooltip="Suelo de soporte estadístico. Cuando el precio cae y toca este suelo, el algoritmo busca rebotes alcistas con descuento.">
-              <span class="ind-name">Bollinger Inferior: <span class="help-icon">?</span></span>
-              <span class="ind-val mono" id="bbLower">€--</span>
-            </div>
-            <div class="indicator-item has-help"
                  data-tooltip-title="ATR 14 (Volatilidad Real y Trailing Stop)"
                  data-tooltip="Average True Range de 14 períodos. Calibra dinámicamente el margen del Trailing Stop y la distancia de seguridad para no ser expulsado por ruido del mercado.">
               <span class="ind-name">ATR 14 (Volatilidad): <span class="help-icon">?</span></span>
@@ -450,43 +394,11 @@
         </div>
         <div class="config-grid">
           <div class="config-field has-help"
-               data-tooltip-title="Aversión al Riesgo"
-               data-tooltip="Nivel de precaución con el que Automaton analiza las operaciones. Si su batería baja, aumenta drásticamente su aversión al riesgo.">
-            <label>Nivel de Aversión al Riesgo: <span class="help-icon">?</span></label>
-            <div class="ind-val mono font-bold" id="autoRiskLevel" style="color: #4ade80; font-size: 14px; margin-top: 4px;">MODERADO (Tier Normal)</div>
-            <small class="hint" id="autoRiskHint">Operando con capacidad plena y búsqueda activa de alfa.</small>
-          </div>
-
-          <div class="config-field has-help"
-               data-tooltip-title="Take-Profit Dinámico"
-               data-tooltip="Meta de beneficio que Automaton exige para cerrar la posición. En Tier Crítico la reduce (+1.5%) para asegurar saldo de supervivencia inmediato.">
-            <label>Take-Profit Dinámico: <span class="help-icon">?</span></label>
-            <div class="ind-val mono font-bold" id="autoTakeProfit" style="color: #38bdf8; font-size: 14px; margin-top: 4px;">+3.5% (Auto-adaptado)</div>
-            <small class="hint">Cierre en objetivo óptimo para nutrir la tesorería.</small>
-          </div>
-
-          <div class="config-field has-help"
-               data-tooltip-title="Stop-Loss Protector"
-               data-tooltip="Corte estricto de pérdidas auto-gestionado para garantizar que la cartera nunca sufra drawdowns severos.">
-            <label>Stop-Loss Límite: <span class="help-icon">?</span></label>
-            <div class="ind-val mono font-bold" id="autoStopLoss" style="color: #f87171; font-size: 14px; margin-top: 4px;">-3.0% (Protección Estricta)</div>
-            <small class="hint">Preserva el capital del creador ante todo.</small>
-          </div>
-
-          <div class="config-field has-help"
                data-tooltip-title="Convicción Mínima Requerida"
                data-tooltip="Puntuación cuantitativa mínima (de 0 a 100) que una oportunidad debe alcanzar para que Automaton decida arriesgar capital.">
             <label>Convicción Requerida: <span class="help-icon">?</span></label>
             <div class="ind-val mono font-bold" id="autoMinScore" style="color: #fbbf24; font-size: 14px; margin-top: 4px;">60 / 100 pts</div>
             <small class="hint" id="autoScoreHint">Filtro de entrada cuantitativo para descartar ruido.</small>
-          </div>
-
-          <div class="config-field has-help"
-               data-tooltip-title="Estrategia DCA"
-               data-tooltip="Permite promediar a la baja hasta 3 compras si hay sobreventa confirmada. En Tier Crítico se bloquea para no concentrar riesgo.">
-            <label>Estrategia DCA Inteligente: <span class="help-icon">?</span></label>
-            <div class="ind-val mono font-bold" id="autoDcaStatus" style="color: #34d399; font-size: 14px; margin-top: 4px;">HABILITADA (Hasta 3 escalones)</div>
-            <small class="hint">Compras escalonadas de 5,00 € por rebote.</small>
           </div>
 
           <div class="config-field has-help"
@@ -550,18 +462,14 @@
         </section>
       </div>
     </main>
-
-    <footer class="footer">
-      <p>💡 <strong>Guía Interactiva:</strong> Mantén el ratón quieto durante <strong>2 segundos</strong> sobre cualquier casilla o indicador para ver la explicación sin molestias al mover el puntero. | <strong>Simulación con 50 €</strong></p>
-    </footer>
   </div>
 
-  <script src="/static/app.js?v=26"></script>
+  <script src="/static/app.js?v=27"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=26').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=27').catch(err => console.log('SW error:', err));
       });
     }
 
