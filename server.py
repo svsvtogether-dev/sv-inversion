@@ -99,6 +99,7 @@ async def data_reset(request: Request, capital: float = 15.0):
         except Exception:
             pass
     bot.portfolio.reset(capital)
+    bot.automaton.reset_session(capital)
     bot.log(f"🔄 Cartera ({bot.active_environment.upper()}) reiniciada con €{capital:.2f}")
     return {"message": "Cartera reiniciada", "capital": capital}
 

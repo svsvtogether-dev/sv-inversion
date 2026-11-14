@@ -420,7 +420,15 @@ def test_all():
         res_mem = council.debate_multi_strategy("ETHEUR", favorable_dip, 50.0, CONFIG, btc_healthy=True, recent_memory=mem)
         assert res_mem["net_score"] < res_base["net_score"]
         assert any("Memoria de errores" in obj for obj in res_mem["bear_objections"])
-    print("Recent Trade Loss Memory test passed: streak & strategy penalties applied")
+
+        mem_brain.circuit_breaker_active = True
+        mem_brain.daily_realized_pnl_eur = -3.0
+        mem_brain.reset_session(50.0)
+        assert mem_brain.circuit_breaker_active is False
+        assert mem_brain.daily_realized_pnl_eur == 0.0
+        assert mem_brain.recent_closed_trades == []
+        assert mem_brain.pair_cooldowns == {}
+    print("Recent Trade Loss Memory & reset_session test passed")
 
     print(">>> 100% OF QUANTITATIVE UNIT TESTS PASSED SUCCESSFULLY! <<<")
 

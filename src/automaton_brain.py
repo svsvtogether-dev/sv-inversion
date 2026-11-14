@@ -119,6 +119,22 @@ class AutomatonBrain:
             self.daily_realized_pnl_eur = 0.0
             self.circuit_breaker_active = False
 
+    def reset_session(self, initial_capital: float = 50.0):
+        """Reinicia el estado operativo del autómata al resetear la cartera (Circuit Breaker, cooldowns y memoria)."""
+        self.treasury_eur = float(initial_capital)
+        self.initial_treasury_eur = float(initial_capital)
+        self.total_earned_usd = 0.0
+        self.is_alive = True
+        self.today_date = datetime.now().strftime("%Y-%m-%d")
+        self.daily_realized_pnl_eur = 0.0
+        self.circuit_breaker_active = False
+        self.pair_cooldowns = {}
+        self.recent_sl_times = {}
+        self.recent_closed_trades = []
+        self._update_tier()
+        self.add_thought(f"🔄 Sesión reiniciada a €{self.treasury_eur:.2f}: Circuit Breaker, cooldowns y memoria limpios.")
+        self.save_state()
+
     def save_state(self):
         """Guarda el estado del autómata de forma atómica."""
         try:
