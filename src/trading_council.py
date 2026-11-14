@@ -373,6 +373,23 @@ class TradingCouncil:
             "summary": summary
         }
 
+    def _apply_bear_penalty(
+        self,
+        res: Dict,
+        pts: float,
+        objection: str,
+        blocked_verdict: str = "BLOQUEADO POR DEBATE",
+    ) -> None:
+        """Suma una penalización al agente bajista y recalcula el veredicto neto."""
+        if pts <= 0:
+            return
+        res["bear_score"] = round(res["bear_score"] + pts, 1)
+        res["net_score"] = round(res["bull_score"] - res["bear_score"], 1)
+        res["bear_objections"].append(objection)
+        res["approved"] = (res["net_score"] >= res["min_required"]) and (res["bull_score"] > res["bear_score"])
+        res["decision"] = "BUY" if res["approved"] else "HOLD"
+        res["risk_verdict"] = "APROBADO" if res["approved"] else blocked_verdict
+
     def debate_multi_strategy(
         self,
         symbol: str,
@@ -382,7 +399,8 @@ class TradingCouncil:
         tier: str = "NORMAL",
         open_positions_count: int = 0,
         btc_healthy: bool = True,
-        pair_cooldown_active: bool = False
+        pair_cooldown_active: bool = False,
+        recent_memory: Optional[Dict] = None,
     ) -> Dict:
         """
         Cartera Multi-Estrategia Descorrelacionada + Protecciones Freqtrade:
@@ -438,12 +456,45 @@ class TradingCouncil:
         # BTC Informative Market Filter: si BTC está bajista y vamos a entrar en una altcoin, penalizar
         if not btc_healthy and symbol != "BTCEUR":
             for r in (dca_res, brk_res):
-                r["bear_score"] = round(r["bear_score"] + 35.0, 1)
-                r["net_score"] = round(r["bull_score"] - r["bear_score"], 1)
-                r["bear_objections"].append("BTC Macro Guard: BTCEUR bajo EMA 50 arrastra altcoins (-35)")
-                r["approved"] = (r["net_score"] >= r["min_required"]) and (r["bull_score"] > r["bear_score"])
-                r["decision"] = "BUY" if r["approved"] else "HOLD"
-                r["risk_verdict"] = "APROBADO" if r["approved"] else "BLOQUEADO POR BTC GUARD"
+                self._apply_bear_penalty(
+                    r,
+                    35.0,
+                    "BTC Macro Guard: BTCEUR bajo EMA 50 arrastra altcoins (-35)",
+                    "BLOQUEADO POR BTC GUARD",
+                )
+
+        # Memoria de errores recientes: endurece el filtro si hay racha o patrón reciente de pérdidas
+        if recent_memory:
+            consec_losses = int(recent_memory.get("consecutive_losses", 0))
+            if consec_losses >= 2:
+                streak_pts = 25.0 if consec_losses >= 3 else 15.0
+                for r in (dca_res, brk_res):
+                    self._apply_bear_penalty(
+                        r,
+                        streak_pts,
+                        f"Memoria de errores: {consec_losses} pérdidas seguidas recientes (-{streak_pts:.0f})",
+                        "BLOQUEADO POR MEMORIA",
+                    )
+
+            strat_losses = recent_memory.get("strategy_losses", {})
+            for r, tag in ((dca_res, "DCA_REVERSION"), (brk_res, "TREND_BREAKOUT")):
+                losses_count = int(strat_losses.get(tag, 0))
+                if losses_count >= 2:
+                    self._apply_bear_penalty(
+                        r,
+                        20.0,
+                        f"Memoria de errores: {tag} acumula {losses_count} pérdidas en 24h (-20)",
+                        "BLOQUEADO POR MEMORIA",
+                    )
+
+            if recent_memory.get("symbol_recent_loss"):
+                for r in (dca_res, brk_res):
+                    self._apply_bear_penalty(
+                        r,
+                        10.0,
+                        f"Memoria de errores: {symbol} cerró en pérdida recientemente (-10)",
+                        "BLOQUEADO POR MEMORIA",
+                    )
 
         dca_res["regime"] = regime_name
         brk_res["regime"] = regime_name

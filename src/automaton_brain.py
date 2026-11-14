@@ -44,6 +44,7 @@ class AutomatonBrain:
         self.birth_time = datetime.now().isoformat()
         self.pair_cooldowns: Dict[str, float] = {}
         self.recent_sl_times: Dict[str, List[float]] = {}
+        self.recent_closed_trades: List[Dict] = []
         
         # Flujo de pensamiento y consciencia
         self.last_thought = "Automaton iniciado. Analizando mercados para asegurar la supervivencia."
@@ -371,14 +372,32 @@ class AutomatonBrain:
         self.add_thought(f"Vigilando {symbol} ({pnl_pct:+.2f}%): RSI {rsi:.1f} | Meta TP: +{target_tp:.1f}% | Preservando capital.")
         return "HOLD", 0.0, f"[Automaton {self.tier}] Posición vigilada: P&L {pnl_pct:+.2f}% | RSI {rsi:.1f} | Meta: +{target_tp:.1f}%"
 
-    def record_trade_exit(self, symbol: str, realized_pnl_eur: float, was_stoploss: bool = False):
+    def record_trade_exit(
+        self,
+        symbol: str,
+        realized_pnl_eur: float,
+        was_stoploss: bool = False,
+        strategy_tag: str = "",
+    ):
         """
-        Protecciones estilo Freqtrade (CooldownPeriod & StoplossGuard):
+        Protecciones estilo Freqtrade (CooldownPeriod & StoplossGuard) + Memoria de Errores:
         - Tras cualquier cierre: 5 min de cooldown en ese par.
         - Tras Stop-Loss: 30 min de cooldown; si hay >= 2 SLs en 24h, StoplossGuard de 2 horas.
+        - Guarda las últimas 20 operaciones cerradas para que el Consejo penalice rachas o estrategias en fallo.
         """
         now = time.time()
-        if was_stoploss or realized_pnl_eur < 0:
+        is_loss = was_stoploss or realized_pnl_eur < 0
+        self.recent_closed_trades.append({
+            "symbol": symbol,
+            "pnl_eur": round(float(realized_pnl_eur), 4),
+            "is_loss": is_loss,
+            "strategy_tag": strategy_tag or "",
+            "ts": now,
+        })
+        if len(self.recent_closed_trades) > 20:
+            self.recent_closed_trades = self.recent_closed_trades[-20:]
+
+        if is_loss:
             hist = [t for t in self.recent_sl_times.get(symbol, []) if now - t < 86400.0]
             hist.append(now)
             self.recent_sl_times[symbol] = hist
@@ -387,6 +406,34 @@ class AutomatonBrain:
             self.add_thought(f"❄️ [StoplossGuard] {symbol} bloqueado {int(lock_secs // 60)} min tras pérdida.")
         else:
             self.pair_cooldowns[symbol] = now + 300.0
+
+    def get_recent_trade_memory(self, symbol: str, now: Optional[float] = None) -> Dict:
+        """Resume pérdidas recientes (racha, por estrategia en 24h y por par en 6h) para el Consejo."""
+        ts_now = now if now is not None else time.time()
+        recent_24h = [t for t in self.recent_closed_trades if ts_now - t.get("ts", 0.0) <= 86400.0]
+
+        consec_losses = 0
+        for t in reversed(recent_24h):
+            if t.get("is_loss"):
+                consec_losses += 1
+            else:
+                break
+
+        strategy_losses: Dict[str, int] = {}
+        for t in recent_24h:
+            tag = t.get("strategy_tag", "")
+            if t.get("is_loss") and tag:
+                strategy_losses[tag] = strategy_losses.get(tag, 0) + 1
+
+        symbol_recent_loss = any(
+            t.get("symbol") == symbol and t.get("is_loss") and (ts_now - t.get("ts", 0.0) <= 21600.0)
+            for t in recent_24h
+        )
+        return {
+            "consecutive_losses": consec_losses,
+            "strategy_losses": strategy_losses,
+            "symbol_recent_loss": symbol_recent_loss,
+        }
 
     def is_pair_in_cooldown(self, symbol: str) -> bool:
         return time.time() < self.pair_cooldowns.get(symbol, 0.0)
@@ -450,6 +497,7 @@ class AutomatonBrain:
                 open_positions_count=open_positions_count,
                 btc_healthy=btc_healthy,
                 pair_cooldown_active=self.is_pair_in_cooldown(sym),
+                recent_memory=self.get_recent_trade_memory(sym),
             )
             net_score = debate["net_score"]
             current_scores[sym] = net_score

@@ -406,6 +406,22 @@ def test_all():
     assert "shadow_tracker" in brain.get_status_dict()
     print(f"ShadowTracker test passed: saved_losses=1 | accuracy=100.0%")
 
+    # 16. Test Recent Trade Loss Memory in AutomatonBrain & TradingCouncil
+    with tempfile.TemporaryDirectory() as tmpdir_mem:
+        mem_brain = AutomatonBrain(Path(tmpdir_mem))
+        mem_brain.record_trade_exit("ETHEUR", -0.80, was_stoploss=True, strategy_tag="DCA_REVERSION")
+        mem_brain.record_trade_exit("SOLEUR", -0.60, was_stoploss=True, strategy_tag="DCA_REVERSION")
+        mem = mem_brain.get_recent_trade_memory("ETHEUR")
+        assert mem["consecutive_losses"] == 2
+        assert mem["strategy_losses"].get("DCA_REVERSION") == 2
+        assert mem["symbol_recent_loss"] is True
+
+        res_base = council.debate_multi_strategy("ETHEUR", favorable_dip, 50.0, CONFIG, btc_healthy=True)
+        res_mem = council.debate_multi_strategy("ETHEUR", favorable_dip, 50.0, CONFIG, btc_healthy=True, recent_memory=mem)
+        assert res_mem["net_score"] < res_base["net_score"]
+        assert any("Memoria de errores" in obj for obj in res_mem["bear_objections"])
+    print("Recent Trade Loss Memory test passed: streak & strategy penalties applied")
+
     print(">>> 100% OF QUANTITATIVE UNIT TESTS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":

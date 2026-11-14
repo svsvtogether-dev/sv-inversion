@@ -296,7 +296,12 @@ class TradingBot:
                                 if trade:
                                     pnl_val = trade.get('realized_pnl_eur', 0.0)
                                     self.automaton.record_profit(pnl_val, reason)
-                                    self.automaton.record_trade_exit(sym, pnl_val, was_stoploss=("Stop" in reason or pnl_val < 0))
+                                    self.automaton.record_trade_exit(
+                                        sym,
+                                        pnl_val,
+                                        was_stoploss=("Stop" in reason or pnl_val < 0),
+                                        strategy_tag=position.get("strategy_tag", ""),
+                                    )
                                 self.log(f"🔴 VENTA REAL EN BINANCE: {adj_qty} {sym} a {self.format_price(price)} | {reason}")
                             else:
                                 self.log(f"⚠️ Error orden venta Binance: {order_msg}")
@@ -308,7 +313,12 @@ class TradingBot:
                             pnl_sign = "+" if pnl_val >= 0 else ""
                             # Alimentar a Automaton con los beneficios generados
                             self.automaton.record_profit(pnl_val, reason)
-                            self.automaton.record_trade_exit(sym, pnl_val, was_stoploss=("Stop" in reason or pnl_val < 0))
+                            self.automaton.record_trade_exit(
+                                sym,
+                                pnl_val,
+                                was_stoploss=("Stop" in reason or pnl_val < 0),
+                                strategy_tag=position.get("strategy_tag", ""),
+                            )
                             self.log(f"💰 VENTA ({trade['environment'].upper()}): €{trade['amount_eur']:.2f} {sym} a {self.format_price(price)} | P&L: {pnl_sign}€{trade['realized_pnl_eur']:.4f} ({trade.get('pnl_pct', 0):+.2f}%) | {reason}")
                             self.status_message = f"Venta de {sym} con beneficio {pnl_sign}€{trade['realized_pnl_eur']:.4f}"
                             self.last_action = {"action": action, "reason": reason, "time": now_str}
