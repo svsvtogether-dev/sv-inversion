@@ -353,6 +353,9 @@ function renderState(data) {
   if (manualCashEl && data.portfolio) {
     manualCashEl.textContent = `Disponible: ${formatEur(data.portfolio.cash_eur || 0)}`;
   }
+  if (activeManualSym === currentSymbol && data.analysis && data.analysis.price > 0) {
+    updateManualAssetPriceDisplay(activeManualSym, data.analysis.price, data.analysis.change_24h || 0);
+  }
   updateManualRiskPreview();
   renderPendingManualOrders(data.pending_orders || []);
   currentCategory = data.active_category || "all";
@@ -1136,10 +1139,41 @@ function setManualFeedback(msg, isError = false) {
   el.style.color = isError ? "#f87171" : "#4ade80";
 }
 
+let manualLivePriceCache = {};
+
+function updateManualAssetPriceDisplay(sym, priceEur, change24h = 0) {
+  if (priceEur > 0) manualLivePriceCache[sym] = priceEur;
+  const priceBadge = document.getElementById("manualAssetPriceBadge");
+  if (!priceBadge) return;
+  if (priceEur > 0) {
+    const sign = change24h >= 0 ? "+" : "";
+    priceBadge.textContent = `Precio: ${formatEur(priceEur)} (${sign}${Number(change24h || 0).toFixed(2)}%)`;
+  } else {
+    priceBadge.textContent = "Precio: cargando...";
+  }
+}
+
+async function fetchManualAssetPrice(sym) {
+  if (!sym) return;
+  const priceBadge = document.getElementById("manualAssetPriceBadge");
+  if (priceBadge) priceBadge.textContent = "Precio: cargando...";
+  try {
+    const res = await fetch(`/static/api/price?symbol=${encodeURIComponent(sym)}`);
+    if (!res.ok) return;
+    const d = await res.json();
+    if (d.symbol === getSelectedManualSymbol() && d.price_eur > 0) {
+      updateManualAssetPriceDisplay(d.symbol, d.price_eur, d.change_24h || 0);
+      updateManualRiskPreview();
+    }
+  } catch (e) {}
+}
+
 function getManualBasePrice() {
   const orderType = document.getElementById("manualOrderType")?.value || "MARKET";
   const limitVal = parseFloat(document.getElementById("manualLimitPrice")?.value || "0");
   if (orderType === "LIMIT" && limitVal > 0) return limitVal;
+  const selSym = getSelectedManualSymbol();
+  if (manualLivePriceCache[selSym] > 0) return manualLivePriceCache[selSym];
   return Number(lastStateData?.analysis?.price || 0);
 }
 
@@ -1394,6 +1428,7 @@ if (manualSymbolSearchEl) {
       if (badge) badge.textContent = `${meta.name || chosen} (${clean})`;
       if (buyBtnEl) buyBtnEl.textContent = `🟢 Comprar ${clean}`;
       if (sellBtnEl) sellBtnEl.textContent = `🔴 Vender ${clean}`;
+      fetchManualAssetPrice(chosen);
     }
   });
 }
@@ -1411,6 +1446,7 @@ if (manualSymbolSelectEl) {
     if (badge) badge.textContent = `${meta.name || chosen} (${clean})`;
     if (buyBtnEl) buyBtnEl.textContent = `🟢 Comprar ${clean}`;
     if (sellBtnEl) sellBtnEl.textContent = `🔴 Vender ${clean}`;
+    fetchManualAssetPrice(chosen);
     updateManualRiskPreview();
     await authFetch("/static/api/symbol", {
       method: "POST",

@@ -36,6 +36,17 @@ def _require_api_auth(request: Request) -> None:
 def data_status():
     return bot.get_state()
 
+
+@data_api_app.get("/price")
+def data_price(symbol: str = "BTCEUR"):
+    sym = (symbol or bot.current_symbol).upper().strip()
+    analysis = bot.feed.analyze_symbol(sym)
+    return {
+        "symbol": sym,
+        "price_eur": float(analysis.get("price", 0.0) or 0.0),
+        "change_24h": float(analysis.get("change_24h", 0.0) or 0.0),
+    }
+
 @data_api_app.api_route("/toggle", methods=["GET", "POST"])
 def data_toggle(request: Request):
     _require_api_auth(request)

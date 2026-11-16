@@ -372,8 +372,9 @@
             <h2>✋ Terminal de Operativa Manual</h2>
             <p style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Órdenes de Mercado o Límite con Stop Loss, Take Profit y Trailing Stop automáticos.</p>
           </div>
-          <div style="display:flex; align-items:center; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span class="badge" id="manualTradeSymbolBadge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);">BTCEUR</span>
+            <span class="badge" id="manualAssetPriceBadge" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.35);">Precio: €--</span>
             <span class="badge" id="manualAvailableCash" style="background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.35);">Disponible: €50.00</span>
           </div>
         </div>
@@ -571,12 +572,12 @@
     </main>
   </div>
 
-  <script src="/static/app.js?v=32"></script>
+  <script src="/static/app.js?v=33"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=32').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=33').catch(err => console.log('SW error:', err));
       });
     }
 
