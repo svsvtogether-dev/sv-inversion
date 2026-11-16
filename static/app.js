@@ -252,9 +252,15 @@ async function fetchState() {
 }
 
 function renderPills(catalog, activeCat, activeSym) {
+  const searchQ = (document.getElementById("assetSearchInput")?.value || "").trim().toLowerCase();
   symbolPillsContainer.innerHTML = "";
   for (const [sym, meta] of Object.entries(catalog)) {
-    if (activeCat !== "all" && meta.category !== activeCat && meta.sub_category !== activeCat && !(activeCat === "top" && meta.sub_category === "top4")) continue;
+    if (searchQ) {
+      const hay = `${sym} ${meta.name || ""} ${meta.symbol_clean || ""} ${meta.category || ""}`.toLowerCase();
+      if (!hay.includes(searchQ)) continue;
+    } else if (activeCat !== "all" && meta.category !== activeCat && meta.sub_category !== activeCat && !(activeCat === "top" && meta.sub_category === "top4")) {
+      continue;
+    }
 
     const btn = document.createElement("button");
     btn.className = `pill-btn ${sym === activeSym ? "active" : ""}`;
@@ -273,6 +279,46 @@ function renderPills(catalog, activeCat, activeSym) {
     });
     symbolPillsContainer.appendChild(btn);
   }
+  if (symbolPillsContainer.children.length === 0) {
+    symbolPillsContainer.innerHTML = `<span style="font-size:12px; color:#94a3b8; padding:6px;">Sin resultados para "${searchQ}"</span>`;
+  }
+}
+
+function renderManualSymbolOptions(catalog, filterQuery = "", preserveSym = null) {
+  const manualSymSelect = document.getElementById("manualSymbolSelect");
+  if (!manualSymSelect || !catalog || Object.keys(catalog).length === 0) return;
+
+  const q = (filterQuery || "").trim().toLowerCase();
+  const groups = {
+    crypto: { label: "🪙 Criptomonedas (Binance EUR)", items: [] },
+    stocks: { label: "📈 Acciones (EE.UU. & España)", items: [] },
+    etfs: { label: "🌍 ETFs e Índices Globales", items: [] },
+    commodities: { label: "🥇 Materias Primas", items: [] }
+  };
+  let firstMatch = null;
+  let hasPreserve = false;
+  for (const [sym, meta] of Object.entries(catalog)) {
+    if (q) {
+      const hay = `${sym} ${meta.name || ""} ${meta.symbol_clean || ""} ${meta.category || ""}`.toLowerCase();
+      if (!hay.includes(q)) continue;
+    }
+    if (!firstMatch) firstMatch = sym;
+    if (preserveSym && sym === preserveSym) hasPreserve = true;
+    const grp = groups[meta.category] || groups.crypto;
+    grp.items.push(`<option value="${sym}">${meta.name || sym} (${meta.symbol_clean || sym})</option>`);
+  }
+
+  const html = Object.values(groups)
+    .filter(g => g.items.length > 0)
+    .map(g => `<optgroup label="${g.label}">${g.items.join("")}</optgroup>`)
+    .join("");
+  manualSymSelect.innerHTML = html || `<option value="">Sin coincidencias</option>`;
+
+  if (hasPreserve) {
+    manualSymSelect.value = preserveSym;
+  } else if (firstMatch) {
+    manualSymSelect.value = firstMatch;
+  }
 }
 
 function renderState(data) {
@@ -282,25 +328,13 @@ function renderState(data) {
   const manualSymEl = document.getElementById("manualTradeSymbolBadge");
   const manualCashEl = document.getElementById("manualAvailableCash");
   const manualSymSelect = document.getElementById("manualSymbolSelect");
+  const manualSearchQ = document.getElementById("manualSymbolSearch")?.value || "";
   const catalog = data.markets_catalog || {};
 
-  if (manualSymSelect && Object.keys(catalog).length > 0 && manualSymSelect.options.length <= 1) {
-    const groups = {
-      crypto: { label: "🪙 Criptomonedas (Binance EUR)", items: [] },
-      stocks: { label: "📈 Acciones (EE.UU. & España)", items: [] },
-      etfs: { label: "🌍 ETFs e Índices Globales", items: [] },
-      commodities: { label: "🥇 Materias Primas", items: [] }
-    };
-    for (const [sym, meta] of Object.entries(catalog)) {
-      const grp = groups[meta.category] || groups.crypto;
-      grp.items.push(`<option value="${sym}">${meta.name || sym} (${meta.symbol_clean || sym})</option>`);
-    }
-    manualSymSelect.innerHTML = Object.values(groups)
-      .filter(g => g.items.length > 0)
-      .map(g => `<optgroup label="${g.label}">${g.items.join("")}</optgroup>`)
-      .join("");
+  if (manualSymSelect && Object.keys(catalog).length > 0 && manualSymSelect.options.length <= 1 && !manualSearchQ) {
+    renderManualSymbolOptions(catalog, "", currentSymbol);
   }
-  if (manualSymSelect && currentSymbol && manualSymSelect.value !== currentSymbol && document.activeElement !== manualSymSelect) {
+  if (manualSymSelect && !manualSearchQ && currentSymbol && manualSymSelect.value !== currentSymbol && document.activeElement !== manualSymSelect) {
     manualSymSelect.value = currentSymbol;
   }
 
@@ -1334,6 +1368,34 @@ if (manualMaxBtn) {
 const manualBuyBtn = document.getElementById("manualBuyBtn");
 if (manualBuyBtn) {
   manualBuyBtn.addEventListener("click", executeManualBuy);
+}
+
+const assetSearchInputEl = document.getElementById("assetSearchInput");
+if (assetSearchInputEl) {
+  assetSearchInputEl.addEventListener("input", () => {
+    if (lastStateData) {
+      renderNavigation(lastStateData.markets_catalog || {}, lastStateData.active_category || "top4", currentSymbol);
+    }
+  });
+}
+
+const manualSymbolSearchEl = document.getElementById("manualSymbolSearch");
+if (manualSymbolSearchEl) {
+  manualSymbolSearchEl.addEventListener("input", () => {
+    const catalog = lastStateData?.markets_catalog || marketsCatalog || {};
+    renderManualSymbolOptions(catalog, manualSymbolSearchEl.value, null);
+    const chosen = document.getElementById("manualSymbolSelect")?.value;
+    if (chosen && catalog[chosen]) {
+      const meta = catalog[chosen];
+      const clean = meta.symbol_clean || chosen;
+      const badge = document.getElementById("manualTradeSymbolBadge");
+      const buyBtnEl = document.getElementById("manualBuyBtn");
+      const sellBtnEl = document.getElementById("manualSellBtn");
+      if (badge) badge.textContent = `${meta.name || chosen} (${clean})`;
+      if (buyBtnEl) buyBtnEl.textContent = `🟢 Comprar ${clean}`;
+      if (sellBtnEl) sellBtnEl.textContent = `🔴 Vender ${clean}`;
+    }
+  });
 }
 
 const manualSymbolSelectEl = document.getElementById("manualSymbolSelect");

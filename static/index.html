@@ -176,6 +176,10 @@
         </button>
       </div>
 
+      <div style="margin: 8px 0 6px 0;">
+        <input id="assetSearchInput" type="search" placeholder="🔍 Buscar activo rápido (ej: Apple, BTC, Oro, IBEX, Nvidia, MSCI...)" style="width:100%; max-width:440px; padding:8px 12px; border-radius:10px; border:1px solid rgba(56,189,248,0.35); background:#0f172a; color:#f8fafc; font-size:13px;" />
+      </div>
+
       <div class="symbol-pills-container" id="symbolPillsContainer">
         <!-- Generado dinámicamente -->
       </div>
@@ -377,6 +381,7 @@
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:12px; padding-top:8px;">
           <div style="display:flex; flex-direction:column; gap:5px;">
             <label for="manualSymbolSelect" style="font-size:11px; color:#38bdf8; font-weight:700;">Activo a operar</label>
+            <input id="manualSymbolSearch" type="search" placeholder="🔍 Filtrar activo..." style="padding:6px 10px; border-radius:8px; border:1px solid rgba(56,189,248,0.28); background:#0b1220; color:#f8fafc; font-size:12px;" />
             <select id="manualSymbolSelect" style="padding:8px 10px; border-radius:8px; border:1px solid rgba(56,189,248,0.45); background:#0f172a; color:#f8fafc; font-weight:700;">
               <option value="BTCEUR">Bitcoin (BTC/EUR)</option>
             </select>
@@ -566,12 +571,12 @@
     </main>
   </div>
 
-  <script src="/static/app.js?v=31"></script>
+  <script src="/static/app.js?v=32"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=31').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=32').catch(err => console.log('SW error:', err));
       });
     }
 
