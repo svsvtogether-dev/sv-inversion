@@ -355,6 +355,8 @@ function renderState(data) {
   }
   if (activeManualSym === currentSymbol && data.analysis && data.analysis.price > 0) {
     updateManualAssetPriceDisplay(activeManualSym, data.analysis.price, data.analysis.change_24h || 0);
+  } else if (activeManualSym) {
+    fetchManualAssetPrice(activeManualSym);
   }
   updateManualRiskPreview();
   renderPendingManualOrders(data.pending_orders || []);
@@ -1144,12 +1146,29 @@ let manualLivePriceCache = {};
 function updateManualAssetPriceDisplay(sym, priceEur, change24h = 0) {
   if (priceEur > 0) manualLivePriceCache[sym] = priceEur;
   const priceBadge = document.getElementById("manualAssetPriceBadge");
-  if (!priceBadge) return;
+  const liveValEl = document.getElementById("manualLivePriceValue");
+  const estUnitsEl = document.getElementById("manualEstUnitsText");
+  const meta = (lastStateData?.markets_catalog || marketsCatalog || {})[sym] || {};
+  const cleanLabel = meta.symbol_clean || sym;
+
   if (priceEur > 0) {
     const sign = change24h >= 0 ? "+" : "";
-    priceBadge.textContent = `Precio: ${formatEur(priceEur)} (${sign}${Number(change24h || 0).toFixed(2)}%)`;
+    const formatted = formatEur(priceEur);
+    if (priceBadge) priceBadge.textContent = `Precio: ${formatted} (${sign}${Number(change24h || 0).toFixed(2)}%)`;
+    if (liveValEl) liveValEl.textContent = `${formatted} (${cleanLabel})`;
+    if (estUnitsEl) {
+      const amt = parseFloat(document.getElementById("manualAmountEur")?.value || "0");
+      if (amt > 0) {
+        const units = amt / priceEur;
+        estUnitsEl.textContent = `Con €${amt.toFixed(2)} compras ≈ ${formatCrypto(units)} ${cleanLabel}`;
+      } else {
+        estUnitsEl.textContent = "Introduce un importe para ver las unidades estimadas";
+      }
+    }
   } else {
-    priceBadge.textContent = "Precio: cargando...";
+    if (priceBadge) priceBadge.textContent = "Precio: cargando...";
+    if (liveValEl) liveValEl.textContent = "Cargando...";
+    if (estUnitsEl) estUnitsEl.textContent = "";
   }
 }
 
@@ -1382,6 +1401,15 @@ if (manualOrderTypeEl) {
   const el = document.getElementById(id);
   if (el) el.addEventListener("input", updateManualRiskPreview);
 });
+
+const manualAmountInputEl = document.getElementById("manualAmountEur");
+if (manualAmountInputEl) {
+  manualAmountInputEl.addEventListener("input", () => {
+    const sym = getSelectedManualSymbol();
+    const p = manualLivePriceCache[sym] || 0;
+    if (p > 0) updateManualAssetPriceDisplay(sym, p, 0);
+  });
+}
 
 document.querySelectorAll(".manual-preset-btn").forEach(btn => {
   btn.addEventListener("click", () => {

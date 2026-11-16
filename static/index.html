@@ -428,6 +428,11 @@
           </div>
         </div>
 
+        <div id="manualLivePriceBar" style="margin-top:10px; padding:8px 12px; border-radius:8px; background:rgba(15,23,42,0.75); border:1px solid rgba(251,191,36,0.3); display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; font-size:13px;">
+          <span>💰 Precio en este momento: <strong id="manualLivePriceValue" style="color:#fbbf24; font-size:15px;">€--</strong></span>
+          <span id="manualEstUnitsText" style="color:#94a3b8; font-size:12px;">Introduce un importe para ver las unidades estimadas</span>
+        </div>
+
         <div id="manualRiskPreview" style="margin-top:8px; font-size:11px; color:#94a3b8;"></div>
 
         <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin-top:12px;">
@@ -572,12 +577,12 @@
     </main>
   </div>
 
-  <script src="/static/app.js?v=33"></script>
+  <script src="/static/app.js?v=34"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=33').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=34').catch(err => console.log('SW error:', err));
       });
     }
 
