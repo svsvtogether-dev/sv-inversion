@@ -8,6 +8,31 @@ let activeEnvironment = "simulation"; // "simulation" | "live"
 let isLiveArmed = false;
 let lastStateData = null;
 
+function getAdminApiKey() {
+  return (localStorage.getItem("sv_admin_api_key") || "").trim();
+}
+
+async function authFetch(url, options = {}) {
+  const opts = { ...options };
+  const headers = { ...(opts.headers || {}) };
+  const key = getAdminApiKey();
+  if (key) {
+    headers["X-API-Key"] = key;
+  }
+  opts.headers = headers;
+
+  let res = await fetch(url, opts);
+  if (res.status === 401) {
+    const entered = window.prompt("Introduce tu ADMIN_API_KEY para autorizar la operación:");
+    if (entered && entered.trim()) {
+      localStorage.setItem("sv_admin_api_key", entered.trim());
+      opts.headers = { ...headers, "X-API-Key": entered.trim() };
+      res = await fetch(url, opts);
+    }
+  }
+  return res;
+}
+
 // DOM Elements
 const kpiTotalValue = document.getElementById("kpiTotalValue");
 const kpiNetProfit = document.getElementById("kpiNetProfit");
@@ -121,7 +146,7 @@ function updateDcaMarginHint() {
 window.selectQuickSymbol = async function(symbol) {
   currentSymbol = symbol;
   updateQuickButtons(symbol);
-  await fetch("/static/api/symbol", {
+  await authFetch("/static/api/symbol", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ symbol })
@@ -239,7 +264,7 @@ function renderPills(catalog, activeCat, activeSym) {
       <span class="pill-tag">${meta.symbol_clean || sym}</span>
     `;
     btn.addEventListener("click", async () => {
-      await fetch("/static/api/symbol", {
+      await authFetch("/static/api/symbol", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol: sym })
@@ -253,6 +278,16 @@ function renderPills(catalog, activeCat, activeSym) {
 function renderState(data) {
   lastStateData = data;
   currentSymbol = data.current_symbol;
+
+  const manualSymEl = document.getElementById("manualTradeSymbolBadge");
+  const manualCashEl = document.getElementById("manualAvailableCash");
+  if (manualSymEl) {
+    const meta = (data.markets_catalog || {})[currentSymbol] || {};
+    manualSymEl.textContent = meta.symbol_clean || currentSymbol;
+  }
+  if (manualCashEl && data.portfolio) {
+    manualCashEl.textContent = `Disponible: ${formatEur(data.portfolio.cash_eur || 0)}`;
+  }
   currentCategory = data.active_category || "all";
   isRunning = data.is_running;
   marketsCatalog = data.markets_catalog || {};
@@ -604,7 +639,7 @@ function renderState(data) {
           </td>
           <td>
             <span class="dca-badge">DCA ${pos.dca_count}/3</span><br/>
-            <small style="color: #34d399;">Riesgo Protegido</small>
+            <button type="button" class="btn btn-danger btn-sm" style="margin-top:4px; padding:2px 8px; font-size:11px;" onclick="quickSellPosition('${pos.symbol}')">🔴 Vender 100%</button>
           </td>
         </tr>
       `;
@@ -685,7 +720,7 @@ if (filterAllTradesBtn && filterSellTradesBtn) {
 document.querySelectorAll(".cat-btn").forEach(btn => {
   btn.addEventListener("click", async () => {
     const category = btn.dataset.category;
-    await fetch("/static/api/category", {
+    await authFetch("/static/api/category", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ category })
@@ -695,20 +730,20 @@ document.querySelectorAll(".cat-btn").forEach(btn => {
 });
 
 toggleBotBtn.addEventListener("click", async () => {
-  await fetch("/static/api/toggle", { method: "POST" });
+  await authFetch("/static/api/toggle", { method: "POST" });
   fetchState();
 });
 
 emergencyBtn.addEventListener("click", async () => {
   if (confirm("¿Estás seguro de que deseas vender inmediatamente todas las posiciones al precio actual de mercado?")) {
-    await fetch("/static/api/emergency_sell", { method: "POST" });
+    await authFetch("/static/api/emergency_sell", { method: "POST" });
     fetchState();
   }
 });
 
 resetBtn.addEventListener("click", async () => {
   if (confirm("¿Deseas reiniciar la cartera virtual a los 50 € iniciales?")) {
-    await fetch("/static/api/reset", {
+    await authFetch("/static/api/reset", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ capital: 50.0 })
@@ -728,7 +763,7 @@ if (saveConfigBtn) {
       sma_period: parseFloat(cfgSmaPeriod ? cfgSmaPeriod.value : 50),
       msci_sweep_pct: parseFloat(cfgMsciSweep ? cfgMsciSweep.value : 0)
     };
-    const res = await fetch("/static/api/config", {
+    const res = await authFetch("/static/api/config", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -994,7 +1029,7 @@ function renderAutomaton(auto) {
 
 window.fundAutomaton = async function(amount = 5.0) {
   try {
-    const res = await fetch("/static/api/automaton/fund", {
+    const res = await authFetch("/static/api/automaton/fund", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount })
@@ -1007,7 +1042,7 @@ window.fundAutomaton = async function(amount = 5.0) {
 
 window.reviveAutomaton = async function() {
   try {
-    const res = await fetch("/static/api/automaton/revive", {
+    const res = await authFetch("/static/api/automaton/revive", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ grant: 3.0 })
@@ -1017,6 +1052,98 @@ window.reviveAutomaton = async function() {
     console.error("Error al revivir Automaton:", err);
   }
 };
+
+// Manual Trading Controls
+function setManualFeedback(msg, isError = false) {
+  const el = document.getElementById("manualTradeFeedback");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? "#f87171" : "#4ade80";
+}
+
+async function executeManualBuy() {
+  const input = document.getElementById("manualAmountEur");
+  const amount = parseFloat(input ? input.value : "0");
+  if (!amount || amount <= 0) {
+    setManualFeedback("❌ Introduce un importe válido en EUR.", true);
+    return;
+  }
+  setManualFeedback("⏳ Ejecutando compra manual...", false);
+  try {
+    const res = await authFetch("/static/api/manual/buy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol: currentSymbol, amount_eur: amount })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setManualFeedback(`❌ ${data.detail || "Error al ejecutar compra"}`, true);
+      return;
+    }
+    const t = data.trade || {};
+    setManualFeedback(`✅ Compra ejecutada: ${t.symbol || currentSymbol} por €${Number(t.amount_eur || amount).toFixed(2)} @ €${Number(t.price || 0).toFixed(2)}`, false);
+    fetchState();
+  } catch (err) {
+    setManualFeedback(`❌ Error de red: ${err.message}`, true);
+  }
+}
+
+async function executeManualSell(symbolToSell, sellPct) {
+  setManualFeedback(`⏳ Vendiendo ${symbolToSell}...`, false);
+  try {
+    const res = await authFetch("/static/api/manual/sell", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol: symbolToSell, sell_pct: sellPct })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setManualFeedback(`❌ ${data.detail || "Error al ejecutar venta"}`, true);
+      return;
+    }
+    const t = data.trade || {};
+    const pnl = Number(t.realized_pnl_eur || 0);
+    const pnlSign = pnl >= 0 ? "+" : "";
+    setManualFeedback(`✅ Venta ejecutada: ${t.symbol || symbolToSell} @ €${Number(t.price || 0).toFixed(2)} (P&L: ${pnlSign}€${pnl.toFixed(4)})`, false);
+    fetchState();
+  } catch (err) {
+    setManualFeedback(`❌ Error de red: ${err.message}`, true);
+  }
+}
+
+window.quickSellPosition = function(symbolToSell) {
+  executeManualSell(symbolToSell, 1.0);
+};
+
+document.querySelectorAll(".manual-preset-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const input = document.getElementById("manualAmountEur");
+    if (input) input.value = btn.dataset.amount || "10";
+  });
+});
+
+const manualMaxBtn = document.getElementById("manualMaxBtn");
+if (manualMaxBtn) {
+  manualMaxBtn.addEventListener("click", () => {
+    const input = document.getElementById("manualAmountEur");
+    const cash = lastStateData && lastStateData.portfolio ? Number(lastStateData.portfolio.cash_eur || 0) : 0;
+    if (input) input.value = Math.max(0, Math.floor(cash * 100) / 100).toFixed(2);
+  });
+}
+
+const manualBuyBtn = document.getElementById("manualBuyBtn");
+if (manualBuyBtn) {
+  manualBuyBtn.addEventListener("click", executeManualBuy);
+}
+
+const manualSellBtn = document.getElementById("manualSellBtn");
+if (manualSellBtn) {
+  manualSellBtn.addEventListener("click", () => {
+    const sel = document.getElementById("manualSellPct");
+    const pct = parseFloat(sel ? sel.value : "1.0");
+    executeManualSell(currentSymbol, pct);
+  });
+}
 
 // Loop
 fetchState();

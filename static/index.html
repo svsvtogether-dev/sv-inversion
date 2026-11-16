@@ -346,6 +346,53 @@
         </div>
       </section>
 
+      <!-- Manual Trading Panel -->
+      <section class="card" id="manualTradingCard">
+        <div class="card-header">
+          <div>
+            <h2>✋ Operativa Manual (Comprar / Vender)</h2>
+            <p style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Ejecuta compras o ventas al instante sobre el activo seleccionado en tu cartera activa.</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="badge" id="manualTradeSymbolBadge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);">BTCEUR</span>
+            <span class="badge" id="manualAvailableCash" style="background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.35);">Disponible: €50.00</span>
+          </div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; padding-top:6px;">
+          <div style="display:flex; flex-direction:column; gap:6px; min-width:220px; flex:1;">
+            <label for="manualAmountEur" style="font-size:12px; color:#cbd5e1; font-weight:600;">Importe a comprar (EUR)</label>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input id="manualAmountEur" type="number" min="5" step="1" value="10" style="width:110px; padding:8px 10px; border-radius:8px; border:1px solid rgba(148,163,184,0.25); background:#0f172a; color:#f8fafc; font-weight:600;" />
+              <button type="button" class="btn btn-secondary btn-sm manual-preset-btn" data-amount="5">5€</button>
+              <button type="button" class="btn btn-secondary btn-sm manual-preset-btn" data-amount="10">10€</button>
+              <button type="button" class="btn btn-secondary btn-sm manual-preset-btn" data-amount="25">25€</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="manualMaxBtn">Máx</button>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" id="manualBuyBtn" class="btn btn-primary" style="background: linear-gradient(135deg, #16a34a, #15803d); border:none; padding:9px 16px; font-weight:700;">
+              🟢 Comprar Ahora
+            </button>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label for="manualSellPct" style="font-size:12px; color:#cbd5e1; font-weight:600;">% a vender del activo</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <select id="manualSellPct" style="padding:8px 10px; border-radius:8px; border:1px solid rgba(148,163,184,0.25); background:#0f172a; color:#f8fafc; font-weight:600;">
+                <option value="0.25">25%</option>
+                <option value="0.50">50%</option>
+                <option value="1.0" selected>100%</option>
+              </select>
+              <button type="button" id="manualSellBtn" class="btn btn-danger" style="padding:9px 16px; font-weight:700;">
+                🔴 Vender Posición
+              </button>
+            </div>
+          </div>
+        </div>
+        <div id="manualTradeFeedback" style="margin-top:10px; font-size:12px; color:#94a3b8; min-height:18px;"></div>
+      </section>
+
       <!-- Active Positions -->
       <section class="card">
         <div class="card-header">
@@ -464,12 +511,12 @@
     </main>
   </div>
 
-  <script src="/static/app.js?v=27"></script>
+  <script src="/static/app.js?v=28"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=27').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=28').catch(err => console.log('SW error:', err));
       });
     }
 

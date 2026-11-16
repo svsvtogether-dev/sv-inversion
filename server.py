@@ -127,6 +127,36 @@ def data_emergency_sell(request: Request):
     sold = bot.emergency_sell_all()
     return {"message": f"Se liquidaron {sold} posiciones"}
 
+
+@data_api_app.post("/manual/buy")
+async def data_manual_buy(request: Request):
+    _require_api_auth(request)
+    body = await request.json()
+    symbol = str(body.get("symbol") or bot.current_symbol)
+    try:
+        amount_eur = float(body.get("amount_eur", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Importe EUR inválido")
+    res = bot.manual_buy(symbol=symbol, amount_eur=amount_eur)
+    if not res.get("ok"):
+        raise HTTPException(status_code=400, detail=res.get("error", "No se pudo ejecutar la compra"))
+    return res
+
+
+@data_api_app.post("/manual/sell")
+async def data_manual_sell(request: Request):
+    _require_api_auth(request)
+    body = await request.json()
+    symbol = str(body.get("symbol") or bot.current_symbol)
+    try:
+        sell_pct = float(body.get("sell_pct", 1.0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Porcentaje de venta inválido")
+    res = bot.manual_sell(symbol=symbol, sell_pct=sell_pct)
+    if not res.get("ok"):
+        raise HTTPException(status_code=400, detail=res.get("error", "No se pudo ejecutar la venta"))
+    return res
+
 @data_api_app.get("/export_csv")
 def data_export_csv(request: Request):
     _require_api_auth(request)

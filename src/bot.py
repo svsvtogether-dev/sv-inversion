@@ -557,6 +557,87 @@ class TradingBot:
                         self.log(f"🚨 Venta de emergencia ({trade['environment'].upper()}): {sym} a €{p:,.2f}")
         return sold_count
 
+    def _resolve_live_price(self, symbol: str) -> float:
+        """Obtiene el precio EUR más reciente del caché o consultando el feed."""
+        price = self.feed.last_known_prices_eur.get(symbol, 0.0)
+        if price <= 0:
+            analysis = self.feed.analyze_symbol(symbol)
+            price = float(analysis.get("price", 0.0) or 0.0)
+        return price
+
+    def manual_buy(self, symbol: str, amount_eur: float) -> Dict:
+        """Ejecuta una compra manual en el entorno activo (simulación en v1.0-frozen)."""
+        sym = (symbol or self.current_symbol).upper().strip()
+        if sym not in SUPPORTED_SYMBOLS:
+            return {"ok": False, "error": f"Símbolo no soportado: {sym}"}
+        if amount_eur <= 0:
+            return {"ok": False, "error": "El importe debe ser mayor que 0 €."}
+
+        price = self._resolve_live_price(sym)
+        if price <= 0:
+            return {"ok": False, "error": f"No se pudo obtener precio en vivo para {sym}."}
+
+        with self._lock:
+            active_port = self.portfolio
+            if active_port.cash <= 0:
+                return {"ok": False, "error": "Sin liquidez disponible (€0.00)."}
+            trade = active_port.buy(
+                sym,
+                float(amount_eur),
+                price,
+                reason="Operación manual del usuario",
+                strategy_tag="MANUAL",
+            )
+            if not trade:
+                return {
+                    "ok": False,
+                    "error": f"Orden rechazada por mínimo de Binance o saldo insuficiente (disponible: €{active_port.cash:.2f}).",
+                }
+            self.last_action = {
+                "action": "BUY",
+                "reason": f"Compra manual {sym} (€{trade['amount_eur']:.2f})",
+                "time": datetime.now().strftime("%H:%M:%S"),
+            }
+            self.log(f"✋ Compra manual ({trade['environment'].upper()}): {sym} €{trade['amount_eur']:.2f} @ €{price:,.2f}")
+            return {"ok": True, "trade": trade, "cash_eur": round(active_port.cash, 4)}
+
+    def manual_sell(self, symbol: str, sell_pct: float = 1.0) -> Dict:
+        """Ejecuta una venta manual (parcial o total) en el entorno activo."""
+        sym = (symbol or self.current_symbol).upper().strip()
+        if sym not in SUPPORTED_SYMBOLS:
+            return {"ok": False, "error": f"Símbolo no soportado: {sym}"}
+        pct = max(0.01, min(1.0, float(sell_pct)))
+
+        price = self._resolve_live_price(sym)
+        with self._lock:
+            active_port = self.portfolio
+            pos = active_port.positions.get(sym)
+            if not pos or pos.get("amount", 0.0) <= 0:
+                return {"ok": False, "error": f"No tienes posición abierta en {sym}."}
+            if price <= 0:
+                price = float(pos.get("avg_entry_price", 0.0) or 0.0)
+            if price <= 0:
+                return {"ok": False, "error": f"No se pudo obtener precio para vender {sym}."}
+
+            trade = active_port.sell(
+                sym,
+                price,
+                reason=f"Venta manual del usuario ({int(round(pct * 100))}%)",
+                sell_pct=pct,
+            )
+            if not trade:
+                return {"ok": False, "error": f"No se pudo cerrar la posición en {sym}."}
+            self.last_action = {
+                "action": "SELL",
+                "reason": f"Venta manual {sym} ({int(round(pct * 100))}%)",
+                "time": datetime.now().strftime("%H:%M:%S"),
+            }
+            self.log(
+                f"✋ Venta manual ({trade['environment'].upper()}): {sym} @ €{price:,.2f} "
+                f"| P&L: €{trade['realized_pnl_eur']:+.4f}"
+            )
+            return {"ok": True, "trade": trade, "cash_eur": round(active_port.cash, 4)}
+
     def get_state(self) -> Dict:
         if self.current_symbol not in self.feed.last_analysis_cache:
             analysis = self.feed.analyze_symbol(self.current_symbol)
