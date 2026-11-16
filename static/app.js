@@ -281,10 +281,30 @@ function renderState(data) {
 
   const manualSymEl = document.getElementById("manualTradeSymbolBadge");
   const manualCashEl = document.getElementById("manualAvailableCash");
-  if (manualSymEl) {
-    const meta = (data.markets_catalog || {})[currentSymbol] || {};
-    manualSymEl.textContent = meta.symbol_clean || currentSymbol;
+  const manualSymSelect = document.getElementById("manualSymbolSelect");
+  const catalog = data.markets_catalog || {};
+
+  if (manualSymSelect && Object.keys(catalog).length > 0 && manualSymSelect.options.length <= 1) {
+    manualSymSelect.innerHTML = Object.entries(catalog)
+      .map(([sym, meta]) => `<option value="${sym}">${meta.name || sym} (${meta.symbol_clean || sym})</option>`)
+      .join("");
   }
+  if (manualSymSelect && currentSymbol && manualSymSelect.value !== currentSymbol && document.activeElement !== manualSymSelect) {
+    manualSymSelect.value = currentSymbol;
+  }
+
+  const activeManualSym = manualSymSelect?.value || currentSymbol;
+  const activeMeta = catalog[activeManualSym] || {};
+  const cleanLabel = activeMeta.symbol_clean || activeManualSym;
+
+  if (manualSymEl) {
+    manualSymEl.textContent = `${activeMeta.name || activeManualSym} (${cleanLabel})`;
+  }
+  const buyBtnEl = document.getElementById("manualBuyBtn");
+  const sellBtnEl = document.getElementById("manualSellBtn");
+  if (buyBtnEl) buyBtnEl.textContent = `🟢 Comprar ${cleanLabel}`;
+  if (sellBtnEl) sellBtnEl.textContent = `🔴 Vender ${cleanLabel}`;
+
   if (manualCashEl && data.portfolio) {
     manualCashEl.textContent = `Disponible: ${formatEur(data.portfolio.cash_eur || 0)}`;
   }
@@ -1168,7 +1188,12 @@ window.editPositionRisk = async function(symbol, curSl, curTp, curTrail) {
   fetchState();
 };
 
+function getSelectedManualSymbol() {
+  return document.getElementById("manualSymbolSelect")?.value || currentSymbol;
+}
+
 async function executeManualBuy() {
+  const targetSym = getSelectedManualSymbol();
   const input = document.getElementById("manualAmountEur");
   const amount = parseFloat(input ? input.value : "0");
   const orderType = document.getElementById("manualOrderType")?.value || "MARKET";
@@ -1191,7 +1216,7 @@ async function executeManualBuy() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        symbol: currentSymbol,
+        symbol: targetSym,
         amount_eur: amount,
         order_type: orderType,
         limit_price: orderType === "LIMIT" ? parseFloat(limitPrice) : null,
@@ -1300,12 +1325,35 @@ if (manualBuyBtn) {
   manualBuyBtn.addEventListener("click", executeManualBuy);
 }
 
+const manualSymbolSelectEl = document.getElementById("manualSymbolSelect");
+if (manualSymbolSelectEl) {
+  manualSymbolSelectEl.addEventListener("change", async () => {
+    const chosen = manualSymbolSelectEl.value;
+    currentSymbol = chosen;
+    const meta = (lastStateData?.markets_catalog || {})[chosen] || {};
+    const clean = meta.symbol_clean || chosen;
+    const badge = document.getElementById("manualTradeSymbolBadge");
+    const buyBtnEl = document.getElementById("manualBuyBtn");
+    const sellBtnEl = document.getElementById("manualSellBtn");
+    if (badge) badge.textContent = `${meta.name || chosen} (${clean})`;
+    if (buyBtnEl) buyBtnEl.textContent = `🟢 Comprar ${clean}`;
+    if (sellBtnEl) sellBtnEl.textContent = `🔴 Vender ${clean}`;
+    updateManualRiskPreview();
+    await authFetch("/static/api/symbol", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol: chosen })
+    });
+    fetchState();
+  });
+}
+
 const manualSellBtn = document.getElementById("manualSellBtn");
 if (manualSellBtn) {
   manualSellBtn.addEventListener("click", () => {
     const sel = document.getElementById("manualSellPct");
     const pct = parseFloat(sel ? sel.value : "1.0");
-    executeManualSell(currentSymbol, pct);
+    executeManualSell(getSelectedManualSymbol(), pct);
   });
 }
 
