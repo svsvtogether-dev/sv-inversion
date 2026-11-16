@@ -41,7 +41,29 @@ MARKETS_CATALOG = {
     "VETEUR": {"name": "VeChain", "category": "crypto", "sub_category": "l1", "source": "binance", "currency": "EUR", "symbol_clean": "VET/EUR"},
     "EGLDEUR": {"name": "MultiversX", "category": "crypto", "sub_category": "l1", "source": "binance", "currency": "EUR", "symbol_clean": "EGLD/EUR"},
     "SEUR": {"name": "Sonic (S)", "category": "crypto", "sub_category": "l1", "source": "binance", "currency": "EUR", "symbol_clean": "S/EUR"},
-    "WINEUR": {"name": "WINkLink", "category": "crypto", "sub_category": "l1", "source": "binance", "currency": "EUR", "symbol_clean": "WIN/EUR"}
+    "WINEUR": {"name": "WINkLink", "category": "crypto", "sub_category": "l1", "source": "binance", "currency": "EUR", "symbol_clean": "WIN/EUR"},
+    # Acciones Internacionales y Españolas (Yahoo Finance -> Conversión automática a EUR)
+    "AAPL": {"name": "Apple", "category": "stocks", "sub_category": "us_tech", "source": "yahoo", "currency": "USD", "symbol_clean": "AAPL"},
+    "MSFT": {"name": "Microsoft", "category": "stocks", "sub_category": "us_tech", "source": "yahoo", "currency": "USD", "symbol_clean": "MSFT"},
+    "NVDA": {"name": "Nvidia", "category": "stocks", "sub_category": "us_tech", "source": "yahoo", "currency": "USD", "symbol_clean": "NVDA"},
+    "TSLA": {"name": "Tesla", "category": "stocks", "sub_category": "us_tech", "source": "yahoo", "currency": "USD", "symbol_clean": "TSLA"},
+    "AMZN": {"name": "Amazon", "category": "stocks", "sub_category": "us_tech", "source": "yahoo", "currency": "USD", "symbol_clean": "AMZN"},
+    "GOOGL": {"name": "Alphabet (Google)", "category": "stocks", "sub_category": "us_tech", "source": "yahoo", "currency": "USD", "symbol_clean": "GOOGL"},
+    "META": {"name": "Meta Platforms", "category": "stocks", "sub_category": "us_tech", "source": "yahoo", "currency": "USD", "symbol_clean": "META"},
+    "SAN.MC": {"name": "Banco Santander", "category": "stocks", "sub_category": "ibex", "source": "yahoo", "currency": "EUR", "symbol_clean": "SAN.MC"},
+    "ITX.MC": {"name": "Inditex", "category": "stocks", "sub_category": "ibex", "source": "yahoo", "currency": "EUR", "symbol_clean": "ITX.MC"},
+    "BBVA.MC": {"name": "BBVA", "category": "stocks", "sub_category": "ibex", "source": "yahoo", "currency": "EUR", "symbol_clean": "BBVA.MC"},
+    # ETFs e Índices Globales
+    "IWDA.AS": {"name": "MSCI World ETF", "category": "etfs", "sub_category": "etf", "source": "yahoo", "currency": "EUR", "symbol_clean": "IWDA.AS"},
+    "SPY": {"name": "S&P 500 ETF", "category": "etfs", "sub_category": "etf", "source": "yahoo", "currency": "USD", "symbol_clean": "SPY"},
+    "QQQ": {"name": "Nasdaq 100 ETF", "category": "etfs", "sub_category": "etf", "source": "yahoo", "currency": "USD", "symbol_clean": "QQQ"},
+    "^GSPC": {"name": "Índice S&P 500", "category": "etfs", "sub_category": "index", "source": "yahoo", "currency": "USD", "symbol_clean": "S&P 500"},
+    "^IXIC": {"name": "Índice Nasdaq 100", "category": "etfs", "sub_category": "index", "source": "yahoo", "currency": "USD", "symbol_clean": "NASDAQ"},
+    "^IBEX": {"name": "Índice IBEX 35", "category": "etfs", "sub_category": "index", "source": "yahoo", "currency": "EUR", "symbol_clean": "IBEX 35"},
+    # Materias Primas
+    "GC=F": {"name": "Oro (Gold)", "category": "commodities", "sub_category": "metals", "source": "yahoo", "currency": "USD", "symbol_clean": "ORO/USD"},
+    "SI=F": {"name": "Plata (Silver)", "category": "commodities", "sub_category": "metals", "source": "yahoo", "currency": "USD", "symbol_clean": "PLATA/USD"},
+    "CL=F": {"name": "Petróleo WTI", "category": "commodities", "sub_category": "energy", "source": "yahoo", "currency": "USD", "symbol_clean": "WTI/USD"}
 }
 
 SUPPORTED_SYMBOLS = list(MARKETS_CATALOG.keys())

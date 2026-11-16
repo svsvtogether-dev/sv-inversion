@@ -285,8 +285,19 @@ function renderState(data) {
   const catalog = data.markets_catalog || {};
 
   if (manualSymSelect && Object.keys(catalog).length > 0 && manualSymSelect.options.length <= 1) {
-    manualSymSelect.innerHTML = Object.entries(catalog)
-      .map(([sym, meta]) => `<option value="${sym}">${meta.name || sym} (${meta.symbol_clean || sym})</option>`)
+    const groups = {
+      crypto: { label: "🪙 Criptomonedas (Binance EUR)", items: [] },
+      stocks: { label: "📈 Acciones (EE.UU. & España)", items: [] },
+      etfs: { label: "🌍 ETFs e Índices Globales", items: [] },
+      commodities: { label: "🥇 Materias Primas", items: [] }
+    };
+    for (const [sym, meta] of Object.entries(catalog)) {
+      const grp = groups[meta.category] || groups.crypto;
+      grp.items.push(`<option value="${sym}">${meta.name || sym} (${meta.symbol_clean || sym})</option>`);
+    }
+    manualSymSelect.innerHTML = Object.values(groups)
+      .filter(g => g.items.length > 0)
+      .map(g => `<optgroup label="${g.label}">${g.items.join("")}</optgroup>`)
       .join("");
   }
   if (manualSymSelect && currentSymbol && manualSymSelect.value !== currentSymbol && document.activeElement !== manualSymSelect) {

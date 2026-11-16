@@ -140,9 +140,24 @@
           ⭐ Top 4 Líderes (4)
         </button>
         <button class="cat-btn has-help" data-category="all"
-                data-tooltip-title="Todos los Mercados Binance EUR (29)"
-                data-tooltip="El bot escanea en paralelo los 29 pares oficiales de Binance Spot cotizados directamente en Euros.">
-          🪙 Todos (29)
+                data-tooltip-title="Todos los Mercados (47)"
+                data-tooltip="Incluye Criptomonedas (Binance EUR), Acciones, ETFs, Índices y Materias Primas.">
+          🌐 Todos (47)
+        </button>
+        <button class="cat-btn has-help" data-category="stocks"
+                data-tooltip-title="Acciones Internacionales y Españolas (10)"
+                data-tooltip="Apple, Microsoft, Nvidia, Tesla, Amazon, Google, Meta, Santander, Inditex y BBVA.">
+          📈 Acciones (10)
+        </button>
+        <button class="cat-btn has-help" data-category="etfs"
+                data-tooltip-title="ETFs e Índices Globales (6)"
+                data-tooltip="MSCI World, S&P 500, Nasdaq 100 e IBEX 35.">
+          🌍 ETFs e Índices (6)
+        </button>
+        <button class="cat-btn has-help" data-category="commodities"
+                data-tooltip-title="Materias Primas (3)"
+                data-tooltip="Oro, Plata y Petróleo WTI.">
+          🥇 Materias Primas (3)
         </button>
         <button class="cat-btn has-help" data-category="top"
                 data-tooltip-title="Top Caps (11)"
@@ -551,12 +566,12 @@
     </main>
   </div>
 
-  <script src="/static/app.js?v=30"></script>
+  <script src="/static/app.js?v=31"></script>
   <!-- Service Worker PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=30').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('/static/sw.js?v=31').catch(err => console.log('SW error:', err));
       });
     }
 

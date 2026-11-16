@@ -151,7 +151,7 @@ class MarketDataFeed:
         candles = []
 
         try:
-            url = f"{YAHOO_CHART_BASE}/{symbol}?interval=5m&range=1d"
+            url = f"{YAHOO_CHART_BASE}/{symbol}?interval=5m&range=5d"
             resp = self.session.get(url, timeout=self.timeout)
             if resp.status_code == 200:
                 res = resp.json()["chart"]["result"][0]
