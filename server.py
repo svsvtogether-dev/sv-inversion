@@ -128,6 +128,15 @@ def data_emergency_sell(request: Request):
     return {"message": f"Se liquidaron {sold} posiciones"}
 
 
+def _parse_opt_float(val) -> Optional[float]:
+    if val is None or val == "":
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
 @data_api_app.post("/manual/buy")
 async def data_manual_buy(request: Request):
     _require_api_auth(request)
@@ -137,7 +146,15 @@ async def data_manual_buy(request: Request):
         amount_eur = float(body.get("amount_eur", 0))
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail="Importe EUR inválido")
-    res = bot.manual_buy(symbol=symbol, amount_eur=amount_eur)
+    res = bot.manual_buy(
+        symbol=symbol,
+        amount_eur=amount_eur,
+        order_type=str(body.get("order_type") or "MARKET"),
+        limit_price=_parse_opt_float(body.get("limit_price")),
+        sl_pct=_parse_opt_float(body.get("sl_pct")),
+        tp_pct=_parse_opt_float(body.get("tp_pct")),
+        trail_pct=_parse_opt_float(body.get("trail_pct")),
+    )
     if not res.get("ok"):
         raise HTTPException(status_code=400, detail=res.get("error", "No se pudo ejecutar la compra"))
     return res
@@ -152,9 +169,43 @@ async def data_manual_sell(request: Request):
         sell_pct = float(body.get("sell_pct", 1.0))
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail="Porcentaje de venta inválido")
-    res = bot.manual_sell(symbol=symbol, sell_pct=sell_pct)
+    res = bot.manual_sell(
+        symbol=symbol,
+        sell_pct=sell_pct,
+        order_type=str(body.get("order_type") or "MARKET"),
+        limit_price=_parse_opt_float(body.get("limit_price")),
+    )
     if not res.get("ok"):
         raise HTTPException(status_code=400, detail=res.get("error", "No se pudo ejecutar la venta"))
+    return res
+
+
+@data_api_app.post("/manual/risk")
+async def data_manual_risk(request: Request):
+    _require_api_auth(request)
+    body = await request.json()
+    symbol = str(body.get("symbol") or bot.current_symbol)
+    res = bot.update_position_risk(
+        symbol=symbol,
+        sl_pct=_parse_opt_float(body.get("sl_pct")),
+        tp_pct=_parse_opt_float(body.get("tp_pct")),
+        trail_pct=_parse_opt_float(body.get("trail_pct")),
+    )
+    if not res.get("ok"):
+        raise HTTPException(status_code=400, detail=res.get("error", "No se pudo actualizar el riesgo"))
+    return res
+
+
+@data_api_app.post("/manual/cancel")
+async def data_manual_cancel(request: Request):
+    _require_api_auth(request)
+    body = await request.json()
+    order_id = str(body.get("order_id") or "").strip()
+    if not order_id:
+        raise HTTPException(status_code=400, detail="Falta order_id")
+    res = bot.cancel_manual_order(order_id)
+    if not res.get("ok"):
+        raise HTTPException(status_code=404, detail=res.get("error", "Orden no encontrada"))
     return res
 
 @data_api_app.get("/export_csv")

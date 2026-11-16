@@ -197,6 +197,37 @@ class Portfolio:
         self.save()
         return trade
 
+    def set_position_risk(
+        self,
+        symbol: str,
+        sl_pct: Optional[float] = None,
+        tp_pct: Optional[float] = None,
+        trail_pct: Optional[float] = None,
+    ) -> Optional[Dict]:
+        """Configura o actualiza SL, TP y Trailing Stop personalizados en una posición abierta."""
+        pos = self.positions.get(symbol)
+        if not pos:
+            return None
+        if sl_pct is not None and sl_pct != 0:
+            pos["manual_sl_pct"] = -abs(float(sl_pct))
+        else:
+            pos.pop("manual_sl_pct", None)
+
+        if tp_pct is not None and tp_pct > 0:
+            pos["manual_tp_pct"] = abs(float(tp_pct))
+        else:
+            pos.pop("manual_tp_pct", None)
+
+        if trail_pct is not None and trail_pct > 0:
+            pos["manual_trail_pct"] = abs(float(trail_pct))
+        else:
+            pos.pop("manual_trail_pct", None)
+
+        if "peak_price" not in pos or pos["peak_price"] <= 0:
+            pos["peak_price"] = pos.get("avg_entry_price", 0.0)
+        self.save()
+        return pos
+
     def sell(self, symbol: str, current_price: float, reason: str = "", sell_pct: float = 1.0, sweep_pct: Optional[float] = None) -> Optional[Dict]:
         """Ejecuta una venta ajustando al stepSize de Binance para evitar errores por polvo (dust)."""
         pos = self.positions.get(symbol)
@@ -266,6 +297,37 @@ class Portfolio:
         self.save()
         return trade
 
+    def set_position_risk(
+        self,
+        symbol: str,
+        sl_pct: Optional[float] = None,
+        tp_pct: Optional[float] = None,
+        trail_pct: Optional[float] = None,
+    ) -> Optional[Dict]:
+        """Configura o actualiza SL, TP y Trailing Stop personalizados en una posición abierta."""
+        pos = self.positions.get(symbol)
+        if not pos:
+            return None
+        if sl_pct is not None and sl_pct != 0:
+            pos["manual_sl_pct"] = -abs(float(sl_pct))
+        else:
+            pos.pop("manual_sl_pct", None)
+
+        if tp_pct is not None and tp_pct > 0:
+            pos["manual_tp_pct"] = abs(float(tp_pct))
+        else:
+            pos.pop("manual_tp_pct", None)
+
+        if trail_pct is not None and trail_pct > 0:
+            pos["manual_trail_pct"] = abs(float(trail_pct))
+        else:
+            pos.pop("manual_trail_pct", None)
+
+        if "peak_price" not in pos or pos["peak_price"] <= 0:
+            pos["peak_price"] = pos.get("avg_entry_price", 0.0)
+        self.save()
+        return pos
+
     def _csv_path(self) -> Path:
         return DATA_DIR / "trades_history.csv"
 
@@ -324,7 +386,12 @@ class Portfolio:
                 "current_value_eur": round(val, 4),
                 "unrealized_pnl_eur": round(unrealized, 4),
                 "unrealized_pnl_pct": round(unrealized_pct, 2),
-                "dca_count": pos.get("dca_count", 1)
+                "dca_count": pos.get("dca_count", 1),
+                "strategy_tag": pos.get("strategy_tag", "AUTO"),
+                "manual_sl_pct": pos.get("manual_sl_pct"),
+                "manual_tp_pct": pos.get("manual_tp_pct"),
+                "manual_trail_pct": pos.get("manual_trail_pct"),
+                "peak_price": pos.get("peak_price", pos["avg_entry_price"]),
             })
 
         total_portfolio_value = self.cash + positions_value + self.msci_vault_eur

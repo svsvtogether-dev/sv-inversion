@@ -288,6 +288,8 @@ function renderState(data) {
   if (manualCashEl && data.portfolio) {
     manualCashEl.textContent = `Disponible: ${formatEur(data.portfolio.cash_eur || 0)}`;
   }
+  updateManualRiskPreview();
+  renderPendingManualOrders(data.pending_orders || []);
   currentCategory = data.active_category || "all";
   isRunning = data.is_running;
   marketsCatalog = data.markets_catalog || {};
@@ -638,8 +640,16 @@ function renderState(data) {
             <small style="color: #38bdf8;">Meta TP: +${(auto.target_tp_pct || 3.5)}% (${formatEur(tpTarget)})</small>
           </td>
           <td>
-            <span class="dca-badge">DCA ${pos.dca_count}/3</span><br/>
-            <button type="button" class="btn btn-danger btn-sm" style="margin-top:4px; padding:2px 8px; font-size:11px;" onclick="quickSellPosition('${pos.symbol}')">🔴 Vender 100%</button>
+            <span class="dca-badge">${pos.strategy_tag === "MANUAL" ? "✋ MANUAL" : `DCA ${pos.dca_count}/3`}</span><br/>
+            <small style="color:#94a3b8; display:block; margin-top:2px;">
+              ${pos.manual_sl_pct != null ? `SL ${pos.manual_sl_pct}%` : "Sin SL"} ·
+              ${pos.manual_tp_pct != null ? `TP +${pos.manual_tp_pct}%` : "Sin TP"}
+              ${pos.manual_trail_pct != null ? ` · Trail ${pos.manual_trail_pct}%` : ""}
+            </small>
+            <div style="display:flex; gap:4px; margin-top:4px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-secondary btn-sm" style="padding:2px 7px; font-size:11px;" onclick="editPositionRisk('${pos.symbol}', ${pos.manual_sl_pct ?? "null"}, ${pos.manual_tp_pct ?? "null"}, ${pos.manual_trail_pct ?? "null"})">🛡️ SL/TP</button>
+              <button type="button" class="btn btn-danger btn-sm" style="padding:2px 7px; font-size:11px;" onclick="quickSellPosition('${pos.symbol}')">🔴 Vender 100%</button>
+            </div>
           </td>
         </tr>
       `;
@@ -1061,50 +1071,186 @@ function setManualFeedback(msg, isError = false) {
   el.style.color = isError ? "#f87171" : "#4ade80";
 }
 
+function getManualBasePrice() {
+  const orderType = document.getElementById("manualOrderType")?.value || "MARKET";
+  const limitVal = parseFloat(document.getElementById("manualLimitPrice")?.value || "0");
+  if (orderType === "LIMIT" && limitVal > 0) return limitVal;
+  return Number(lastStateData?.analysis?.price || 0);
+}
+
+function updateManualRiskPreview() {
+  const el = document.getElementById("manualRiskPreview");
+  if (!el) return;
+  const basePrice = getManualBasePrice();
+  const slRaw = parseFloat(document.getElementById("manualStopLossPct")?.value || "");
+  const tpRaw = parseFloat(document.getElementById("manualTakeProfitPct")?.value || "");
+  const trRaw = parseFloat(document.getElementById("manualTrailPct")?.value || "");
+
+  const parts = [];
+  if (basePrice > 0) {
+    if (!isNaN(slRaw) && slRaw !== 0) {
+      const slPct = -Math.abs(slRaw);
+      parts.push(`🛑 SL: ${slPct}% (~${formatEur(basePrice * (1 + slPct / 100))})`);
+    }
+    if (!isNaN(tpRaw) && tpRaw > 0) {
+      parts.push(`🎯 TP: +${tpRaw}% (~${formatEur(basePrice * (1 + tpRaw / 100))})`);
+    }
+    if (!isNaN(trRaw) && trRaw > 0) {
+      parts.push(`📉 Trailing: -${trRaw}% desde máximo`);
+    }
+  }
+  el.textContent = parts.length > 0 ? `Protección automática: ${parts.join("  |  ")}` : "";
+}
+
+function renderPendingManualOrders(orders) {
+  const box = document.getElementById("manualPendingOrdersBox");
+  if (!box) return;
+  if (!orders || orders.length === 0) {
+    box.style.display = "none";
+    box.innerHTML = "";
+    return;
+  }
+  box.style.display = "block";
+  box.innerHTML = `
+    <div style="font-size:11px; font-weight:700; color:#38bdf8; margin-bottom:6px;">📌 ÓRDENES LÍMITE PENDIENTES (${orders.length})</div>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      ${orders.map(o => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; border-radius:8px; background:rgba(15,23,42,0.7); border:1px solid rgba(56,189,248,0.25); font-size:12px;">
+          <span>
+            <strong>${o.side}</strong> ${o.symbol}
+            ${o.side === "BUY" ? `€${Number(o.amount_eur || 0).toFixed(2)}` : `${Math.round((o.sell_pct || 1) * 100)}%`}
+            @ <strong>${formatEur(o.limit_price)}</strong>
+            ${o.sl_pct ? ` · SL ${o.sl_pct}%` : ""}${o.tp_pct ? ` · TP +${o.tp_pct}%` : ""}${o.trail_pct ? ` · Trail ${o.trail_pct}%` : ""}
+          </span>
+          <button type="button" class="btn btn-secondary btn-sm" style="padding:2px 8px; font-size:11px;" onclick="cancelManualOrder('${o.id}')">❌ Cancelar</button>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+window.cancelManualOrder = async function(orderId) {
+  const res = await authFetch("/static/api/manual/cancel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order_id: orderId })
+  });
+  if (res.ok) {
+    setManualFeedback("✅ Orden límite cancelada.", false);
+    fetchState();
+  }
+};
+
+window.editPositionRisk = async function(symbol, curSl, curTp, curTrail) {
+  const slInput = window.prompt(`Stop Loss % para ${symbol} (ej: -3.5, vacío para quitar):`, curSl !== null ? String(curSl) : "");
+  if (slInput === null) return;
+  const tpInput = window.prompt(`Take Profit % para ${symbol} (ej: 6.0, vacío para quitar):`, curTp !== null ? String(curTp) : "");
+  if (tpInput === null) return;
+  const trInput = window.prompt(`Trailing Stop % para ${symbol} (ej: 2.0, vacío para quitar):`, curTrail !== null ? String(curTrail) : "");
+  if (trInput === null) return;
+
+  const res = await authFetch("/static/api/manual/risk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      symbol,
+      sl_pct: slInput.trim() === "" ? null : parseFloat(slInput),
+      tp_pct: tpInput.trim() === "" ? null : parseFloat(tpInput),
+      trail_pct: trInput.trim() === "" ? null : parseFloat(trInput)
+    })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    setManualFeedback(`❌ ${data.detail || "No se pudo actualizar SL/TP"}`, true);
+    return;
+  }
+  setManualFeedback(`✅ SL/TP/Trailing actualizados en ${symbol}.`, false);
+  fetchState();
+};
+
 async function executeManualBuy() {
   const input = document.getElementById("manualAmountEur");
   const amount = parseFloat(input ? input.value : "0");
+  const orderType = document.getElementById("manualOrderType")?.value || "MARKET";
+  const limitPrice = document.getElementById("manualLimitPrice")?.value || "";
+  const slPct = document.getElementById("manualStopLossPct")?.value || "";
+  const tpPct = document.getElementById("manualTakeProfitPct")?.value || "";
+  const trailPct = document.getElementById("manualTrailPct")?.value || "";
+
   if (!amount || amount <= 0) {
     setManualFeedback("❌ Introduce un importe válido en EUR.", true);
     return;
   }
-  setManualFeedback("⏳ Ejecutando compra manual...", false);
+  if (orderType === "LIMIT" && (!limitPrice || parseFloat(limitPrice) <= 0)) {
+    setManualFeedback("❌ Introduce un precio límite válido en EUR.", true);
+    return;
+  }
+  setManualFeedback("⏳ Procesando orden de compra...", false);
   try {
     const res = await authFetch("/static/api/manual/buy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol: currentSymbol, amount_eur: amount })
+      body: JSON.stringify({
+        symbol: currentSymbol,
+        amount_eur: amount,
+        order_type: orderType,
+        limit_price: orderType === "LIMIT" ? parseFloat(limitPrice) : null,
+        sl_pct: slPct !== "" ? parseFloat(slPct) : null,
+        tp_pct: tpPct !== "" ? parseFloat(tpPct) : null,
+        trail_pct: trailPct !== "" ? parseFloat(trailPct) : null
+      })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setManualFeedback(`❌ ${data.detail || "Error al ejecutar compra"}`, true);
       return;
     }
-    const t = data.trade || {};
-    setManualFeedback(`✅ Compra ejecutada: ${t.symbol || currentSymbol} por €${Number(t.amount_eur || amount).toFixed(2)} @ €${Number(t.price || 0).toFixed(2)}`, false);
+    if (data.pending) {
+      const o = data.order || {};
+      setManualFeedback(`📌 Orden Límite BUY creada: ${o.symbol} €${Number(o.amount_eur || amount).toFixed(2)} @ ${formatEur(o.limit_price)}`, false);
+    } else {
+      const t = data.trade || {};
+      setManualFeedback(`✅ Compra ejecutada: ${t.symbol || currentSymbol} por €${Number(t.amount_eur || amount).toFixed(2)} @ €${Number(t.price || 0).toFixed(2)}`, false);
+    }
     fetchState();
   } catch (err) {
     setManualFeedback(`❌ Error de red: ${err.message}`, true);
   }
 }
 
-async function executeManualSell(symbolToSell, sellPct) {
-  setManualFeedback(`⏳ Vendiendo ${symbolToSell}...`, false);
+async function executeManualSell(symbolToSell, sellPct, orderTypeOverride = null, limitPriceOverride = null) {
+  const orderType = orderTypeOverride || document.getElementById("manualOrderType")?.value || "MARKET";
+  const limitPrice = limitPriceOverride !== null ? limitPriceOverride : (document.getElementById("manualLimitPrice")?.value || "");
+  if (orderType === "LIMIT" && (!limitPrice || parseFloat(limitPrice) <= 0)) {
+    setManualFeedback("❌ Introduce un precio límite válido para vender.", true);
+    return;
+  }
+  setManualFeedback(`⏳ Procesando venta de ${symbolToSell}...`, false);
   try {
     const res = await authFetch("/static/api/manual/sell", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol: symbolToSell, sell_pct: sellPct })
+      body: JSON.stringify({
+        symbol: symbolToSell,
+        sell_pct: sellPct,
+        order_type: orderType,
+        limit_price: orderType === "LIMIT" ? parseFloat(limitPrice) : null
+      })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setManualFeedback(`❌ ${data.detail || "Error al ejecutar venta"}`, true);
       return;
     }
-    const t = data.trade || {};
-    const pnl = Number(t.realized_pnl_eur || 0);
-    const pnlSign = pnl >= 0 ? "+" : "";
-    setManualFeedback(`✅ Venta ejecutada: ${t.symbol || symbolToSell} @ €${Number(t.price || 0).toFixed(2)} (P&L: ${pnlSign}€${pnl.toFixed(4)})`, false);
+    if (data.pending) {
+      const o = data.order || {};
+      setManualFeedback(`📌 Orden Límite SELL creada: ${o.symbol} (${Math.round((o.sell_pct || 1) * 100)}%) @ ${formatEur(o.limit_price)}`, false);
+    } else {
+      const t = data.trade || {};
+      const pnl = Number(t.realized_pnl_eur || 0);
+      const pnlSign = pnl >= 0 ? "+" : "";
+      setManualFeedback(`✅ Venta ejecutada: ${t.symbol || symbolToSell} @ €${Number(t.price || 0).toFixed(2)} (P&L: ${pnlSign}€${pnl.toFixed(4)})`, false);
+    }
     fetchState();
   } catch (err) {
     setManualFeedback(`❌ Error de red: ${err.message}`, true);
@@ -1112,8 +1258,26 @@ async function executeManualSell(symbolToSell, sellPct) {
 }
 
 window.quickSellPosition = function(symbolToSell) {
-  executeManualSell(symbolToSell, 1.0);
+  executeManualSell(symbolToSell, 1.0, "MARKET", null);
 };
+
+const manualOrderTypeEl = document.getElementById("manualOrderType");
+if (manualOrderTypeEl) {
+  manualOrderTypeEl.addEventListener("change", () => {
+    const grp = document.getElementById("manualLimitPriceGroup");
+    const limitInput = document.getElementById("manualLimitPrice");
+    if (grp) grp.style.display = manualOrderTypeEl.value === "LIMIT" ? "flex" : "none";
+    if (manualOrderTypeEl.value === "LIMIT" && limitInput && !limitInput.value && lastStateData?.analysis?.price) {
+      limitInput.value = Number(lastStateData.analysis.price).toFixed(2);
+    }
+    updateManualRiskPreview();
+  });
+}
+
+["manualLimitPrice", "manualStopLossPct", "manualTakeProfitPct", "manualTrailPct"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener("input", updateManualRiskPreview);
+});
 
 document.querySelectorAll(".manual-preset-btn").forEach(btn => {
   btn.addEventListener("click", () => {

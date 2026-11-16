@@ -1,4 +1,6 @@
 import sys
+import json
+import uuid
 import time
 import threading
 from datetime import datetime, timezone
@@ -64,6 +66,8 @@ class TradingBot:
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
+        self.manual_orders_file = DATA_DIR / "manual_orders.json"
+        self.pending_orders: List[Dict] = self._load_manual_orders()
 
     @property
     def portfolio(self) -> Portfolio:
@@ -281,6 +285,7 @@ class TradingBot:
                 self.status_message = "Bot en Pausa por el usuario"
                 return
         self._check_daily_experiment_0005_utc()
+        self._process_pending_manual_orders()
 
         # Ciclo vital y consumo de cómputo de Conway Automaton
         self.automaton.burn_cycle()
@@ -325,7 +330,13 @@ class TradingBot:
                     self.last_analysis = analysis
                 position = active_port.positions.get(sym)
                 cash = active_port.cash
-                action, amount_eur, reason = self.automaton.evaluate_position_management(sym, analysis, position, cash, self.config)
+                manual_exit_reason = self._evaluate_manual_risk(sym, price, position)
+                if manual_exit_reason:
+                    action, amount_eur, reason = "SELL", 0.0, manual_exit_reason
+                elif position.get("strategy_tag") == "MANUAL":
+                    action, amount_eur, reason = "HOLD", 0.0, "Posición manual bajo gestión del usuario"
+                else:
+                    action, amount_eur, reason = self.automaton.evaluate_position_management(sym, analysis, position, cash, self.config)
                 now_str = datetime.now().strftime("%H:%M:%S")
 
                 if action == "SELL":
@@ -565,13 +576,130 @@ class TradingBot:
             price = float(analysis.get("price", 0.0) or 0.0)
         return price
 
-    def manual_buy(self, symbol: str, amount_eur: float) -> Dict:
-        """Ejecuta una compra manual en el entorno activo (simulación en v1.0-frozen)."""
+    def _load_manual_orders(self) -> List[Dict]:
+        if not self.manual_orders_file.exists():
+            return []
+        try:
+            with open(self.manual_orders_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, list) else []
+        except Exception:
+            return []
+
+    def _save_manual_orders(self):
+        try:
+            with open(self.manual_orders_file, "w", encoding="utf-8") as f:
+                json.dump(self.pending_orders, f, indent=2)
+        except Exception:
+            pass
+
+    def _evaluate_manual_risk(self, sym: str, price: float, position: Dict) -> Optional[str]:
+        """Evalúa SL, TP y Trailing Stop personalizados configurados en la posición."""
+        if not position or price <= 0:
+            return None
+        avg_entry = float(position.get("avg_entry_price", 0.0) or 0.0)
+        if avg_entry <= 0:
+            return None
+
+        peak = float(position.get("peak_price", avg_entry) or avg_entry)
+        if price > peak:
+            position["peak_price"] = price
+            peak = price
+            self.portfolio.save()
+
+        pnl_pct = ((price - avg_entry) / avg_entry) * 100.0
+        sl_pct = position.get("manual_sl_pct")
+        tp_pct = position.get("manual_tp_pct")
+        trail_pct = position.get("manual_trail_pct")
+
+        if sl_pct is not None and pnl_pct <= float(sl_pct):
+            return f"🛑 Stop Loss Manual ({float(sl_pct):.2f}% | P&L {pnl_pct:+.2f}%)"
+        if tp_pct is not None and pnl_pct >= float(tp_pct):
+            return f"🎯 Take Profit Manual (+{float(tp_pct):.2f}% | P&L {pnl_pct:+.2f}%)"
+        if trail_pct is not None and peak > 0:
+            trail_trigger = peak * (1.0 - float(trail_pct) / 100.0)
+            if price <= trail_trigger:
+                return f"📉 Trailing Stop Manual (-{float(trail_pct):.2f}% desde máximo €{peak:,.2f})"
+        return None
+
+    def _process_pending_manual_orders(self):
+        """Comprueba órdenes Límite pendientes y las ejecuta cuando el precio alcanza el objetivo."""
+        if not self.pending_orders:
+            return
+        with self._lock:
+            orders_snapshot = list(self.pending_orders)
+
+        for order in orders_snapshot:
+            sym = order.get("symbol", "")
+            side = order.get("side", "")
+            limit_price = float(order.get("limit_price", 0.0) or 0.0)
+            if not sym or limit_price <= 0:
+                continue
+            price = self._resolve_live_price(sym)
+            if price <= 0:
+                continue
+
+            if side == "BUY" and price <= limit_price:
+                res = self.manual_buy(
+                    symbol=sym,
+                    amount_eur=float(order.get("amount_eur", 0.0)),
+                    order_type="MARKET",
+                    sl_pct=order.get("sl_pct"),
+                    tp_pct=order.get("tp_pct"),
+                    trail_pct=order.get("trail_pct"),
+                )
+                if res.get("ok"):
+                    self.cancel_manual_order(order["id"], silent=True)
+                    self.log(f"🎯 Orden Límite BUY ejecutada: {sym} @ €{price:,.2f} (objetivo €{limit_price:,.2f})")
+            elif side == "SELL" and price >= limit_price:
+                res = self.manual_sell(
+                    symbol=sym,
+                    sell_pct=float(order.get("sell_pct", 1.0)),
+                    order_type="MARKET",
+                )
+                if res.get("ok"):
+                    self.cancel_manual_order(order["id"], silent=True)
+                    self.log(f"🎯 Orden Límite SELL ejecutada: {sym} @ €{price:,.2f} (objetivo €{limit_price:,.2f})")
+
+    def manual_buy(
+        self,
+        symbol: str,
+        amount_eur: float,
+        order_type: str = "MARKET",
+        limit_price: Optional[float] = None,
+        sl_pct: Optional[float] = None,
+        tp_pct: Optional[float] = None,
+        trail_pct: Optional[float] = None,
+    ) -> Dict:
+        """Ejecuta una compra manual (Mercado o Límite) con SL/TP/Trailing opcionales."""
         sym = (symbol or self.current_symbol).upper().strip()
         if sym not in SUPPORTED_SYMBOLS:
             return {"ok": False, "error": f"Símbolo no soportado: {sym}"}
         if amount_eur <= 0:
             return {"ok": False, "error": "El importe debe ser mayor que 0 €."}
+
+        otype = (order_type or "MARKET").upper().strip()
+        if otype == "LIMIT":
+            if not limit_price or float(limit_price) <= 0:
+                return {"ok": False, "error": "Indica un precio límite válido mayor que 0 €."}
+            with self._lock:
+                if self.portfolio.cash < float(amount_eur):
+                    return {"ok": False, "error": f"Saldo insuficiente para reservar la orden (disponible: €{self.portfolio.cash:.2f})."}
+                order = {
+                    "id": uuid.uuid4().hex[:8],
+                    "symbol": sym,
+                    "side": "BUY",
+                    "amount_eur": round(float(amount_eur), 2),
+                    "limit_price": round(float(limit_price), 4),
+                    "sl_pct": -abs(float(sl_pct)) if sl_pct else None,
+                    "tp_pct": abs(float(tp_pct)) if tp_pct else None,
+                    "trail_pct": abs(float(trail_pct)) if trail_pct else None,
+                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                self.pending_orders.append(order)
+                self._save_manual_orders()
+                self.log(f"📌 Orden Límite BUY creada: {sym} €{order['amount_eur']:.2f} si baja a €{order['limit_price']:,.2f}")
+                return {"ok": True, "pending": True, "order": order, "cash_eur": round(self.portfolio.cash, 4)}
 
         price = self._resolve_live_price(sym)
         if price <= 0:
@@ -593,6 +721,8 @@ class TradingBot:
                     "ok": False,
                     "error": f"Orden rechazada por mínimo de Binance o saldo insuficiente (disponible: €{active_port.cash:.2f}).",
                 }
+            if sl_pct or tp_pct or trail_pct:
+                active_port.set_position_risk(sym, sl_pct=sl_pct, tp_pct=tp_pct, trail_pct=trail_pct)
             self.last_action = {
                 "action": "BUY",
                 "reason": f"Compra manual {sym} (€{trade['amount_eur']:.2f})",
@@ -601,12 +731,39 @@ class TradingBot:
             self.log(f"✋ Compra manual ({trade['environment'].upper()}): {sym} €{trade['amount_eur']:.2f} @ €{price:,.2f}")
             return {"ok": True, "trade": trade, "cash_eur": round(active_port.cash, 4)}
 
-    def manual_sell(self, symbol: str, sell_pct: float = 1.0) -> Dict:
-        """Ejecuta una venta manual (parcial o total) en el entorno activo."""
+    def manual_sell(
+        self,
+        symbol: str,
+        sell_pct: float = 1.0,
+        order_type: str = "MARKET",
+        limit_price: Optional[float] = None,
+    ) -> Dict:
+        """Ejecuta una venta manual (Mercado o Límite) parcial o total."""
         sym = (symbol or self.current_symbol).upper().strip()
         if sym not in SUPPORTED_SYMBOLS:
             return {"ok": False, "error": f"Símbolo no soportado: {sym}"}
         pct = max(0.01, min(1.0, float(sell_pct)))
+
+        otype = (order_type or "MARKET").upper().strip()
+        if otype == "LIMIT":
+            if not limit_price or float(limit_price) <= 0:
+                return {"ok": False, "error": "Indica un precio límite válido mayor que 0 €."}
+            with self._lock:
+                pos = self.portfolio.positions.get(sym)
+                if not pos or pos.get("amount", 0.0) <= 0:
+                    return {"ok": False, "error": f"No tienes posición abierta en {sym}."}
+                order = {
+                    "id": uuid.uuid4().hex[:8],
+                    "symbol": sym,
+                    "side": "SELL",
+                    "sell_pct": pct,
+                    "limit_price": round(float(limit_price), 4),
+                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                self.pending_orders.append(order)
+                self._save_manual_orders()
+                self.log(f"📌 Orden Límite SELL creada: {sym} ({int(round(pct*100))}%) si sube a €{order['limit_price']:,.2f}")
+                return {"ok": True, "pending": True, "order": order, "cash_eur": round(self.portfolio.cash, 4)}
 
         price = self._resolve_live_price(sym)
         with self._lock:
@@ -637,6 +794,35 @@ class TradingBot:
                 f"| P&L: €{trade['realized_pnl_eur']:+.4f}"
             )
             return {"ok": True, "trade": trade, "cash_eur": round(active_port.cash, 4)}
+
+    def update_position_risk(
+        self,
+        symbol: str,
+        sl_pct: Optional[float] = None,
+        tp_pct: Optional[float] = None,
+        trail_pct: Optional[float] = None,
+    ) -> Dict:
+        sym = (symbol or self.current_symbol).upper().strip()
+        with self._lock:
+            pos = self.portfolio.set_position_risk(sym, sl_pct=sl_pct, tp_pct=tp_pct, trail_pct=trail_pct)
+            if not pos:
+                return {"ok": False, "error": f"No hay posición abierta en {sym}."}
+            self.log(
+                f"🛡️ Riesgo actualizado en {sym}: SL={pos.get('manual_sl_pct')}% | "
+                f"TP={pos.get('manual_tp_pct')}% | Trail={pos.get('manual_trail_pct')}%"
+            )
+            return {"ok": True, "symbol": sym, "position": pos}
+
+    def cancel_manual_order(self, order_id: str, silent: bool = False) -> Dict:
+        with self._lock:
+            before = len(self.pending_orders)
+            self.pending_orders = [o for o in self.pending_orders if o.get("id") != order_id]
+            if len(self.pending_orders) == before:
+                return {"ok": False, "error": "Orden no encontrada."}
+            self._save_manual_orders()
+            if not silent:
+                self.log(f"❌ Orden límite {order_id} cancelada por el usuario.")
+            return {"ok": True, "pending_orders": list(self.pending_orders)}
 
     def get_state(self) -> Dict:
         if self.current_symbol not in self.feed.last_analysis_cache:
@@ -679,5 +865,6 @@ class TradingBot:
                 "live": live_summary,
                 "automaton": self.automaton.get_status_dict(),
                 "config": self.config,
+                "pending_orders": list(self.pending_orders),
                 "logs": self.logs[:35]
             }
